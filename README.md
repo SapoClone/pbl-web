@@ -1,4 +1,4 @@
-# [Techsoft] React Tailwindcss Boilerplate build with Vite
+# React Tailwindcss Boilerplate build with Vite
 
 This is a boilerplate build with Vite, React 18, TypeScript, Vitest, Testing Library, TailwindCSS 3, Eslint and Prettier.
 
