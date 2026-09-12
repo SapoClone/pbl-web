@@ -7,6 +7,14 @@ import path from "path"
 // https://vitejs.dev/config https://vitest.dev/config
 export default defineConfig({
   plugins: [react(), tsconfigPaths()],
+  server: {
+    proxy: {
+      "/api": {
+        target: "http://pbl-api-1448699134.ap-southeast-1.elb.amazonaws.com",
+        changeOrigin: true
+      }
+    }
+  },
   test: {
     globals: true,
     environment: "happy-dom",
