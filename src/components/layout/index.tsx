@@ -10,7 +10,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <div className="w-full px-8">{children}</div>
+      <div className="min-w-0 flex-1 bg-[#f7faf9] px-5 pt-4 md:px-8 md:pt-0">{children}</div>
     </div>
   )
 }

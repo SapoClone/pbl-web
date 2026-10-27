@@ -1,5 +1,5 @@
 import { create } from "zustand"
-import type { AuthTokens } from "@/api/auth"
+import type { AuthTokens } from "@/api/auth.types"
 
 const AUTH_STORAGE_KEY = "pbl-auth"
 
