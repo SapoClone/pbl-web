@@ -7,7 +7,7 @@ import {
 import { PostNotFoundError } from "../posts"
 import { postQueryOptions } from "../api/tanstack-query/postQueryOptions"
 
-export const Route = new FileRoute("/posts/$postId").createRoute({
+export const Route = new FileRoute('/posts/$postId').createRoute({
   loader: ({ context: { queryClient }, params: { postId } }) =>
     queryClient.ensureQueryData(postQueryOptions(postId)),
   errorComponent: PostErrorComponent as never,

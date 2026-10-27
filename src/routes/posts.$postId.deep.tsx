@@ -2,7 +2,7 @@ import { FileRoute, Link } from "@tanstack/react-router"
 import { PostErrorComponent } from "./posts.$postId"
 import { postQueryOptions } from "../api/tanstack-query/postQueryOptions"
 
-export const Route = new FileRoute("/posts/$postId/deep").createRoute({
+export const Route = new FileRoute('/posts/$postId/deep').createRoute({
   loader: ({ context: { queryClient }, params: { postId } }) =>
     queryClient.ensureQueryData(postQueryOptions(postId)),
   errorComponent: PostErrorComponent as never,

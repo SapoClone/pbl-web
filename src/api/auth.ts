@@ -1,11 +1,7 @@
 import { axiosClient } from "./axios"
+import type { AuthTokens } from "./auth.types"
 
-export type AuthTokens = {
-  userId: string
-  accessToken: string
-  refreshToken: string
-  tokenExpires: number
-}
+export type { AuthTokens } from "./auth.types"
 
 export type Credentials = {
   email: string

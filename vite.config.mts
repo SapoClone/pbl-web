@@ -10,7 +10,11 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: "http://pbl-api-1448699134.ap-southeast-1.elb.amazonaws.com",
+        target: "http://localhost:8080",
+        changeOrigin: true
+      },
+      "/platform": {
+        target: "http://localhost:8080",
         changeOrigin: true
       }
     }

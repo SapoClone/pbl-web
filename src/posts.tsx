@@ -1,4 +1,5 @@
 import axios from "axios"
+import { axiosClient } from "@/api/axios"
 
 export type PostType = {
   id: string
@@ -6,16 +7,31 @@ export type PostType = {
   body: string
 }
 
+type PostApiResponse = {
+  id: string
+  title: string
+  description?: string
+  content?: string
+}
+
+type PostListResponse = {
+  data: PostApiResponse[]
+}
+
+const toPost = (post: PostApiResponse): PostType => ({
+  id: post.id,
+  title: post.title,
+  body: post.content ?? post.description ?? ""
+})
+
 export class PostNotFoundError extends Error {}
 
 export const fetchPost = async (postId: string) => {
-  console.log(`Fetching post with id ${postId}...`)
-  await new Promise((r) => setTimeout(r, 500))
-  const post = await axios
-    .get<PostType>(`https://jsonplaceholder.typicode.com/posts/${postId}`)
-    .then((r) => r.data)
+  const post = await axiosClient
+    .get<PostApiResponse>(`/posts/${postId}`)
+    .then((r) => toPost(r.data))
     .catch((err) => {
-      if (err.response.status === 404) {
+      if (axios.isAxiosError(err) && err.response?.status === 404) {
         throw new PostNotFoundError(`Post with id "${postId}" not found!`)
       }
       throw err
@@ -25,9 +41,7 @@ export const fetchPost = async (postId: string) => {
 }
 
 export const fetchPosts = async () => {
-  console.log("Fetching posts...")
-  await new Promise((r) => setTimeout(r, 500))
-  return axios
-    .get<PostType[]>("https://jsonplaceholder.typicode.com/posts")
-    .then((r) => r.data.slice(0, 10))
+  return axiosClient
+    .get<PostListResponse>("/posts")
+    .then((r) => r.data.data.map(toPost))
 }
