@@ -88,6 +88,52 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
     }
   }
 
+  if (mode === "login") {
+    return (
+      <main className="min-h-screen bg-[#f3f6f5] text-[#284341] lg:grid lg:grid-cols-[.92fr_1fr]">
+        <section className="hidden min-h-screen flex-col bg-[#e6f2ec] p-12 lg:flex xl:p-16">
+          <Link to="/" className="flex items-center gap-3 text-2xl font-bold tracking-tight">
+            <span className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-[#00876a] text-white"><Store size={19} /></span>
+            omniretail
+          </Link>
+          <div className="my-auto max-w-xl">
+            <span className="rounded-md bg-[#d4eae0] px-3 py-2 text-[11px] font-bold tracking-wider text-[#00876a]">SAAS ADMIN</span>
+            <h1 className="mt-10 text-5xl font-bold leading-[1.15] tracking-tight">Quản trị nền tảng.<br />Kết nối mọi doanh nghiệp.</h1>
+            <p className="mt-7 max-w-lg text-base leading-7 text-[#829591]">Theo dõi vận hành và đồng hành cùng nhà bán lẻ trong một không gian quản trị tập trung.</p>
+            <div className="mt-16 grid max-w-xl grid-cols-3 gap-5">
+              {[["100", "Doanh nghiệp"], ["248", "Chi nhánh"], ["642", "Người dùng"]].map(item => (
+                <div key={item[1]} className="rounded-xl bg-white p-5"><strong className="text-3xl text-[#00876a]">{item[0]}</strong><p className="mt-5 text-xs text-[#829591]">{item[1]}</p></div>
+              ))}
+            </div>
+          </div>
+          <p className="text-[10px] uppercase text-[#829591]">Omniretail · Dữ liệu minh họa</p>
+        </section>
+
+        <section className="flex min-h-screen items-center justify-center p-6 sm:p-12">
+          <div className="w-full max-w-[470px]">
+            <div className="mb-12 flex items-center gap-3 text-xl font-bold lg:hidden"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#00876a] text-white"><Store size={18}/></span>omniretail</div>
+            <h2 className="text-3xl font-bold">Chào mừng trở lại</h2>
+            <p className="mt-3 text-sm text-[#829591]">Đăng nhập tài khoản quản trị viên nền tảng.</p>
+            <form className="mt-12 space-y-7" onSubmit={handleSubmit}>
+              <label className="block text-xs font-bold">Email quản trị viên *
+                <input className="input mt-2 h-11" type="email" value={email} onChange={event => setEmail(event.target.value)} placeholder="lananh@omniretail.vn" required autoComplete="email" />
+              </label>
+              <label className="block text-xs font-bold">Mật khẩu *
+                <input className="input mt-2 h-11" type="password" value={password} onChange={event => setPassword(event.target.value)} placeholder="••••••••••••" required minLength={8} autoComplete="current-password" />
+              </label>
+              <div className="text-right"><Link className="text-xs text-[#00876a] hover:underline" to="/forgot-password">Quên mật khẩu?</Link></div>
+              {(error || message) && <p role="status" className={`rounded-md px-4 py-3 text-xs ${error ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>{error || message}</p>}
+              <button className="flex h-10 w-full items-center justify-center rounded-md bg-[#00876a] text-xs font-bold text-white hover:bg-[#006f57] disabled:opacity-60" type="submit" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 animate-spin" size={16} />}Đăng nhập
+              </button>
+            </form>
+            <p className="mt-9 text-xs text-[#829591]">Chỉ dành cho nhân sự vận hành được cấp quyền.</p>
+          </div>
+        </section>
+      </main>
+    )
+  }
+
   return (
     <main className="min-h-screen bg-[#f2f7fc] text-slate-950 lg:grid lg:grid-cols-[minmax(400px,0.9fr)_1.1fr]">
       <section className="relative hidden overflow-hidden bg-[#092b57] p-12 text-white lg:flex lg:flex-col lg:justify-between xl:p-16">
@@ -143,7 +189,7 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
             {mode !== "forgot" && (
               <label className="block text-sm font-semibold text-slate-700">
                 Password
-                <input className={`${inputClassName} mt-2`} type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" required minLength={8} autoComplete={mode === "login" ? "current-password" : "new-password"} />
+                <input className={`${inputClassName} mt-2`} type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" required minLength={8} autoComplete="new-password" />
               </label>
             )}
 
@@ -168,9 +214,7 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
           </form>
 
           <div className="mt-7 flex flex-wrap justify-between gap-3 text-sm">
-            {mode === "login" && <Link className="font-semibold text-[#1261b5] hover:underline" to="/forgot-password">Forgot password?</Link>}
-            {mode !== "login" && <Link className="font-semibold text-[#1261b5] hover:underline" to="/login">Back to sign in</Link>}
-            {mode === "login" ? <Link className="font-semibold text-slate-500 hover:text-slate-900" to="/register">Create a workspace</Link> : null}
+            <Link className="font-semibold text-[#1261b5] hover:underline" to="/login">Back to sign in</Link>
           </div>
         </div>
       </section>

@@ -6,6 +6,7 @@ import { Route as PostsPostIdDeepImport } from './routes/posts_.$postId.deep'
 import { Route as LoginImport } from './routes/login'
 import { Route as RegisterImport } from './routes/register'
 import { Route as ForgotPasswordImport } from './routes/forgot-password'
+import { Route as AdminScreenImport } from './routes/admin.$screen'
 
 const PostsRoute = PostsImport.update({
   path: '/posts',
@@ -41,6 +42,11 @@ const ForgotPasswordRoute = ForgotPasswordImport.update({
   path: '/forgot-password',
   getParentRoute: () => rootRoute,
 } as any)
+
+const AdminScreenRoute = AdminScreenImport.update({
+  path: '/admin/$screen',
+  getParentRoute: () => rootRoute,
+} as any)
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
     '/': {
@@ -71,6 +77,10 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ForgotPasswordImport
       parentRoute: typeof rootRoute
     }
+    '/admin/$screen': {
+      preLoaderRoute: typeof AdminScreenImport
+      parentRoute: typeof rootRoute
+    }
   }
 }
 export const routeTree = rootRoute.addChildren([
@@ -80,4 +90,5 @@ export const routeTree = rootRoute.addChildren([
   LoginRoute,
   RegisterRoute,
   ForgotPasswordRoute,
+  AdminScreenRoute,
 ])

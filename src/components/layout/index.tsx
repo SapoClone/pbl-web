@@ -4,8 +4,9 @@ import { useRouterState } from "@tanstack/react-router"
 export const Layout = ({ children }: { children: React.ReactNode }) => {
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   const isAuthPage = ["/login", "/register", "/forgot-password"].includes(pathname)
+  const isAdminPage = pathname === "/" || pathname.startsWith("/admin/")
 
-  if (isAuthPage) return <>{children}</>
+  if (isAuthPage || isAdminPage) return <>{children}</>
 
   return (
     <div className="flex min-h-screen">
