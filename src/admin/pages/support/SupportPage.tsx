@@ -1,0 +1,7 @@
+import { ActionButton, Card, FormField, PageHeader, StatusBadge } from "../../components/ui"
+import { useAdminStore } from "../../store/useAdminStore"
+
+export function SupportPage() {
+  const showToast = useAdminStore((state) => state.showToast)
+  return <><PageHeader title="Hỗ trợ kỹ thuật" description="Truy cập doanh nghiệp với quyền chỉ đọc để hỗ trợ xử lý sự cố."/><div className="grid gap-4 lg:grid-cols-[1.3fr_.8fr]"><Card className="p-6"><h2 className="mb-5 font-bold">Bắt đầu phiên hỗ trợ</h2><div className="space-y-5"><FormField label="Doanh nghiệp" value="Mộc Store · TH0001" required/><label className="block text-xs font-bold">Lý do truy cập *<textarea className="input mt-2 min-h-28" defaultValue="Kiểm tra trạng thái đồng bộ đơn hàng từ Shopee"/></label><ActionButton onClick={() => showToast("Đã bắt đầu phiên hỗ trợ chỉ đọc")}>Bắt đầu phiên chỉ đọc</ActionButton></div></Card><Card className="p-6"><h2 className="font-bold">Phạm vi truy cập</h2><StatusBadge className="mt-4">Chỉ đọc</StatusBadge><ul className="mt-5 space-y-3 text-xs"><li>✓ Xem thông tin chi tiết và cấu hình</li><li>✓ Xem nhật ký, job lỗi và tích hợp</li><li>✓ Ghi nhận toàn bộ phiên hỗ trợ</li><li className="text-[#c65248]">× Không sửa, xóa hoặc tạo dữ liệu</li></ul></Card></div><Card className="mt-4 p-5"><h2 className="font-bold">Lịch sử phiên hỗ trợ</h2><div className="mt-5 grid grid-cols-5 text-xs"><b>SES-0024</b><span>Mộc Store</span><span>Lan Anh</span><span>25/10 · 14:02</span><StatusBadge>Đã kết thúc</StatusBadge></div></Card></>
+}

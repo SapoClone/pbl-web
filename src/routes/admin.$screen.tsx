@@ -1,12 +1,8 @@
 import { FileRoute } from "@tanstack/react-router"
-import { AdminApp, type AdminScreenName } from "@/admin/AdminApp"
+import { AdminApp } from "@/admin/AdminApp"
+import { ADMIN_SCREENS, type AdminScreen } from "@/admin/types"
 
-const validScreens = new Set<AdminScreenName>([
-  "businesses", "business-detail", "business-new", "business-edit", "business-lock",
-  "users", "user-detail", "plans", "plan-config", "subscriptions", "subscription-detail",
-  "change-plan", "limits", "monitoring", "integrations", "jobs", "job-detail", "audit",
-  "notifications", "notification-new", "support", "settings"
-])
+const validScreens = new Set<AdminScreen>(ADMIN_SCREENS)
 
 export const Route = new FileRoute("/admin/$screen").createRoute({
   component: AdminScreen
@@ -14,8 +10,8 @@ export const Route = new FileRoute("/admin/$screen").createRoute({
 
 function AdminScreen() {
   const { screen } = Route.useParams()
-  const selected = validScreens.has(screen as AdminScreenName)
-    ? (screen as AdminScreenName)
+  const selected = validScreens.has(screen as AdminScreen)
+    ? (screen as AdminScreen)
     : "dashboard"
 
   return <AdminApp screen={selected} />
