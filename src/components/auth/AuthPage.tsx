@@ -13,7 +13,13 @@ import {
   Store
 } from "lucide-react"
 import axios from "axios"
-import { login, register, requestPasswordReset } from "@/api/auth"
+import {
+  createDemoTokens,
+  isDemoCredentials,
+  login,
+  register,
+  requestPasswordReset
+} from "@/api/auth"
 import { Button } from "@/components/ui/button"
 import { useStoreAuth } from "@/store/zustand/useStoreAuth"
 
@@ -144,6 +150,12 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
     setIsSubmitting(true)
     try {
       if (mode === "login") {
+        if (isDemoCredentials({ email, password })) {
+          setTokens(createDemoTokens())
+          setMessage("Đang sử dụng chế độ demo vì pbl-api chưa chạy.")
+          await navigate({ to: "/" })
+          return
+        }
         const tokens = await login({ email, password })
         setTokens(tokens)
         await navigate({ to: "/" })

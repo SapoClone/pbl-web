@@ -1,10 +1,10 @@
 import { FileRoute } from "@tanstack/react-router"
-import { DashboardPage } from "@/components/dashboard/DashboardPage"
+import { OverviewPage } from "@/features/overview/OverviewPage"
 
 export const Route = new FileRoute('/').createRoute({
   component: Home
 })
 
 function Home() {
-  return <DashboardPage section="overview" />
+  return <OverviewPage />
 }

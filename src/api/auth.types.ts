@@ -3,6 +3,7 @@ export type AuthTokens = {
   accessToken: string
   refreshToken: string
   tokenExpires: number
+  isDemo?: boolean
   tenantId?: string | null
   tenants?: Array<{
     id: string

@@ -16,6 +16,26 @@ export default defineConfig({
       "/platform": {
         target: "http://localhost:8080",
         changeOrigin: true
+      },
+      "/sales": {
+        target: "http://localhost:8080",
+        changeOrigin: true
+      },
+      "/insight": {
+        target: "http://localhost:8080",
+        changeOrigin: true
+      },
+      "/inventory": {
+        target: "http://localhost:8080",
+        changeOrigin: true
+      },
+      "/integration": {
+        target: "http://localhost:8080",
+        changeOrigin: true
+      },
+      "/customer": {
+        target: "http://localhost:8080",
+        changeOrigin: true
       }
     }
   },

@@ -1,19 +1,11 @@
 import { createRoot } from "react-dom/client"
 import { routeTree } from "./routeTree.gen"
 import { RouterProvider, Router } from "@tanstack/react-router"
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { QueryClientProvider } from "@tanstack/react-query"
+import { queryClient } from "./api/tanstack-query"
 
 import "./locales/i18n"
 import "./global.css"
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      refetchOnWindowFocus: false,
-      retry: false
-    }
-  }
-})
 
 // Set up a Router instance
 const router = new Router({
