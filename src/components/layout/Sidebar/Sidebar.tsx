@@ -1,41 +1,17 @@
 import { useState } from "react"
-import { Link, useRouterState } from "@tanstack/react-router"
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router"
 import {
   ChevronDown,
-  ClipboardList,
   HelpCircle,
-  LayoutDashboard,
   Menu,
-  Monitor,
-  Package,
   Settings2,
-  Share2,
-  ShieldCheck,
   Store,
-  Truck,
-  UsersRound,
-  Warehouse,
-  X
+  X,
+  LogOut
 } from "lucide-react"
-
-type NavigationItem = {
-  label: string
-  to: string
-  icon: typeof LayoutDashboard
-  badge?: string
-}
-
-const navigation: NavigationItem[] = [
-  { label: "Tổng quan", icon: LayoutDashboard, to: "/" },
-  { label: "Sản phẩm", icon: Package, to: "/products" },
-  { label: "Tồn kho", icon: Warehouse, to: "/inventory" },
-  { label: "Đơn hàng", icon: ClipboardList, to: "/orders", badge: "3" },
-  { label: "Bán tại quầy", icon: Monitor, to: "/pos" },
-  { label: "Kênh bán hàng", icon: Share2, to: "/channels" },
-  { label: "Khách hàng", icon: UsersRound, to: "/customers" },
-  { label: "Nhập hàng & NCC", icon: Truck, to: "/suppliers" },
-  { label: "Nhân viên & Quyền", icon: ShieldCheck, to: "/staff" }
-]
+import { logout } from "@/api/auth"
+import { useStoreAuth } from "@/store/zustand/useStoreAuth"
+import { navigation } from "@/shared/navigation/navigation"
 
 function Navigation({ pathname, onNavigate }: { pathname: string; onNavigate: () => void }) {
   return (
@@ -68,6 +44,26 @@ function Navigation({ pathname, onNavigate }: { pathname: string; onNavigate: ()
 }
 
 function SidebarBody({ pathname, onNavigate }: { pathname: string; onNavigate: () => void }) {
+  const navigate = useNavigate()
+  const clearTokens = useStoreAuth((state) => state.clearTokens)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [logoutError, setLogoutError] = useState("")
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true)
+    setLogoutError("")
+    try {
+      await logout()
+    } catch {
+      setLogoutError("Không thể thu hồi phiên trên máy chủ, nhưng tài khoản đã được đăng xuất khỏi thiết bị.")
+    } finally {
+      clearTokens()
+      onNavigate()
+      await navigate({ to: "/login" })
+      setIsLoggingOut(false)
+    }
+  }
+
   return (
     <>
       <div className="flex-1 overflow-y-auto px-3 py-4">
@@ -83,6 +79,11 @@ function SidebarBody({ pathname, onNavigate }: { pathname: string; onNavigate: (
           <Settings2 size={16} strokeWidth={1.6} />
           Cài đặt cửa hàng
         </Link>
+        <button type="button" disabled={isLoggingOut} onClick={handleLogout} className="flex w-full items-center gap-3 rounded-md px-3.5 py-2.5 text-left text-xs text-[#75817e] hover:bg-[#f1f6f4] hover:text-[#163d36] disabled:opacity-50">
+          <LogOut size={16} strokeWidth={1.6} />
+          {isLoggingOut ? "Đang đăng xuất..." : "Đăng xuất"}
+        </button>
+        {logoutError && <p className="px-3.5 pt-1 text-[10px] leading-4 text-amber-600">{logoutError}</p>}
         <button type="button" className="flex w-full items-center gap-3 rounded-md px-3.5 py-2.5 text-left text-xs text-[#75817e] hover:bg-[#f1f6f4] hover:text-[#163d36]">
           <HelpCircle size={16} strokeWidth={1.6} />
           Trung tâm trợ giúp

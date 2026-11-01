@@ -6,7 +6,6 @@ import { Route as SettingsImport } from './routes/settings'
 import { Route as ReportsImport } from './routes/reports'
 import { Route as RegisterImport } from './routes/register'
 import { Route as ProductsImport } from './routes/products'
-import { Route as PostsImport } from './routes/posts'
 import { Route as PosImport } from './routes/pos'
 import { Route as OrdersImport } from './routes/orders'
 import { Route as LoginImport } from './routes/login'
@@ -15,8 +14,6 @@ import { Route as ForgotPasswordImport } from './routes/forgot-password'
 import { Route as CustomersImport } from './routes/customers'
 import { Route as ChannelsImport } from './routes/channels'
 import { Route as IndexImport } from './routes'
-import { Route as PostsPostIdImport } from './routes/posts.$postId'
-import { Route as PostsPostIdDeepImport } from './routes/posts.$postId.deep'
 
 const UsersRoute = UsersImport.update({
   path: '/users',
@@ -50,11 +47,6 @@ const RegisterRoute = RegisterImport.update({
 
 const ProductsRoute = ProductsImport.update({
   path: '/products',
-  getParentRoute: () => rootRoute,
-} as any)
-
-const PostsRoute = PostsImport.update({
-  path: '/posts',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -97,16 +89,6 @@ const IndexRoute = IndexImport.update({
   path: '/',
   getParentRoute: () => rootRoute,
 } as any)
-
-const PostsPostIdRoute = PostsPostIdImport.update({
-  path: '/$postId',
-  getParentRoute: () => PostsRoute,
-} as any)
-
-const PostsPostIdDeepRoute = PostsPostIdDeepImport.update({
-  path: '/deep',
-  getParentRoute: () => PostsPostIdRoute,
-} as any)
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
     '/': {
@@ -141,10 +123,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PosImport
       parentRoute: typeof rootRoute
     }
-    '/posts': {
-      preLoaderRoute: typeof PostsImport
-      parentRoute: typeof rootRoute
-    }
     '/products': {
       preLoaderRoute: typeof ProductsImport
       parentRoute: typeof rootRoute
@@ -173,14 +151,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UsersImport
       parentRoute: typeof rootRoute
     }
-    '/posts/$postId': {
-      preLoaderRoute: typeof PostsPostIdImport
-      parentRoute: typeof PostsImport
-    }
-    '/posts/$postId/deep': {
-      preLoaderRoute: typeof PostsPostIdDeepImport
-      parentRoute: typeof PostsPostIdImport
-    }
   }
 }
 export const routeTree = rootRoute.addChildren([
@@ -192,9 +162,6 @@ export const routeTree = rootRoute.addChildren([
   LoginRoute,
   OrdersRoute,
   PosRoute,
-  PostsRoute.addChildren([
-    PostsPostIdRoute.addChildren([PostsPostIdDeepRoute]),
-  ]),
   ProductsRoute,
   RegisterRoute,
   ReportsRoute,
