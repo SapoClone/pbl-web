@@ -1,5 +1,4 @@
 import { Route as rootRoute } from './routes/__root'
-import { Route as UsersImport } from './routes/users'
 import { Route as SuppliersImport } from './routes/suppliers'
 import { Route as StaffImport } from './routes/staff'
 import { Route as SettingsImport } from './routes/settings'
@@ -8,17 +7,13 @@ import { Route as RegisterImport } from './routes/register'
 import { Route as ProductsImport } from './routes/products'
 import { Route as PosImport } from './routes/pos'
 import { Route as OrdersImport } from './routes/orders'
+import { Route as OnboardingTenantImport } from './routes/onboarding-tenant'
 import { Route as LoginImport } from './routes/login'
 import { Route as InventoryImport } from './routes/inventory'
 import { Route as ForgotPasswordImport } from './routes/forgot-password'
 import { Route as CustomersImport } from './routes/customers'
 import { Route as ChannelsImport } from './routes/channels'
 import { Route as IndexImport } from './routes'
-
-const UsersRoute = UsersImport.update({
-  path: '/users',
-  getParentRoute: () => rootRoute,
-} as any)
 
 const SuppliersRoute = SuppliersImport.update({
   path: '/suppliers',
@@ -57,6 +52,11 @@ const PosRoute = PosImport.update({
 
 const OrdersRoute = OrdersImport.update({
   path: '/orders',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const OnboardingTenantRoute = OnboardingTenantImport.update({
+  path: '/onboarding-tenant',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -115,6 +115,10 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginImport
       parentRoute: typeof rootRoute
     }
+    '/onboarding-tenant': {
+      preLoaderRoute: typeof OnboardingTenantImport
+      parentRoute: typeof rootRoute
+    }
     '/orders': {
       preLoaderRoute: typeof OrdersImport
       parentRoute: typeof rootRoute
@@ -147,10 +151,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SuppliersImport
       parentRoute: typeof rootRoute
     }
-    '/users': {
-      preLoaderRoute: typeof UsersImport
-      parentRoute: typeof rootRoute
-    }
   }
 }
 export const routeTree = rootRoute.addChildren([
@@ -160,6 +160,7 @@ export const routeTree = rootRoute.addChildren([
   ForgotPasswordRoute,
   InventoryRoute,
   LoginRoute,
+  OnboardingTenantRoute,
   OrdersRoute,
   PosRoute,
   ProductsRoute,
@@ -168,5 +169,4 @@ export const routeTree = rootRoute.addChildren([
   SettingsRoute,
   StaffRoute,
   SuppliersRoute,
-  UsersRoute,
 ])

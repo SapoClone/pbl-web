@@ -23,7 +23,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { useStoreAuth } from "@/store/zustand/useStoreAuth"
 
-type AuthMode = "login" | "register" | "forgot"
+export type AuthMode = "login" | "register" | "forgot"
 
 const copy: Record<
   AuthMode,
@@ -48,6 +48,49 @@ const copy: Record<
 
 const inputClassName =
   "h-12 w-full rounded-lg border border-slate-200 bg-white px-3.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#07896f] focus:ring-4 focus:ring-[#07896f]/10"
+
+const backendPasswordPattern = /^[\d!#$%&*@A-Z^a-z]*$/
+
+type ValidationDetail = {
+  property?: string
+  message?: string
+}
+
+function getRequestErrorMessage(requestError: unknown) {
+  if (!axios.isAxiosError(requestError)) {
+    return "Không thể hoàn tất yêu cầu. Vui lòng thử lại."
+  }
+
+  const responseData = requestError.response?.data as
+    | {
+        message?: unknown
+        details?: ValidationDetail[]
+      }
+    | undefined
+
+  const details = Array.isArray(responseData?.details)
+    ? responseData.details
+        .filter(
+          (detail): detail is Required<Pick<ValidationDetail, "message">> &
+            Pick<ValidationDetail, "property"> =>
+            typeof detail?.message === "string"
+        )
+        .map((detail) =>
+          detail.property ? `${detail.property}: ${detail.message}` : detail.message
+        )
+    : []
+
+  if (details.length > 0) return details.join(" ")
+  if (typeof responseData?.message === "string") {
+    return responseData.message === "Validation failed"
+      ? "Thông tin đăng ký chưa đúng. Vui lòng kiểm tra email và mật khẩu."
+      : responseData.message
+  }
+
+  return requestError.response?.status === 401
+    ? "Email hoặc mật khẩu không chính xác."
+    : "Không thể hoàn tất yêu cầu. Vui lòng thử lại."
+}
 
 function BrandIllustration() {
   return (
@@ -107,7 +150,7 @@ function BrandIllustration() {
         </g>
         <path d="M0 289h620" stroke="#8d6548" strokeWidth="5" />
       </svg>
-      <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between rounded-lg bg-white/95 px-4 py-3 shadow-lg backdrop-blur-sm">
+      <div className="absolute inset-x-4 bottom-4 flex items-center justify-between rounded-lg bg-white/95 px-4 py-3 shadow-lg backdrop-blur-sm">
         <div className="flex items-center gap-3">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#e3f5ef] text-[#07896f]">
             <Store size={16} />
@@ -129,6 +172,7 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
   const navigate = useNavigate()
   const setTokens = useStoreAuth((state) => state.setTokens)
   const [email, setEmail] = useState("")
+  const [name, setName] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
@@ -146,6 +190,15 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
       setError("Mật khẩu xác nhận không khớp.")
       return
     }
+    if (
+      mode === "register" &&
+      (password.length < 6 || !backendPasswordPattern.test(password))
+    ) {
+      setError(
+        "Mật khẩu phải có ít nhất 6 ký tự và chỉ được dùng chữ cái, số hoặc ! # $ % & * @ ^."
+      )
+      return
+    }
 
     setIsSubmitting(true)
     try {
@@ -160,27 +213,16 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
         setTokens(tokens)
         await navigate({ to: "/" })
       } else if (mode === "register") {
-        await register({ email, password })
-        await navigate({ to: "/login" })
+        await register({ email, password, name })
+        const tokens = await login({ email, password })
+        setTokens(tokens)
+        await navigate({ to: "/onboarding-tenant" })
       } else {
         await requestPasswordReset(email)
         setMessage("Nếu email tồn tại, hướng dẫn đặt lại mật khẩu sẽ được gửi sớm.")
       }
     } catch (requestError) {
-      const status = axios.isAxiosError(requestError)
-        ? requestError.response?.status
-        : undefined
-      const responseData = axios.isAxiosError(requestError)
-        ? requestError.response?.data
-        : undefined
-      const responseMessage =
-        typeof responseData?.message === "string" ? responseData.message : undefined
-      setError(
-        responseMessage ||
-          (status === 401
-            ? "Email hoặc mật khẩu không chính xác."
-            : "Không thể hoàn tất yêu cầu. Vui lòng thử lại.")
-      )
+      setError(getRequestErrorMessage(requestError))
     } finally {
       setIsSubmitting(false)
     }
@@ -188,7 +230,7 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
 
   return (
     <main className="min-h-screen bg-white text-slate-900 lg:grid lg:grid-cols-[47.2%_52.8%]">
-      <section className="relative hidden overflow-hidden bg-[#093b34] px-10 py-10 text-white lg:flex lg:flex-col xl:px-16">
+      <section className="relative hidden overflow-hidden bg-[#093b34] p-10 text-white lg:flex lg:flex-col xl:px-16">
         <div className="flex items-center gap-2 text-lg font-medium tracking-tight">
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#b9eadb]/20 text-[#b9eadb]">
             <Store size={30} />
@@ -234,7 +276,7 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
 
           <form className="space-y-5" onSubmit={handleSubmit}>
             <label className="block text-xs font-semibold text-slate-700">
-              Email hoặc số điện thoại
+              Email
               <span className="relative mt-2 block">
                 <input
                   className={`${inputClassName} pl-10`}
@@ -249,18 +291,33 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
               </span>
             </label>
 
+            {mode === "register" && (
+              <label className="block text-xs font-semibold text-slate-700">
+                Tên tài khoản
+                <input
+                  className={`${inputClassName} mt-2`}
+                  type="text"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="Tên cửa hàng hoặc người dùng"
+                  maxLength={100}
+                  autoComplete="name"
+                />
+              </label>
+            )}
+
             {mode !== "forgot" && (
               <label className="block text-xs font-semibold text-slate-700">
                 Mật khẩu
                 <span className="relative mt-2 block">
                   <input
-                    className={`${inputClassName} pl-10 pr-10`}
+                    className={`${inputClassName} pe-10 ps-10`}
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
                     placeholder="Nhập mật khẩu"
                     required
-                    minLength={8}
+                    minLength={6}
                     autoComplete={mode === "login" ? "current-password" : "new-password"}
                   />
                   <LockKeyhole className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-slate-400" size={16} />
@@ -286,7 +343,7 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
                   onChange={(event) => setConfirmPassword(event.target.value)}
                   placeholder="Nhập lại mật khẩu"
                   required
-                  minLength={8}
+                  minLength={6}
                   autoComplete="new-password"
                 />
               </label>
@@ -339,7 +396,7 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
             )}
           </div>
 
-          <div className="mt-5 flex items-center gap-2 rounded-lg bg-[#f4f7f6] px-3 py-3 text-[11px] leading-4 text-slate-400">
+          <div className="mt-5 flex items-center gap-2 rounded-lg bg-[#f4f7f6] p-3 text-[11px] leading-4 text-slate-400">
             <ShieldCheck className="shrink-0 text-[#9ab7ad]" size={16} />
             Dữ liệu được phân tách theo cửa hàng. Chỉ truy cập các chi nhánh được cấp quyền.
           </div>

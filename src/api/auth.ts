@@ -8,6 +8,10 @@ export type Credentials = {
   password: string
 }
 
+export type Registration = Credentials & {
+  name?: string
+}
+
 export const isDemoCredentials = ({ email, password }: Credentials) =>
   email.trim().toLowerCase() === "admin@gmail.com" &&
   password === "admin@gmail.com"
@@ -17,21 +21,31 @@ export const createDemoTokens = (): AuthTokens => ({
   accessToken: "demo-access-token",
   refreshToken: "demo-refresh-token",
   tokenExpires: Date.now() + 24 * 60 * 60 * 1000,
-  isDemo: true
+  isDemo: true,
+  tenantId: "demo-tenant",
+  tenants: [{ id: "demo-tenant", name: "Cửa hàng demo", role: "owner" }]
 })
 
-export const login = async (credentials: Credentials) => {
+export const login = async (credentials: Credentials & { tenantId?: string }) => {
   const { data } = await axiosClient.post<AuthTokens>(
     "/auth/email/login",
-    credentials
+    {
+      email: credentials.email.trim(),
+      password: credentials.password,
+      tenantId: credentials.tenantId
+    }
   )
   return data
 }
 
-export const register = async (credentials: Credentials) => {
+export const register = async (credentials: Registration) => {
   const { data } = await axiosClient.post<{ userId: string }>(
     "/auth/email/register",
-    credentials
+    {
+      email: credentials.email.trim(),
+      password: credentials.password,
+      ...(credentials.name?.trim() ? { name: credentials.name.trim() } : {})
+    }
   )
   return data
 }
