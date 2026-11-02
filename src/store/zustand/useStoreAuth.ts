@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import type { AuthTokens } from "@/api/auth.types"
+import { isDemoLoginEnabled } from "@/config/env-config"
 
 const AUTH_STORAGE_KEY = "pbl-auth"
 
@@ -9,12 +10,18 @@ type AuthState = {
   clearTokens: () => void
 }
 
-const readStoredTokens = (): AuthTokens | null => {
+export const readStoredTokens = (): AuthTokens | null => {
   const stored = localStorage.getItem(AUTH_STORAGE_KEY)
   if (!stored) return null
 
   try {
-    return JSON.parse(stored) as AuthTokens
+    const tokens = JSON.parse(stored) as AuthTokens
+    // a demo session saved before the demo sign-in was switched off is not a session
+    if (tokens.isDemo && !isDemoLoginEnabled()) {
+      localStorage.removeItem(AUTH_STORAGE_KEY)
+      return null
+    }
+    return tokens
   } catch {
     localStorage.removeItem(AUTH_STORAGE_KEY)
     return null
