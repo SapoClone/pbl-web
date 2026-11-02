@@ -6,7 +6,6 @@ import {
   LayoutDashboard,
   Package,
   Settings2,
-  ShoppingCart,
   Store,
   UsersRound
 } from "lucide-react"
@@ -43,7 +42,7 @@ const Sidebar = () => {
               <Link
                 key={label}
                 to={to}
-                className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm transition ${active ? "bg-white text-[#082e61] shadow-sm" : "text-blue-100/75 hover:bg-white/10 hover:text-white"}`}
+                className={`flex items-center gap-3 rounded-xl p-3 text-sm transition${active ? "bg-white text-[#082e61] shadow-sm" : "text-blue-100/75 hover:bg-white/10 hover:text-white"}`}
               >
                 <Icon size={18} strokeWidth={active ? 2.4 : 2} />
                 <span>{label}</span>
@@ -55,7 +54,7 @@ const Sidebar = () => {
       </div>
 
       <div className="mt-auto border-t border-white/10 p-4">
-        <Link to="/posts" className="mb-2 flex items-center gap-3 rounded-xl px-3 py-3 text-sm text-blue-100/75 hover:bg-white/10 hover:text-white">
+        <Link to="/posts" className="mb-2 flex items-center gap-3 rounded-xl p-3 text-sm text-blue-100/75 hover:bg-white/10 hover:text-white">
           <Settings2 size={18} /> Cài đặt
         </Link>
         <div className="flex items-center gap-3 rounded-xl bg-white/10 p-3">

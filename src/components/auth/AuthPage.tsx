@@ -81,7 +81,9 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
         responseMessage ||
           (status === 401
           ? "Email or password is incorrect."
-          : "We could not complete that request. Please try again.")
+          : requestError instanceof Error
+            ? requestError.message
+            : "We could not complete that request. Please try again.")
       )
     } finally {
       setIsSubmitting(false)

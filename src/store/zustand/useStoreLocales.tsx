@@ -1,17 +1,19 @@
 import { create } from "zustand"
-
-type Locale = "en_us" | "en-gb" | "nl-nl"
+import i18n, { localeToLanguage, type AppLocale } from "@/locales/i18n"
 
 interface SidebarStore {
-  locale: Locale
-  toggle: (locale: Locale) => void
+  locale: AppLocale
+  toggle: (locale: AppLocale) => void
 }
 
-const initialValues = {
-  locale: (localStorage.getItem("locale")! || "en_us") as Locale
-}
+const storedLocale = localStorage.getItem("locale") as AppLocale | null
+const initialLocale: AppLocale = storedLocale || "en_us"
 
 export const useStoreLocales = create<SidebarStore>((set) => ({
-  ...initialValues,
-  toggle: (value) => set(() => ({ locale: value }))
+  locale: initialLocale,
+  toggle: (value) => {
+    localStorage.setItem("locale", value)
+    void i18n.changeLanguage(localeToLanguage[value])
+    set({ locale: value })
+  }
 }))
