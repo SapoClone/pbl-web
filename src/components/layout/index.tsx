@@ -3,7 +3,7 @@ import { useRouterState } from "@tanstack/react-router"
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
   const pathname = useRouterState({ select: (state) => state.location.pathname })
-  const isAuthPage = ["/login", "/register", "/forgot-password"].includes(pathname)
+  const isAuthPage = ["/login", "/register", "/forgot-password", "/onboarding-tenant"].includes(pathname)
 
   if (isAuthPage) return <>{children}</>
 

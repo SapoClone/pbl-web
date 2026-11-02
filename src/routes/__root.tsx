@@ -6,16 +6,23 @@ import { Layout } from "@/components/layout"
 import { useStoreAuth } from "@/store/zustand/useStoreAuth"
 
 const publicPaths = ["/login", "/register", "/forgot-password"]
+const tenantOnboardingPath = "/onboarding-tenant"
 
 export const Route = rootRouteWithContext<{
   queryClient: QueryClient
 }>()({
   beforeLoad: ({ location }) => {
-    if (
-      !publicPaths.includes(location.pathname) &&
-      !useStoreAuth.getState().tokens?.accessToken
-    ) {
+    const tokens = useStoreAuth.getState().tokens
+    if (!publicPaths.includes(location.pathname) && !tokens?.accessToken) {
       throw redirect({ to: "/login" })
+    }
+    if (
+      tokens?.accessToken &&
+      !tokens.tenantId &&
+      (tokens.tenants?.length ?? 0) === 0 &&
+      location.pathname !== tenantOnboardingPath
+    ) {
+      throw redirect({ to: tenantOnboardingPath })
     }
   },
   component: RootComponent

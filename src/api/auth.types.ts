@@ -5,8 +5,12 @@ export type AuthTokens = {
   tokenExpires: number
   isDemo?: boolean
   tenantId?: string | null
-  tenants?: Array<{
+  tenants: Array<{
     id: string
-    name?: string
+    name: string
+    subdomain?: string
+    role?: string
+    roleId?: string
+    roleName?: string
   }>
 }
