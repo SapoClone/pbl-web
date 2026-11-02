@@ -23,11 +23,10 @@ function Navigation({ pathname, onNavigate }: { pathname: string; onNavigate: ()
             key={to}
             to={to as never}
             onClick={onNavigate}
-            className={`flex items-center gap-3 rounded-md px-3.5 py-2.5 text-xs transition ${
-              active
+            className={`flex items-center gap-3 rounded-md px-3.5 py-2.5 text-xs transition ${active
                 ? "bg-[#e6f4ee] font-semibold text-[#16866f]"
                 : "text-[#75817e] hover:bg-[#f1f6f4] hover:text-[#163d36]"
-            }`}
+              }`}
           >
             <Icon size={16} strokeWidth={active ? 2 : 1.6} />
             <span className="flex-1 whitespace-nowrap">{label}</span>
