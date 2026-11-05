@@ -1,0 +1,14 @@
+{
+  "name": "Omniretail – Web Admin SaaS (24 screens)",
+  "api": "1.0.0",
+  "main": "code.js",
+  "editorType": [
+    "figma"
+  ],
+  "documentAccess": "dynamic-page",
+  "networkAccess": {
+    "allowedDomains": [
+      "none"
+    ]
+  }
+}
