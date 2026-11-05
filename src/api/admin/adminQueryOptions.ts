@@ -109,12 +109,41 @@ export const adminQueryOptions = {
       queryKey: ["admin", "notifications"],
       queryFn: adminApi.getNotifications
     })
+  ,
+  settings: () =>
+    queryOptions({
+      queryKey: ["admin", "settings"],
+      queryFn: adminApi.getSettings
+    })
+  ,
+  notificationsPage: (params: { search?: string; type?: string; time?: "all" | "today" | "7d" | "30d"; status?: string; page?: number; pageSize?: number } = {}) =>
+    queryOptions({
+      queryKey: ["admin", "notifications", "page", params],
+      queryFn: () => adminApi.getNotificationsPage(params),
+      placeholderData: keepPreviousData
+    }),
+  notificationDetail: (notificationId: string) =>
+    queryOptions({
+      queryKey: ["admin", "notification-detail", notificationId],
+      queryFn: () => adminApi.getNotificationDetail(notificationId),
+      enabled: Boolean(notificationId)
+    })
+  ,
+  auditLogsPage: (params: { search?: string; scope?: string; result?: string; page?: number; pageSize?: number } = {}) =>
+    queryOptions({
+      queryKey: ["admin", "audit-logs", params],
+      queryFn: () => adminApi.getAuditLogsPage(params),
+      placeholderData: keepPreviousData
+    })
 }
 
 export const adminMutationKeys = {
+  dashboard: ["admin", "dashboard"] as const,
   businesses: ["admin", "businesses"] as const,
   plans: ["admin", "plans"] as const,
   subscriptions: ["admin", "subscriptions"] as const,
   jobs: ["admin", "jobs"] as const,
   notifications: ["admin", "notifications"] as const
+  ,
+  settings: ["admin", "settings"] as const
 }

@@ -13,6 +13,24 @@ describe("adminApi mock provider", () => {
     mockKeys.forEach((key) => localStorage.removeItem(key))
   })
 
+  it("persists system settings through the admin API", async () => {
+    const current = await adminApi.getSettings()
+    await adminApi.updateSettings({ ...current, platformName: "Omniretail Test" })
+
+    expect((await adminApi.getSettings()).platformName).toBe("Omniretail Test")
+  })
+
+  it("derives shared dashboard job metrics from the jobs API data", async () => {
+    const jobs = await adminApi.getJobs()
+    const dashboard = await adminApi.getDashboard()
+    const pendingCount = jobs.filter((job) => job.status === "pending").length
+    const jobMetric = dashboard.metrics.find((metric) => metric.label === "Job cần xử lý")
+
+    expect(jobMetric?.value).toBe(String(pendingCount))
+    expect(dashboard.services.find((service) => service.name === "Hàng đợi")?.detail)
+      .toBe(`${pendingCount} job cần xử lý`)
+  })
+
   it("persists a created business", async () => {
     await adminApi.createBusiness({
       name: "Test Store",
@@ -174,5 +192,28 @@ describe("adminApi mock provider", () => {
     expect(result.total).toBeGreaterThan(0)
     expect(result.items).toHaveLength(1)
     expect(result.items[0].status).toBe("pending")
+  })
+
+  it("returns filtered and paginated audit logs", async () => {
+    const result = await adminApi.getAuditLogsPage({ result: "Thất bại", page: 1, pageSize: 1 })
+
+    expect(result.total).toBe(2)
+    expect(result.items).toHaveLength(1)
+    expect(result.items[0].result).toBe("Thất bại")
+  })
+
+  it("filters notifications by type, time, and status before pagination", async () => {
+    const result = await adminApi.getNotificationsPage({
+      type: "Bảo trì",
+      time: "30d",
+      status: "Đã gửi",
+      page: 1,
+      pageSize: 1
+    })
+
+    expect(result.total).toBeGreaterThan(0)
+    expect(result.items).toHaveLength(1)
+    expect(result.items[0].type).toBe("Bảo trì")
+    expect(result.items[0].status).toBe("Đã gửi")
   })
 })
