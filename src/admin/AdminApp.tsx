@@ -18,7 +18,7 @@ import {
   Subscriptions
 } from "./SubscriptionJobScreens"
 import { PlanConfig, Plans, UserDetail, UsersPage } from "./UserPlanScreens"
-import { NotificationForm, Notifications } from "./NotificationScreens"
+import { NotificationDetail, NotificationForm, Notifications } from "./NotificationScreens"
 import { Integrations, Limits, Monitoring } from "./SystemScreens"
 import { Audit, SettingsPage, Support } from "./AdminUtilityScreens"
 import { Badge, Breadcrumbs, Card, Heading } from "./AdminUi"
@@ -65,6 +65,7 @@ export type AdminScreenName =
   | "audit"
   | "notifications"
   | "notification-new"
+  | "notification-detail"
   | "support"
   | "settings"
 
@@ -106,6 +107,7 @@ const screenTitles: Record<AdminScreenName, string> = {
   audit: "Nhật ký hoạt động",
   notifications: "Thông báo",
   "notification-new": "Thông báo / Soạn mới",
+  "notification-detail": "Thông báo / Chi tiết",
   support: "Hỗ trợ kỹ thuật",
   settings: "Cấu hình hệ thống"
 }
@@ -128,6 +130,10 @@ function getBreadcrumbs(screen: AdminScreenName) {
     "subscription-detail": [{ label: "Thuê bao", href: href("subscriptions") }, { label: "SUB-0001" }],
     "change-plan": [{ label: "Thuê bao", href: href("subscriptions") }, { label: "Gán / đổi gói" }],
     "job-detail": [{ label: "Job lỗi", href: href("jobs") }, { label: "JOB-00984" }]
+    ,
+    "notification-new": [{ label: "Thông báo", href: href("notifications") }, { label: "Soạn thông báo" }]
+    ,
+    "notification-detail": [{ label: "Thông báo", href: href("notifications") }, { label: "Chi tiết" }]
   }
   return details[screen] ?? [{ label: "Nền tảng" }, { label: screenTitles[screen] }]
 }
@@ -381,6 +387,8 @@ function Screen({
       return <Notifications />
     case "notification-new":
       return <NotificationForm notify={notify} />
+    case "notification-detail":
+      return <NotificationDetail />
     case "support":
       return <Support notify={notify} />
     case "settings":
@@ -440,7 +448,7 @@ function Dashboard() {
   )
   const chartDates = getDateRange(fromDate, toDate)
   const chartValues = chartDates.map(
-    (_, index) => [7200, 9800, 7900, 12100, 13800, 11000, 15600][index % 7]
+    (_, index) => (data.transactionBars[index % data.transactionBars.length] ?? 0) * 160
   )
   const chartBars = chartValues.map((value) => (value / 16000) * 100)
   const chartWidth = Math.max(340, chartDates.length * 54)

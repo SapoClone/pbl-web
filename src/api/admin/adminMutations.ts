@@ -50,6 +50,16 @@ export const adminMutationOptions = {
       mutationFn: (input: CreateNotificationInput) =>
         adminApi.createNotification(input)
     }),
+  updateSettings: () =>
+    ({
+      mutationFn: (input: import("./types").AdminSettings) =>
+        adminApi.updateSettings(input)
+    }),
+  updateNotification: (notificationId: string) =>
+    ({
+      mutationFn: (input: import("./types").UpdateNotificationInput) =>
+        adminApi.updateNotification(notificationId, input)
+    }),
   retryJob: () =>
     ({
       mutationFn: (input: RetryJobInput) => adminApi.retryJob(input)

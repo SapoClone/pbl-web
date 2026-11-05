@@ -466,7 +466,8 @@ export function JobDetail({ notify }: { notify: (message: string) => void }) {
   const jobId = new URLSearchParams(window.location.search).get("jobId") ?? "JOB-00984"
   const query = useQuery(adminQueryOptions.jobDetail(jobId))
   const mutation = useAdminMutation(adminMutationOptions.retryJob(), [
-    adminMutationKeys.jobs
+    adminMutationKeys.jobs,
+    adminMutationKeys.dashboard
   ])
   const retry = async () => {
     try {

@@ -6,7 +6,7 @@ const validScreens = new Set<AdminScreenName>([
   "businesses", "business-detail", "business-new", "business-edit", "business-lock",
   "users", "user-detail", "plans", "plan-config", "subscriptions", "subscription-detail",
   "change-plan", "limits", "monitoring", "integrations", "jobs", "job-detail", "audit",
-  "notifications", "notification-new", "support", "settings"
+  "notifications", "notification-new", "notification-detail", "support", "settings"
 ])
 
 export const Route = new FileRoute("/admin/$screen").createRoute({

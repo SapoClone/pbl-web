@@ -225,11 +225,42 @@ export type AdminIntegrationDetail = AdminIntegration & {
 }
 
 export type AdminNotification = {
+  id: string
   title: string
   audience: string
   type: string
   status: string
   sentAt: string
+  content: string
+}
+
+export type AdminNotificationQuery = {
+  search?: string
+  type?: string
+  time?: "all" | "today" | "7d" | "30d"
+  status?: string
+  page?: number
+  pageSize?: number
+}
+
+export type UpdateNotificationInput = CreateNotificationInput
+
+export type AdminAuditLog = {
+  id: string
+  time: string
+  actor: string
+  scope: string
+  action: string
+  target: string
+  result: string
+}
+
+export type AdminAuditQuery = {
+  search?: string
+  scope?: string
+  result?: string
+  page?: number
+  pageSize?: number
 }
 
 export type AdminDashboard = {
@@ -285,10 +316,27 @@ export type ChangeSubscriptionPlanInput = {
 export type CreateNotificationInput = {
   title: string
   audience: string
+  plan?: string
   type: string
   content: string
+  scheduledAt?: string
 }
 
 export type RetryJobInput = {
   jobId: string
+}
+
+export type AdminSettings = {
+  platformName: string
+  supportEmail: string
+  timezone: string
+  dateFormat: string
+  currency: string
+  language: string
+  loginLockPolicy: string
+  resetLinkPolicy: string
+  auditRetention: string
+  emailSender: string
+  emailReplyTo: string
+  emailFooter: string
 }
