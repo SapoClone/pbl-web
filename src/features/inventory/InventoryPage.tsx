@@ -1,197 +1,163 @@
-import { useMemo, useState, type FormEvent } from "react"
-import { AlertTriangle, ArrowDownToLine, Boxes, PackageCheck } from "lucide-react"
+import { useEffect, useState } from "react"
+import axios from "axios"
+import { AlertTriangle, ArrowDownToLine, Boxes, Plus, PackageCheck } from "lucide-react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useRouterState } from "@tanstack/react-router"
 import { Button } from "@/components/ui/button"
 import { listBranches } from "@/api/platform/branches"
-import { listStock, receiveStock } from "@/api/inventory/stock"
+import { listActiveVariants } from "@/api/catalog/variants"
+import {
+  approveStockReceipt, approveStocktake, cancelStockIssue, cancelStockReceipt, cancelStocktake, cancelStockTransfer,
+  createStockIssue, createStockReceipt, createStocktake, createStockTransfer, createWarehouse,
+  dispatchStockTransfer, getStockBySku, getStockSummary, listStockIssues, listStockLevels, listStockReceipts,
+  listStockMovements, listStocktakes, listStockThresholds, listStockTransfers, listWarehouses,
+  listWarehouseStocks, postStockIssue, postStockReceipt, receiveStockTransfer, reconcileStocks,
+  recordStocktakeCounts, rejectStockReceipt, submitStockReceipt, upsertStockThreshold, type StockIssue, type StockReceipt, type StockThreshold,
+  type Stocktake, type StockTransfer
+} from "@/api/inventory/stock"
 import { useStoreAuth } from "@/store/zustand/useStoreAuth"
-import { products as catalogProducts } from "@/shared/dashboard/dashboard.mock"
-import type { Product } from "@/shared/dashboard/dashboard.types"
 import { DashboardHeader } from "@/shared/dashboard/DashboardHeader"
-import { ProductsTable } from "@/features/products/ProductsTable"
+import { InventoryForm, StocktakeCountForm, type InventoryFormMode, type InventorySubmitValue } from "./InventoryForms"
+import { DocumentTable, StockTable, WarehouseTable, tabs, type InventoryTab } from "./InventoryTables"
+import { BalanceTable, MovementTable, ReconciliationPanel, SkuStockModal, ThresholdForm, ThresholdTable, TransferReceiveForm } from "./InventoryAdvanced"
 
-const DEMO_BRANCH_ID = "demo-branch"
-
-type ReceiptForm = {
-  sku: string
-  quantity: string
-}
-
-const initialReceipt: ReceiptForm = { sku: "", quantity: "" }
+const modeForTab: Partial<Record<InventoryTab, InventoryFormMode>> = { receipts: "receipt", issues: "issue", transfers: "transfer", stocktakes: "stocktake", warehouses: "warehouse" }
+const createLabels: Partial<Record<InventoryTab, string>> = { receipts: "Tạo phiếu nhập", issues: "Tạo phiếu xuất", transfers: "Tạo phiếu chuyển", stocktakes: "Tạo phiếu kiểm", warehouses: "Thêm kho" }
 
 export function InventoryPage() {
   const queryClient = useQueryClient()
   const isDemo = Boolean(useStoreAuth((state) => state.tokens?.isDemo))
+  const requestedTab = useRouterState({ select: (state) => new URLSearchParams(state.location.searchStr).get("tab") })
+  const initialTab = tabs.some((item) => item.id === requestedTab) ? requestedTab as InventoryTab : "stock"
+  const [tab, setTab] = useState<InventoryTab>(initialTab)
   const [branchId, setBranchId] = useState("")
-  const [showReceipt, setShowReceipt] = useState(false)
-  const [receipt, setReceipt] = useState(initialReceipt)
-  const [receiptError, setReceiptError] = useState("")
-  const [demoStock, setDemoStock] = useState<Record<string, number>>(
-    () => Object.fromEntries(catalogProducts.map((product) => [product.sku, product.stock]))
-  )
+  const [warehouseId, setWarehouseId] = useState("")
+  const [formMode, setFormMode] = useState<InventoryFormMode | null>(null)
+  const [counting, setCounting] = useState<Stocktake | null>(null)
+  const [receiving, setReceiving] = useState<StockTransfer | null>(null)
+  const [thresholdForm, setThresholdForm] = useState<null | "new" | StockThreshold>(null)
+  const [reconciliation, setReconciliation] = useState<Awaited<ReturnType<typeof reconcileStocks>>>()
+  const [selectedSku, setSelectedSku] = useState("")
+  const [actionError, setActionError] = useState("")
+  const [pendingId, setPendingId] = useState("")
 
-  const branchesQuery = useQuery({
-    queryKey: ["branches"],
-    queryFn: listBranches,
-    enabled: !isDemo
-  })
-  const selectedBranchId = branchId || (isDemo ? DEMO_BRANCH_ID : branchesQuery.data?.data[0]?.id)
-  const stockQuery = useQuery({
-    queryKey: ["inventory-stock", selectedBranchId],
-    queryFn: () => listStock(selectedBranchId),
-    enabled: Boolean(selectedBranchId) && !isDemo
-  })
+  useEffect(() => {
+    if (requestedTab && tabs.some((item) => item.id === requestedTab)) setTab(requestedTab as InventoryTab)
+  }, [requestedTab])
 
-  const stockBySku = useMemo(() => {
-    if (isDemo) {
-      return Object.fromEntries(
-        Object.entries(demoStock).map(([sku, onHand]) => [
-          sku,
-          { onHand, reserved: 0, available: onHand }
-        ])
-      )
-    }
-    return Object.fromEntries(
-      (stockQuery.data?.data ?? []).map((item) => [item.sku, item])
-    )
-  }, [demoStock, isDemo, stockQuery.data?.data])
+  const branches = useQuery({ queryKey: ["branches"], queryFn: listBranches, enabled: !isDemo })
+  const selectedBranch = branchId || branches.data?.data[0]?.id || ""
+  const warehouses = useQuery({ queryKey: ["inventory-warehouses"], queryFn: () => listWarehouses(), enabled: !isDemo })
+  const selectedWarehouse = warehouseId || warehouses.data?.find((item) => item.isDefault)?.id || warehouses.data?.[0]?.id || ""
+  const variants = useQuery({ queryKey: ["catalog-variants"], queryFn: listActiveVariants, enabled: !isDemo })
+  const stock = useQuery({ queryKey: ["inventory-stock", selectedBranch], queryFn: () => listStockLevels(selectedBranch), enabled: Boolean(selectedBranch) && !isDemo })
+  const summary = useQuery({ queryKey: ["inventory-summary", selectedBranch], queryFn: () => getStockSummary(selectedBranch), enabled: Boolean(selectedBranch) && !isDemo })
+  const receipts = useQuery({ queryKey: ["stock-receipts", selectedWarehouse], queryFn: () => listStockReceipts(selectedWarehouse), enabled: Boolean(selectedWarehouse) && !isDemo })
+  const issues = useQuery({ queryKey: ["stock-issues", selectedWarehouse], queryFn: () => listStockIssues(selectedWarehouse), enabled: Boolean(selectedWarehouse) && !isDemo })
+  const transfers = useQuery({ queryKey: ["stock-transfers", selectedWarehouse], queryFn: () => listStockTransfers(selectedWarehouse), enabled: Boolean(selectedWarehouse) && !isDemo })
+  const stocktakes = useQuery({ queryKey: ["stocktakes", selectedWarehouse], queryFn: () => listStocktakes(selectedWarehouse), enabled: Boolean(selectedWarehouse) && !isDemo })
+  const balances = useQuery({ queryKey: ["warehouse-stocks", selectedWarehouse], queryFn: () => listWarehouseStocks(selectedWarehouse), enabled: tab === "balances" && Boolean(selectedWarehouse) && !isDemo })
+  const movements = useQuery({ queryKey: ["stock-movements", selectedWarehouse], queryFn: () => listStockMovements(selectedWarehouse), enabled: tab === "movements" && Boolean(selectedWarehouse) && !isDemo })
+  const thresholds = useQuery({ queryKey: ["stock-thresholds", selectedWarehouse], queryFn: () => listStockThresholds(selectedWarehouse), enabled: tab === "thresholds" && Boolean(selectedWarehouse) && !isDemo })
+  const skuStock = useQuery({ queryKey: ["stock-by-sku", selectedSku], queryFn: () => getStockBySku(selectedSku), enabled: Boolean(selectedSku) && !isDemo })
 
-  const inventoryProducts: Product[] = catalogProducts.map((product) => {
-    const stock = stockBySku[product.sku]
-    return {
-      ...product,
-      stock: stock?.onHand ?? 0,
-      state: product.state === "Ngừng kinh doanh"
-        ? product.state
-        : stock?.onHand === 0
-          ? "Hết hàng"
-          : stock?.onHand < 10
-            ? "Sắp hết hàng"
-            : "Đang bán"
-    }
-  })
-
-  const totalOnHand = Object.values(stockBySku).reduce((sum, item) => sum + item.onHand, 0)
-  const totalReserved = Object.values(stockBySku).reduce((sum, item) => sum + item.reserved, 0)
-  const lowStockCount = inventoryProducts.filter((product) => product.stock < 10).length
-
-  const receiveMutation = useMutation({
-    mutationFn: receiveStock,
-    onSuccess: async () => {
-      setReceipt(initialReceipt)
-      setReceiptError("")
-      setShowReceipt(false)
-      await queryClient.invalidateQueries({ queryKey: ["inventory-stock", selectedBranchId] })
-    },
-    onError: () => setReceiptError("Không thể nhập kho. Hãy kiểm tra chi nhánh, SKU và quyền tài khoản.")
-  })
-
-  const submitReceipt = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const quantity = Number(receipt.quantity)
-    if (!receipt.sku || !Number.isInteger(quantity) || quantity <= 0) {
-      setReceiptError("Vui lòng chọn sản phẩm và nhập số lượng nguyên dương.")
-      return
-    }
-    if (!selectedBranchId) {
-      setReceiptError("Chưa có chi nhánh hoạt động để nhập kho.")
-      return
-    }
-
-    setReceiptError("")
-    if (isDemo) {
-      setDemoStock((current) => ({ ...current, [receipt.sku]: (current[receipt.sku] ?? 0) + quantity }))
-      setReceipt(initialReceipt)
-      setShowReceipt(false)
-      return
-    }
-    receiveMutation.mutate({
-      branchId: selectedBranchId,
-      items: [{ sku: receipt.sku, quantity }]
-    })
+  const refresh = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["inventory-stock"] }), queryClient.invalidateQueries({ queryKey: ["inventory-summary"] }),
+      queryClient.invalidateQueries({ queryKey: ["inventory-warehouses"] }), queryClient.invalidateQueries({ queryKey: ["stock-receipts"] }),
+      queryClient.invalidateQueries({ queryKey: ["stock-issues"] }), queryClient.invalidateQueries({ queryKey: ["stock-transfers"] }),
+      queryClient.invalidateQueries({ queryKey: ["stocktakes"] }), queryClient.invalidateQueries({ queryKey: ["warehouse-stocks"] }),
+      queryClient.invalidateQueries({ queryKey: ["stock-movements"] }), queryClient.invalidateQueries({ queryKey: ["stock-thresholds"] })
+    ])
   }
 
-  return (
-    <main className="mx-auto max-w-[1520px] py-7">
-      <DashboardHeader section="inventory" onCreate={() => setShowReceipt(true)} />
+  const createMutation = useMutation({
+    mutationFn: async (value: InventorySubmitValue) => {
+      if (formMode === "receipt") return createStockReceipt({ warehouseId: value.warehouseId!, note: value.note, items: [{ skuId: value.skuId!, qty: value.qty!, unitCost: value.unitCost }] })
+      if (formMode === "issue") return createStockIssue({ warehouseId: value.warehouseId!, reasonCode: value.reasonCode!, note: value.note, items: [{ skuId: value.skuId!, qty: value.qty! }] })
+      if (formMode === "transfer") return createStockTransfer({ fromWarehouseId: value.fromWarehouseId!, toWarehouseId: value.toWarehouseId!, note: value.note, items: [{ skuId: value.skuId!, qty: value.qty! }] })
+      if (formMode === "stocktake") return createStocktake({ warehouseId: value.warehouseId!, note: value.note, ...(value.skuId ? { skuIds: [value.skuId] } : {}) })
+      return createWarehouse({ code: value.code!, name: value.name!, kind: value.kind!, branchId: value.branchId, isDefault: value.isDefault, address: value.address })
+    },
+    onSuccess: async () => { setFormMode(null); setActionError(""); await refresh() },
+    onError: (error) => setActionError(apiError(error))
+  })
 
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Chi nhánh đang xem</p>
-          {isDemo ? (
-            <p className="mt-1 text-sm font-medium text-[#163d36]">Chi nhánh demo</p>
-          ) : branchesQuery.isLoading ? (
-            <p className="mt-1 text-sm text-slate-400">Đang tải chi nhánh...</p>
-          ) : (
-            <select
-              value={selectedBranchId ?? ""}
-              onChange={(event) => setBranchId(event.target.value)}
-              className="mt-1 min-w-56 bg-transparent text-sm font-medium text-[#163d36] outline-none"
-            >
-              <option value="" disabled>Chọn chi nhánh</option>
-              {(branchesQuery.data?.data ?? []).map((branch) => (
-                <option key={branch.id} value={branch.id}>{branch.name} ({branch.code})</option>
-              ))}
-            </select>
-          )}
-        </div>
-        {isDemo && <span className="rounded-full bg-amber-50 px-3 py-1 text-xs text-amber-700">Dữ liệu demo</span>}
+  const countMutation = useMutation({
+    mutationFn: (counts: Array<{ skuId: string; countedQty: string; reason?: string }>) => recordStocktakeCounts(counting!.id, counts),
+    onSuccess: async () => { setCounting(null); setActionError(""); await refresh() },
+    onError: (error) => setActionError(apiError(error))
+  })
+
+  const thresholdMutation = useMutation({ mutationFn: upsertStockThreshold, onSuccess: async () => { setThresholdForm(null); setActionError(""); await refresh() }, onError: (error) => setActionError(apiError(error)) })
+  const receiveMutation = useMutation({ mutationFn: (value: Parameters<typeof receiveStockTransfer>[1]) => receiveStockTransfer(receiving!.id, value), onSuccess: async () => { setReceiving(null); setActionError(""); await refresh() }, onError: (error) => setActionError(apiError(error)) })
+  const reconcileMutation = useMutation({ mutationFn: reconcileStocks, onSuccess: setReconciliation, onError: (error) => setActionError(apiError(error)) })
+
+  const runAction = async (action: string, item: StockReceipt | StockIssue | StockTransfer | Stocktake) => {
+    if (action === "count") { setCounting(item as Stocktake); setActionError(""); return }
+    setPendingId(item.id); setActionError("")
+    try {
+      if (tab === "receipts") {
+        if (action === "post") await postStockReceipt(item.id)
+        else if (action === "submit") await submitStockReceipt(item.id)
+        else if (action === "approve") await approveStockReceipt(item.id)
+        else if (action === "reject") await rejectStockReceipt(item.id, window.prompt("Lý do trả lại phiếu nhập:") ?? undefined)
+        else await cancelStockReceipt(item.id)
+      }
+      if (tab === "issues") await (action === "post" ? postStockIssue(item.id) : cancelStockIssue(item.id))
+      if (tab === "transfers") {
+        if (action === "receive") { setReceiving(item as StockTransfer); return }
+        await (action === "dispatch" ? dispatchStockTransfer(item.id) : cancelStockTransfer(item.id))
+      }
+      if (tab === "stocktakes") await (action === "approve" ? approveStocktake(item.id) : cancelStocktake(item.id))
+      await refresh()
+    } catch (error) { setActionError(apiError(error)) } finally { setPendingId("") }
+  }
+
+  const metrics = summary.data ?? { onHand: 0, reserved: 0, available: 0, belowMinCount: 0, outOfStockCount: 0, skuCount: 0, stockValue: 0, branchId: null }
+  const loadingError = [branches, warehouses, variants, stock, summary].some((query) => query.isError)
+  const docs = tab === "receipts" ? receipts.data ?? [] : tab === "issues" ? issues.data ?? [] : tab === "transfers" ? transfers.data ?? [] : stocktakes.data ?? []
+
+  return <main className="mx-auto max-w-[1520px] py-7">
+    <DashboardHeader section="inventory" />
+    {isDemo && <p className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">Tài khoản demo không gọi API. Đăng nhập tài khoản backend để sử dụng nhập, xuất, chuyển và kiểm kho.</p>}
+
+    <div className="mb-5 flex flex-wrap items-end justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4">
+      <div className="flex flex-wrap gap-4">
+        <label className="text-xs font-semibold text-slate-500">Chi nhánh<select value={selectedBranch} onChange={(event) => setBranchId(event.target.value)} className="mt-1 block min-w-52 bg-transparent text-sm font-medium text-[#163d36] outline-none"><option value="">Chọn chi nhánh</option>{(branches.data?.data ?? []).map((item) => <option key={item.id} value={item.id}>{item.name} ({item.code})</option>)}</select></label>
+        <label className="text-xs font-semibold text-slate-500">Kho thao tác<select value={selectedWarehouse} onChange={(event) => setWarehouseId(event.target.value)} className="mt-1 block min-w-52 bg-transparent text-sm font-medium text-[#163d36] outline-none"><option value="">Chọn kho</option>{(warehouses.data ?? []).filter((item) => item.status === "ACTIVE").map((item) => <option key={item.id} value={item.id}>{item.name} ({item.code})</option>)}</select></label>
       </div>
+      {tab !== "stock" && createLabels[tab] && <Button onClick={() => { setFormMode(modeForTab[tab]!); setActionError(""); createMutation.reset() }} disabled={isDemo} className="gap-2 bg-[#16866f] text-white hover:bg-[#0f705d]"><Plus size={16} />{createLabels[tab]}</Button>}
+    </div>
 
-      <div className="mb-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <InventoryMetric label="Tồn thực tế" value={totalOnHand} icon={Boxes} />
-        <InventoryMetric label="Đang giữ cho đơn" value={totalReserved} icon={PackageCheck} />
-        <InventoryMetric label="Tồn khả dụng" value={totalOnHand - totalReserved} icon={ArrowDownToLine} />
-        <InventoryMetric label="Sản phẩm sắp hết" value={lowStockCount} icon={AlertTriangle} warning />
-      </div>
+    <div className="mb-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"><Metric label="Tồn thực tế" value={metrics.onHand} icon={Boxes} /><Metric label="Đang giữ cho đơn" value={metrics.reserved} icon={PackageCheck} /><Metric label="Tồn khả dụng" value={metrics.available} icon={ArrowDownToLine} /><Metric label="Sản phẩm cần chú ý" value={metrics.belowMinCount + metrics.outOfStockCount} icon={AlertTriangle} warning /></div>
 
-      {stockQuery.isError && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">Không thể tải tồn kho từ pbl-api.</p>}
-      {!isDemo && !selectedBranchId && !branchesQuery.isLoading && <p className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-700">Chưa có chi nhánh hoạt động để xem tồn kho.</p>}
+    {loadingError && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">Không thể tải đầy đủ dữ liệu từ KrakenD.</p>}
+    {actionError && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">{actionError}</p>}
 
-      <ProductsTable section="inventory" products={inventoryProducts} />
+    {tab === "stock" && <StockTable rows={stock.data?.data ?? []} />}
+    {tab === "balances" && <BalanceTable rows={balances.data?.data ?? []} variants={variants.data ?? []} onSelect={setSelectedSku} />}
+    {tab === "movements" && <MovementTable rows={movements.data?.data ?? []} variants={variants.data ?? []} warehouses={warehouses.data ?? []} />}
+    {tab === "thresholds" && <><div className="mb-3 flex justify-end"><Button onClick={() => setThresholdForm("new")} disabled={isDemo} className="gap-2 bg-[#16866f] text-white"><Plus size={16} /> Thêm định mức</Button></div><ThresholdTable rows={thresholds.data ?? []} variants={variants.data ?? []} warehouses={warehouses.data ?? []} onEdit={setThresholdForm} /></>}
+    {tab === "reconcile" && <ReconciliationPanel report={reconciliation} pending={reconcileMutation.isPending} onRun={() => reconcileMutation.mutate()} />}
+    {tab === "warehouses" && <WarehouseTable rows={warehouses.data ?? []} />}
+    {["receipts", "issues", "transfers", "stocktakes"].includes(tab) && <DocumentTable type={tab === "receipts" ? "receipt" : tab === "issues" ? "issue" : tab === "transfers" ? "transfer" : "stocktake"} rows={docs} warehouses={warehouses.data ?? []} variants={variants.data ?? []} pendingId={pendingId} onAction={runAction} />}
 
-      {showReceipt && (
-        <div className="fixed inset-0 z-[60] flex items-start justify-center bg-[#163d36]/30 p-4 pt-20 backdrop-blur-sm">
-          <form onSubmit={submitReceipt} className="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl">
-            <h2 className="text-lg font-semibold text-[#163d36]">Nhập kho</h2>
-            <p className="mt-1 text-sm text-slate-500">Tồn kho chỉ thay đổi thông qua phiếu nhập.</p>
-            <label className="mt-5 block text-xs font-medium text-slate-600">Sản phẩm
-              <select value={receipt.sku} onChange={(event) => setReceipt({ ...receipt, sku: event.target.value })} className="mt-1 h-10 w-full rounded-md border border-slate-200 px-3 text-sm" required>
-                <option value="">Chọn sản phẩm</option>
-                {catalogProducts.map((product) => <option key={product.sku} value={product.sku}>{product.name} ({product.sku})</option>)}
-              </select>
-            </label>
-            <label className="mt-4 block text-xs font-medium text-slate-600">Số lượng nhập
-              <input type="number" min="1" step="1" value={receipt.quantity} onChange={(event) => setReceipt({ ...receipt, quantity: event.target.value })} className="mt-1 h-10 w-full rounded-md border border-slate-200 px-3 text-sm" required />
-            </label>
-            {receiptError && <p className="mt-3 text-sm text-red-600">{receiptError}</p>}
-            <div className="mt-6 flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => { setShowReceipt(false); setReceiptError("") }}>Hủy</Button>
-              <Button type="submit" disabled={receiveMutation.isPending} className="bg-[#16866f] text-white hover:bg-[#0f705d]">{receiveMutation.isPending ? "Đang nhập..." : "Xác nhận nhập kho"}</Button>
-            </div>
-          </form>
-        </div>
-      )}
-    </main>
-  )
+    {formMode && <InventoryForm mode={formMode} warehouses={warehouses.data ?? []} variants={variants.data ?? []} branches={branches.data?.data ?? []} isPending={createMutation.isPending} error={createMutation.isError ? actionError : ""} onClose={() => setFormMode(null)} onSubmit={async (value) => { await createMutation.mutateAsync(value) }} />}
+    {counting && <StocktakeCountForm stocktake={counting} variants={variants.data ?? []} isPending={countMutation.isPending} error={countMutation.isError ? actionError : ""} onClose={() => setCounting(null)} onSubmit={async (counts) => { await countMutation.mutateAsync(counts) }} />}
+    {receiving && <TransferReceiveForm transfer={receiving} variants={variants.data ?? []} pending={receiveMutation.isPending} error={receiveMutation.isError ? actionError : ""} onClose={() => setReceiving(null)} onSubmit={async (value) => { await receiveMutation.mutateAsync(value) }} />}
+    {thresholdForm && <ThresholdForm warehouses={warehouses.data ?? []} variants={variants.data ?? []} initial={thresholdForm === "new" ? null : thresholdForm} pending={thresholdMutation.isPending} error={thresholdMutation.isError ? actionError : ""} onClose={() => setThresholdForm(null)} onSubmit={async (value) => { await thresholdMutation.mutateAsync(value) }} />}
+    {selectedSku && <SkuStockModal data={skuStock.data} onClose={() => setSelectedSku("")} />}
+  </main>
 }
 
-function InventoryMetric({
-  label,
-  value,
-  icon: Icon,
-  warning = false
-}: {
-  label: string
-  value: number
-  icon: typeof Boxes
-  warning?: boolean
-}) {
-  return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_3px_15px_rgba(20,50,45,0.04)]">
-      <div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-lg ${warning ? "bg-amber-50 text-amber-600" : "bg-[#e6f5ee] text-[#16866f]"}`}><Icon size={18} /></div>
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className="mt-1 text-2xl font-semibold text-[#163d36]">{value.toLocaleString("vi-VN")}</p>
-    </section>
-  )
+function Metric({ label, value, icon: Icon, warning = false }: { label: string; value: number; icon: typeof Boxes; warning?: boolean }) {
+  return <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_3px_15px_rgba(20,50,45,0.04)]"><div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-lg ${warning ? "bg-amber-50 text-amber-600" : "bg-[#e6f5ee] text-[#16866f]"}`}><Icon size={18} /></div><p className="text-xs text-slate-500">{label}</p><p className="mt-1 text-2xl font-semibold text-[#163d36]">{value.toLocaleString("vi-VN", { maximumFractionDigits: 3 })}</p></section>
+}
+
+function apiError(error: unknown) {
+  if (!axios.isAxiosError(error)) return "Không thể thực hiện thao tác."
+  const data = error.response?.data as { message?: string | string[]; errorCode?: string } | undefined
+  const message = Array.isArray(data?.message) ? data.message.join(" ") : data?.message
+  return message || data?.errorCode || "Không thể thực hiện thao tác. Hãy kiểm tra quyền tài khoản và trạng thái phiếu."
 }

@@ -1,115 +1,72 @@
-import { useMemo, useState, type FormEvent } from "react"
-import { ClipboardList, PackagePlus, Pencil, Plus, Search, Truck, X } from "lucide-react"
-import { useMutation, useQuery } from "@tanstack/react-query"
+import { useState } from "react"
+import axios from "axios"
+import { Check, PackagePlus, Pencil, Plus, Search, Truck, X } from "lucide-react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
-import { receiveStock } from "@/api/inventory/stock"
-import { listBranches } from "@/api/platform/branches"
-import { products } from "@/shared/dashboard/dashboard.mock"
+import { listActiveVariants, type CatalogVariant } from "@/api/catalog/variants"
+import { listWarehouses, type Warehouse } from "@/api/inventory/stock"
+import { approvePurchaseOrder, cancelPurchaseOrder, createPurchaseOrder, createSupplier, deleteSupplier, getPurchaseOrder, getSupplier, listPurchaseOrders, listSuppliers, receivePurchaseOrder, updateSupplier, type PurchaseOrder, type Supplier } from "@/api/inventory/procurement"
+import { DashboardHeader } from "@/shared/dashboard/DashboardHeader"
 import { useStoreAuth } from "@/store/zustand/useStoreAuth"
 
-type Supplier = {
-  id: string
-  name: string
-  phone: string
-  email: string
-  address: string
-  note: string
-}
-
-type Purchase = {
-  id: string
-  supplier: string
-  date: string
-  status: "Nháp" | "Đã nhập kho"
-  items: number
-  total: number
-}
-
-const initialSuppliers: Supplier[] = [
-  { id: "sup-1", name: "Công ty Terra Việt Nam", phone: "0909888777", email: "contact@terra.vn", address: "Hà Nội", note: "" },
-  { id: "sup-2", name: "Nhà cung cấp Mộc", phone: "0911222333", email: "moc@example.com", address: "TP. Hồ Chí Minh", note: "Giao hàng trong 2 ngày" }
-]
-
-const initialPurchases: Purchase[] = [
-  { id: "PN-0001", supplier: "Công ty Terra Việt Nam", date: "2026-10-28", status: "Đã nhập kho", items: 12, total: 3360000 }
-]
-
-const inputClass = "mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[#16866f] focus:ring-4 focus:ring-[#16866f]/10"
-const money = (value: number) => `${value.toLocaleString("vi-VN")} ₫`
+const input = "mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[#16866f]"
+const money = (v: number) => `${v.toLocaleString("vi-VN")} ₫`
+const date = (v?: string | null) => v ? new Date(v).toLocaleDateString("vi-VN") : "—"
+const labels: Record<string, string> = { DRAFT: "Nháp", APPROVED: "Đã duyệt", PARTIALLY_RECEIVED: "Nhận một phần", RECEIVED: "Đã nhận đủ", CANCELLED: "Đã hủy", ACTIVE: "Hoạt động", INACTIVE: "Ngừng hoạt động" }
 
 export function SuppliersPage() {
-  const isDemo = Boolean(useStoreAuth((state) => state.tokens?.isDemo))
-  const branchesQuery = useQuery({ queryKey: ["branches"], queryFn: listBranches, enabled: !isDemo })
-  const branchId = branchesQuery.data?.data[0]?.id
+  const qc = useQueryClient()
+  const demo = Boolean(useStoreAuth((s) => s.tokens?.isDemo))
   const [tab, setTab] = useState<"purchases" | "suppliers">("purchases")
-  const [suppliers, setSuppliers] = useState(initialSuppliers)
-  const [purchases, setPurchases] = useState(initialPurchases)
-  const [query, setQuery] = useState("")
-  const [showSupplierForm, setShowSupplierForm] = useState(false)
-  const [showPurchaseForm, setShowPurchaseForm] = useState(false)
-  const [supplierDraft, setSupplierDraft] = useState({ name: "", phone: "", email: "", address: "", note: "" })
-  const [purchaseDraft, setPurchaseDraft] = useState({ supplier: "", sku: "", quantity: "", costPrice: "" })
+  const [search, setSearch] = useState("")
+  const [supplierForm, setSupplierForm] = useState<"new" | Supplier | null>(null)
+  const [purchaseForm, setPurchaseForm] = useState(false)
+  const [detail, setDetail] = useState<{ type: "supplier" | "purchase"; id: string } | null>(null)
   const [error, setError] = useState("")
-  const receiveMutation = useMutation({
-    mutationFn: receiveStock,
-    onSuccess: () => finishPurchase(),
-    onError: () => setError("Không thể cập nhật tồn kho. Hãy kiểm tra chi nhánh và quyền tài khoản.")
-  })
-
-  const filteredSuppliers = useMemo(() => suppliers.filter((item) => `${item.name} ${item.phone} ${item.email}`.toLowerCase().includes(query.toLowerCase())), [query, suppliers])
-  const filteredPurchases = useMemo(() => purchases.filter((item) => `${item.id} ${item.supplier}`.toLowerCase().includes(query.toLowerCase())), [purchases, query])
-
-  const saveSupplier = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (!supplierDraft.name.trim() || !/^\+?[0-9]{8,15}$/.test(supplierDraft.phone)) return setError("Vui lòng nhập tên và số điện thoại hợp lệ.")
-    setSuppliers((current) => [...current, { ...supplierDraft, id: `sup-${Date.now()}` }])
-    setSupplierDraft({ name: "", phone: "", email: "", address: "", note: "" })
-    setShowSupplierForm(false)
-    setError("")
-  }
-
-  const savePurchase = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const quantity = Number(purchaseDraft.quantity)
-    const costPrice = Number(purchaseDraft.costPrice)
-    if (!purchaseDraft.supplier || !purchaseDraft.sku || !Number.isInteger(quantity) || quantity <= 0 || !Number.isFinite(costPrice) || costPrice < 0) return setError("Vui lòng nhập đủ nhà cung cấp, sản phẩm, số lượng và giá nhập hợp lệ.")
-    setError("")
-    const total = quantity * costPrice
-    if (isDemo) {
-      finishPurchase(total)
-      return
+  const suppliers = useQuery({ queryKey: ["suppliers", search], queryFn: () => listSuppliers(search || undefined), enabled: !demo })
+  const purchases = useQuery({ queryKey: ["purchase-orders"], queryFn: () => listPurchaseOrders(), enabled: !demo })
+  const warehouses = useQuery({ queryKey: ["inventory-warehouses"], queryFn: () => listWarehouses(), enabled: !demo })
+  const variants = useQuery({ queryKey: ["catalog-variants"], queryFn: listActiveVariants, enabled: !demo })
+  const supplierDetail = useQuery({ queryKey: ["supplier-detail", detail?.id], queryFn: () => getSupplier(detail!.id), enabled: detail?.type === "supplier" })
+  const poDetail = useQuery({ queryKey: ["purchase-detail", detail?.id], queryFn: () => getPurchaseOrder(detail!.id), enabled: detail?.type === "purchase" })
+  const refresh = () => Promise.all([qc.invalidateQueries({ queryKey: ["suppliers"] }), qc.invalidateQueries({ queryKey: ["purchase-orders"] }), qc.invalidateQueries({ queryKey: ["purchase-detail"] })])
+  const action = useMutation({ mutationFn: async ({ kind, row }: { kind: string; row: Supplier | PurchaseOrder }) => {
+    if ("supplierId" in row) {
+      if (kind === "approve") return approvePurchaseOrder(row.id)
+      if (kind === "receive") return receivePurchaseOrder(row.id)
+      return cancelPurchaseOrder(row.id, window.prompt("Lý do hủy đơn mua:") ?? undefined)
     }
-    if (!branchId) {
-      setError("Chưa có chi nhánh hoạt động để nhập kho.")
-      return
-    }
-    receiveMutation.mutate({ branchId, items: [{ sku: purchaseDraft.sku, quantity }] })
-  }
-
-  const finishPurchase = (total = Number(purchaseDraft.quantity) * Number(purchaseDraft.costPrice)) => {
-    setPurchases((current) => [{ id: `PN-${String(current.length + 1).padStart(4, "0")}`, supplier: purchaseDraft.supplier, date: new Date().toISOString().slice(0, 10), status: "Đã nhập kho", items: Number(purchaseDraft.quantity), total }, ...current])
-    setPurchaseDraft({ supplier: "", sku: "", quantity: "", costPrice: "" })
-    setShowPurchaseForm(false)
-    setError("")
-  }
-
-  return (
-    <main className="mx-auto max-w-[1480px] py-7">
-      <header className="mb-7 flex flex-wrap items-end justify-between gap-4"><div><p className="mb-2 text-xs font-bold uppercase tracking-[0.16em] text-[#16866f]">Vận hành / Nhập hàng</p><h1 className="text-[32px] font-semibold tracking-[-0.03em] text-[#163d36]">Nhập hàng & nhà cung cấp</h1><p className="mt-2 text-sm text-slate-500">Theo dõi nhà cung cấp, giá nhập và các phiếu nhập kho.</p></div><div className="flex gap-2"><Button variant="outline" onClick={() => { setShowSupplierForm(true); setError("") }} className="gap-2 border-slate-200 text-slate-600"><Plus size={16} /> Nhà cung cấp</Button><Button onClick={() => { setShowPurchaseForm(true); setError("") }} className="gap-2 bg-[#16866f] text-white hover:bg-[#0f705d]"><PackagePlus size={17} /> Tạo đơn nhập</Button></div></header>
-      <div className="mb-5 grid gap-4 md:grid-cols-3"><SummaryCard label="Nhà cung cấp" value={suppliers.length} /><SummaryCard label="Phiếu nhập" value={purchases.length} /><SummaryCard label="Tổng giá trị nhập" value={money(purchases.reduce((sum, item) => sum + item.total, 0))} /></div>
-      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_3px_15px_rgba(20,50,45,0.04)]"><div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-4"><div className="flex gap-1"><button type="button" onClick={() => setTab("purchases")} className={`rounded-lg px-4 py-2 text-sm ${tab === "purchases" ? "bg-[#e6f5ee] font-semibold text-[#16866f]" : "text-slate-500"}`}><ClipboardList className="mr-2 inline" size={15} />Đơn nhập</button><button type="button" onClick={() => setTab("suppliers")} className={`rounded-lg px-4 py-2 text-sm ${tab === "suppliers" ? "bg-[#e6f5ee] font-semibold text-[#16866f]" : "text-slate-500"}`}><Truck className="mr-2 inline" size={15} />Nhà cung cấp</button></div><label className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-400"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm kiếm..." className="w-48 outline-none" /></label></div>
-        {tab === "purchases" ? <PurchaseTable rows={filteredPurchases} /> : <SupplierTable rows={filteredSuppliers} />}
-      </section>
-      {showSupplierForm && <SupplierForm draft={supplierDraft} onChange={setSupplierDraft} onSubmit={saveSupplier} onClose={() => setShowSupplierForm(false)} error={error} />}
-      {showPurchaseForm && <PurchaseForm draft={purchaseDraft} suppliers={suppliers} onChange={setPurchaseDraft} onSubmit={savePurchase} onClose={() => setShowPurchaseForm(false)} error={error} />}
-    </main>
-  )
+    if (kind === "delete") return deleteSupplier(row.id)
+    return updateSupplier(row.id, { status: row.status === "ACTIVE" ? "INACTIVE" : "ACTIVE" })
+  }, onSuccess: async () => { setError(""); await refresh() }, onError: (e) => setError(apiError(e)) })
+  const pos = purchases.data ?? []
+  return <main className="mx-auto max-w-[1480px] py-7">
+    <DashboardHeader section="suppliers" />
+    {demo && <p className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">Tài khoản demo không gọi API mua hàng.</p>}
+    <div className="mb-5 flex justify-end gap-2"><Button variant="outline" disabled={demo} onClick={() => setSupplierForm("new")}><Plus size={16} /> Nhà cung cấp</Button><Button disabled={demo} onClick={() => setPurchaseForm(true)} className="bg-[#16866f] text-white"><PackagePlus size={16} /> Tạo đơn mua</Button></div>
+    <div className="mb-5 grid gap-4 md:grid-cols-3"><Card label="Nhà cung cấp" value={suppliers.data?.length ?? 0} /><Card label="Đơn mua" value={pos.length} /><Card label="Tổng giá trị" value={money(pos.reduce((sum, x) => sum + x.totalAmount, 0))} /></div>
+    {error && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</p>}
+    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white"><div className="flex flex-wrap items-center justify-between gap-3 border-b p-4"><div className="flex gap-1"><Tab active={tab === "purchases"} onClick={() => setTab("purchases")}><PackagePlus size={15} /> Đơn mua</Tab><Tab active={tab === "suppliers"} onClick={() => setTab("suppliers")}><Truck size={15} /> Nhà cung cấp</Tab></div>{tab === "suppliers" && <label className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm text-slate-400"><Search size={16} /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Tên hoặc mã NCC" className="outline-none" /></label>}</div>
+      {tab === "suppliers" ? <SupplierRows rows={suppliers.data ?? []} pending={action.isPending} detail={(x) => setDetail({ type: "supplier", id: x.id })} edit={setSupplierForm} act={(kind, row) => action.mutate({ kind, row })} /> : <PurchaseRows rows={pos} suppliers={suppliers.data ?? []} warehouses={warehouses.data ?? []} pending={action.isPending} detail={(x) => setDetail({ type: "purchase", id: x.id })} act={(kind, row) => action.mutate({ kind, row })} />}
+    </section>
+    {supplierForm && <SupplierForm initial={supplierForm === "new" ? null : supplierForm} close={() => setSupplierForm(null)} saved={async () => { setSupplierForm(null); await refresh() }} />}
+    {purchaseForm && <PurchaseForm suppliers={suppliers.data ?? []} warehouses={warehouses.data ?? []} variants={variants.data ?? []} close={() => setPurchaseForm(false)} saved={async () => { setPurchaseForm(false); await refresh() }} />}
+    {detail && <Detail supplier={detail.type === "supplier" ? supplierDetail.data : undefined} po={detail.type === "purchase" ? poDetail.data : undefined} variants={variants.data ?? []} close={() => setDetail(null)} />}
+  </main>
 }
 
-function SummaryCard({ label, value }: { label: string; value: string | number }) { return <section className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-xs text-slate-500">{label}</p><p className="mt-1 text-2xl font-semibold text-[#163d36]">{value}</p></section> }
-function SupplierTable({ rows }: { rows: Supplier[] }) { return <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm"><thead className="bg-[#fbfcfc] text-xs uppercase tracking-wide text-slate-400"><tr>{["Nhà cung cấp", "Liên hệ", "Địa chỉ", "Ghi chú", ""].map((item) => <th key={item} className="px-5 py-3">{item}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{rows.map((row) => <tr key={row.id}><td className="px-5 py-4 font-medium text-[#163d36]">{row.name}</td><td className="px-5 py-4 text-slate-600">{row.phone}<span className="block text-xs text-slate-400">{row.email}</span></td><td className="px-5 py-4 text-slate-500">{row.address || "—"}</td><td className="px-5 py-4 text-slate-500">{row.note || "—"}</td><td className="px-5 py-4 text-right"><Pencil size={16} className="text-slate-400" /></td></tr>)}</tbody></table>{!rows.length && <p className="p-10 text-center text-sm text-slate-500">Không tìm thấy nhà cung cấp.</p>}</div> }
-function PurchaseTable({ rows }: { rows: Purchase[] }) { return <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm"><thead className="bg-[#fbfcfc] text-xs uppercase tracking-wide text-slate-400"><tr>{["Mã phiếu", "Nhà cung cấp", "Ngày nhập", "Số lượng", "Tổng tiền", "Trạng thái"].map((item) => <th key={item} className="px-5 py-3">{item}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{rows.map((row) => <tr key={row.id}><td className="px-5 py-4 font-semibold text-[#163d36]">{row.id}</td><td className="px-5 py-4 text-slate-600">{row.supplier}</td><td className="px-5 py-4 text-slate-500">{row.date}</td><td className="px-5 py-4 text-slate-600">{row.items}</td><td className="px-5 py-4 font-medium text-slate-700">{money(row.total)}</td><td className="px-5 py-4"><span className="rounded-full bg-[#e6f5ee] px-2.5 py-1 text-xs text-[#147853]">{row.status}</span></td></tr>)}</tbody></table>{!rows.length && <p className="p-10 text-center text-sm text-slate-500">Chưa có đơn nhập.</p>}</div> }
-function SupplierForm({ draft, onChange, onSubmit, onClose, error }: { draft: Omit<Supplier, "id">; onChange: (value: Omit<Supplier, "id">) => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; onClose: () => void; error: string }) { const update = (key: keyof Omit<Supplier, "id">, value: string) => onChange({ ...draft, [key]: value }); return <Modal title="Thêm nhà cung cấp" onClose={onClose}><form onSubmit={onSubmit} className="grid gap-4 md:grid-cols-2">{(["name", "phone", "email", "address"] as const).map((key) => <label key={key} className="text-xs font-medium text-slate-600">{({ name: "Tên nhà cung cấp *", phone: "Số điện thoại *", email: "Email", address: "Địa chỉ" } as Record<string, string>)[key]}<input required={key === "name" || key === "phone"} type={key === "email" ? "email" : "text"} className={inputClass} value={draft[key]} onChange={(event) => update(key, event.target.value)} /></label>)}<label className="text-xs font-medium text-slate-600 md:col-span-2">Ghi chú<textarea className="mt-1 min-h-20 w-full rounded-lg border border-slate-200 p-3 text-sm" value={draft.note} onChange={(event) => update("note", event.target.value)} /></label>{error && <p className="text-sm text-red-600 md:col-span-2">{error}</p>}<ModalActions onClose={onClose} submit="Lưu nhà cung cấp" /></form></Modal> }
-function PurchaseForm({ draft, suppliers, onChange, onSubmit, onClose, error }: { draft: { supplier: string; sku: string; quantity: string; costPrice: string }; suppliers: Supplier[]; onChange: (value: { supplier: string; sku: string; quantity: string; costPrice: string }) => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; onClose: () => void; error: string }) { const update = (key: keyof typeof draft, value: string) => onChange({ ...draft, [key]: value }); return <Modal title="Tạo đơn nhập hàng" onClose={onClose}><form onSubmit={onSubmit} className="grid gap-4"><label className="text-xs font-medium text-slate-600">Nhà cung cấp<select required className={inputClass} value={draft.supplier} onChange={(event) => update("supplier", event.target.value)}><option value="">Chọn nhà cung cấp</option>{suppliers.map((item) => <option key={item.id}>{item.name}</option>)}</select></label><label className="text-xs font-medium text-slate-600">Sản phẩm<select required className={inputClass} value={draft.sku} onChange={(event) => update("sku", event.target.value)}><option value="">Chọn sản phẩm</option>{products.map((item) => <option key={item.sku} value={item.sku}>{item.name} ({item.sku})</option>)}</select></label><div className="grid gap-4 sm:grid-cols-2"><label className="text-xs font-medium text-slate-600">Số lượng<input required min="1" type="number" className={inputClass} value={draft.quantity} onChange={(event) => update("quantity", event.target.value)} /></label><label className="text-xs font-medium text-slate-600">Giá nhập / đơn vị<input required min="0" type="number" className={inputClass} value={draft.costPrice} onChange={(event) => update("costPrice", event.target.value)} /></label></div><p className="text-xs text-slate-400">Khi xác nhận, số lượng sẽ được ghi nhận vào tồn kho thông qua phiếu nhập.</p>{error && <p className="text-sm text-red-600">{error}</p>}<ModalActions onClose={onClose} submit="Xác nhận nhập kho" /></form></Modal> }
-function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) { return <div className="fixed inset-0 z-[60] flex items-start justify-center bg-[#163d36]/30 p-4 pt-16 backdrop-blur-sm"><section className="w-full max-w-xl rounded-xl bg-white p-6 shadow-2xl"><div className="mb-5 flex items-center justify-between"><h2 className="text-lg font-semibold text-[#163d36]">{title}</h2><button type="button" onClick={onClose} aria-label="Đóng"><X size={19} className="text-slate-400" /></button></div>{children}</section></div> }
-function ModalActions({ onClose, submit }: { onClose: () => void; submit: string }) { return <div className="flex justify-end gap-2 border-t border-slate-100 pt-4 md:col-span-2"><Button type="button" variant="outline" onClick={onClose}>Hủy</Button><Button type="submit" className="bg-[#16866f] text-white hover:bg-[#0f705d]">{submit}</Button></div> }
+function SupplierRows({ rows, pending, detail, edit, act }: { rows: Supplier[]; pending: boolean; detail: (x: Supplier) => void; edit: (x: Supplier) => void; act: (k: string, x: Supplier) => void }) { return <Table empty={!rows.length}><table className="w-full min-w-[1000px] text-left text-sm"><thead><tr><th>Mã</th><th>Nhà cung cấp</th><th>Liên hệ</th><th>Địa chỉ</th><th>Trạng thái</th><th></th></tr></thead><tbody>{rows.map((x) => <tr key={x.id}><td className="font-semibold">{x.code}</td><td><button className="text-[#16866f]" onClick={() => detail(x)}>{x.name}</button></td><td>{x.phone ?? "—"}<small>{x.email ?? ""}</small></td><td>{x.address ?? "—"}</td><td>{labels[x.status]}</td><td><div className="flex justify-end gap-1"><Button size="sm" variant="ghost" onClick={() => edit(x)}><Pencil size={14} /> Sửa</Button><Button size="sm" variant="ghost" disabled={pending} onClick={() => act("toggle", x)}>{x.status === "ACTIVE" ? "Ngừng" : "Kích hoạt"}</Button><Button size="sm" variant="ghost" disabled={pending} onClick={() => act("delete", x)} className="text-red-600">Xóa</Button></div></td></tr>)}</tbody></table></Table> }
+function PurchaseRows({ rows, suppliers, warehouses, pending, detail, act }: { rows: PurchaseOrder[]; suppliers: Supplier[]; warehouses: Warehouse[]; pending: boolean; detail: (x: PurchaseOrder) => void; act: (k: string, x: PurchaseOrder) => void }) { const sn = new Map(suppliers.map((x) => [x.id, x.name])); const wn = new Map(warehouses.map((x) => [x.id, x.name])); return <Table empty={!rows.length}><table className="w-full min-w-[1050px] text-left text-sm"><thead><tr><th>Mã đơn</th><th>Nhà cung cấp</th><th>Kho nhận</th><th>Dự kiến</th><th>Giá trị</th><th>Trạng thái</th><th></th></tr></thead><tbody>{rows.map((x) => <tr key={x.id}><td><button onClick={() => detail(x)} className="font-semibold text-[#16866f]">{x.code}</button><small>{x.items.length} dòng hàng</small></td><td>{sn.get(x.supplierId) ?? x.supplierId}</td><td>{wn.get(x.warehouseId) ?? x.warehouseId}</td><td>{date(x.expectedDate)}</td><td>{money(x.totalAmount)}</td><td>{labels[x.status] ?? x.status}</td><td><div className="flex justify-end gap-1">{x.status === "DRAFT" && <Button size="sm" disabled={pending} onClick={() => act("approve", x)} className="bg-[#16866f] text-white"><Check size={14} /> Duyệt</Button>}{["APPROVED", "PARTIALLY_RECEIVED"].includes(x.status) && <Button size="sm" disabled={pending} onClick={() => act("receive", x)} className="bg-[#16866f] text-white">Nhận phần còn lại</Button>}{["DRAFT", "APPROVED"].includes(x.status) && <Button size="sm" variant="ghost" disabled={pending} onClick={() => act("cancel", x)}>Hủy</Button>}</div></td></tr>)}</tbody></table></Table> }
+
+function SupplierForm({ initial, close, saved }: { initial: Supplier | null; close: () => void; saved: () => Promise<void> }) { const [v, setV] = useState({ code: initial?.code ?? "", name: initial?.name ?? "", phone: initial?.phone ?? "", email: initial?.email ?? "", address: initial?.address ?? "", taxCode: initial?.taxCode ?? "", note: initial?.note ?? "" }); const [error, setError] = useState(""); const m = useMutation({ mutationFn: () => initial ? updateSupplier(initial.id, v) : createSupplier(v), onSuccess: saved, onError: (e) => setError(apiError(e)) }); return <Modal title={initial ? "Cập nhật nhà cung cấp" : "Thêm nhà cung cấp"} close={close}><form onSubmit={(e) => { e.preventDefault(); m.mutate() }} className="grid gap-4 sm:grid-cols-2">{(["code", "name", "phone", "email", "address", "taxCode"] as const).map((k) => <Field key={k} label={{ code: "Mã NCC *", name: "Tên NCC *", phone: "Điện thoại", email: "Email", address: "Địa chỉ", taxCode: "Mã số thuế" }[k]}><input className={input} required={k === "code" || k === "name"} disabled={Boolean(initial && k === "code")} value={v[k]} onChange={(e) => setV((old) => ({ ...old, [k]: e.target.value }))} /></Field>)}<label className="text-xs text-slate-600 sm:col-span-2">Ghi chú<textarea className="mt-1 min-h-20 w-full rounded-lg border p-3 text-sm" value={v.note} onChange={(e) => setV((old) => ({ ...old, note: e.target.value }))} /></label>{error && <p className="text-sm text-red-600 sm:col-span-2">{error}</p>}<Actions pending={m.isPending} close={close} label="Lưu nhà cung cấp" /></form></Modal> }
+function PurchaseForm({ suppliers, warehouses, variants, close, saved }: { suppliers: Supplier[]; warehouses: Warehouse[]; variants: CatalogVariant[]; close: () => void; saved: () => Promise<void> }) { const [v, setV] = useState({ supplierId: "", warehouseId: warehouses.find((x) => x.isDefault)?.id ?? warehouses[0]?.id ?? "", skuId: "", qty: "", cost: "", expectedDate: "", note: "" }); const [error, setError] = useState(""); const m = useMutation({ mutationFn: () => createPurchaseOrder({ supplierId: v.supplierId, warehouseId: v.warehouseId, expectedDate: v.expectedDate || undefined, note: v.note || undefined, items: [{ skuId: v.skuId, orderedQty: Number(v.qty).toFixed(3), unitCost: Number(v.cost) }] }), onSuccess: saved, onError: (e) => setError(apiError(e)) }); const set = (k: keyof typeof v, value: string) => setV((old) => ({ ...old, [k]: value })); return <Modal title="Tạo đơn mua hàng" close={close}><form onSubmit={(e) => { e.preventDefault(); m.mutate() }} className="grid gap-4 sm:grid-cols-2"><Field label="Nhà cung cấp"><select className={input} required value={v.supplierId} onChange={(e) => set("supplierId", e.target.value)}><option value="">Chọn NCC</option>{suppliers.filter((x) => x.status === "ACTIVE").map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select></Field><Field label="Kho nhận"><select className={input} required value={v.warehouseId} onChange={(e) => set("warehouseId", e.target.value)}><option value="">Chọn kho</option>{warehouses.filter((x) => x.status === "ACTIVE").map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select></Field><Field label="Sản phẩm"><select className={input} required value={v.skuId} onChange={(e) => set("skuId", e.target.value)}><option value="">Chọn sản phẩm</option>{variants.map((x) => <option key={x.variantId} value={x.variantId}>{x.name} ({x.skuCode})</option>)}</select></Field><Field label="Ngày dự kiến"><input className={input} type="date" value={v.expectedDate} onChange={(e) => set("expectedDate", e.target.value)} /></Field><Field label="Số lượng"><input className={input} required min="0.001" step="0.001" type="number" value={v.qty} onChange={(e) => set("qty", e.target.value)} /></Field><Field label="Đơn giá"><input className={input} required min="0" step="1" type="number" value={v.cost} onChange={(e) => set("cost", e.target.value)} /></Field><label className="text-xs text-slate-600 sm:col-span-2">Ghi chú<textarea className="mt-1 min-h-20 w-full rounded-lg border p-3 text-sm" value={v.note} onChange={(e) => set("note", e.target.value)} /></label>{error && <p className="text-sm text-red-600 sm:col-span-2">{error}</p>}<Actions pending={m.isPending} close={close} label="Tạo đơn mua" /></form></Modal> }
+
+function Detail({ supplier, po, variants, close }: { supplier?: Supplier; po?: PurchaseOrder; variants: CatalogVariant[]; close: () => void }) { const names = new Map(variants.map((x) => [x.variantId, `${x.name} (${x.skuCode})`])); return <Modal title={supplier ? "Chi tiết nhà cung cấp" : "Chi tiết đơn mua"} close={close}>{!supplier && !po ? <p className="p-8 text-center text-sm">Đang tải...</p> : supplier ? <div className="grid gap-3 text-sm sm:grid-cols-2"><p><b>Mã:</b> {supplier.code}</p><p><b>Tên:</b> {supplier.name}</p><p><b>Điện thoại:</b> {supplier.phone ?? "—"}</p><p><b>Email:</b> {supplier.email ?? "—"}</p><p><b>Địa chỉ:</b> {supplier.address ?? "—"}</p><p><b>Trạng thái:</b> {labels[supplier.status]}</p></div> : <><div className="mb-4 grid gap-2 text-sm sm:grid-cols-2"><p><b>Mã:</b> {po!.code}</p><p><b>Trạng thái:</b> {labels[po!.status]}</p><p><b>Tổng tiền:</b> {money(po!.totalAmount)}</p><p><b>Ngày tạo:</b> {date(po!.createdAt)}</p></div><Table empty={!po!.items.length}><table className="w-full text-left text-sm"><thead><tr><th>Sản phẩm</th><th>Đặt</th><th>Đã nhận</th><th>Còn lại</th><th>Đơn giá</th></tr></thead><tbody>{po!.items.map((x) => <tr key={x.id}><td>{names.get(x.skuId) ?? x.skuId}</td><td>{x.orderedQty}</td><td>{x.receivedQty}</td><td>{x.remainingQty}</td><td>{money(x.unitCost)}</td></tr>)}</tbody></table></Table></>}</Modal> }
+
+function Card({ label, value }: { label: string; value: string | number }) { return <section className="rounded-xl border bg-white p-4"><p className="text-xs text-slate-500">{label}</p><p className="mt-1 text-2xl font-semibold text-[#163d36]">{value}</p></section> }
+function Tab({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) { return <button onClick={onClick} className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm ${active ? "bg-[#e6f5ee] font-semibold text-[#16866f]" : "text-slate-500"}`}>{children}</button> }
+function Table({ empty, children }: { empty: boolean; children: React.ReactNode }) { return <div className="inventory-table overflow-x-auto">{children}{empty && <p className="p-10 text-center text-sm text-slate-500">Chưa có dữ liệu.</p>}</div> }
+function Modal({ title, close, children }: { title: string; close: () => void; children: React.ReactNode }) { return <div className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-[#163d36]/35 p-4 pt-14"><section className="w-full max-w-3xl rounded-2xl bg-white p-6 shadow-2xl"><div className="mb-5 flex justify-between"><h2 className="text-lg font-semibold text-[#163d36]">{title}</h2><button onClick={close}><X size={20} /></button></div>{children}</section></div> }
+function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="text-xs font-medium text-slate-600">{label}{children}</label> }
+function Actions({ pending, close, label }: { pending: boolean; close: () => void; label: string }) { return <div className="flex justify-end gap-2 border-t pt-4 sm:col-span-2"><Button type="button" variant="outline" onClick={close}>Hủy</Button><Button type="submit" disabled={pending} className="bg-[#16866f] text-white">{pending ? "Đang lưu..." : label}</Button></div> }
+function apiError(e: unknown) { if (!axios.isAxiosError(e)) return "Không thể thực hiện thao tác."; const d = e.response?.data as { message?: string | string[]; errorCode?: string } | undefined; return (Array.isArray(d?.message) ? d.message.join(" ") : d?.message) || d?.errorCode || "Không thể thực hiện thao tác." }
