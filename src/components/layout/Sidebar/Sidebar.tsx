@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router"
+import { useQuery } from "@tanstack/react-query"
 import {
   ChevronDown,
   HelpCircle,
@@ -12,6 +13,7 @@ import {
 import { logout } from "@/api/auth"
 import { useStoreAuth } from "@/store/zustand/useStoreAuth"
 import { navigation } from "@/shared/navigation/navigation"
+import { getCurrentSubscription } from "@/api/platform/subscription"
 
 function Navigation({ pathname, onNavigate }: { pathname: string; onNavigate: () => void }) {
   return (
@@ -96,8 +98,11 @@ function SidebarBody({ pathname, onNavigate }: { pathname: string; onNavigate: (
 
 const Sidebar = () => {
   const pathname = useRouterState({ select: (state) => state.location.pathname })
+  const tokens = useStoreAuth((state) => state.tokens)
+  const subscription = useQuery({ queryKey: ["current-subscription"], queryFn: getCurrentSubscription, enabled: Boolean(tokens?.tenantId) && !tokens?.isDemo })
   const [mobileOpen, setMobileOpen] = useState(false)
   const closeMobile = () => setMobileOpen(false)
+  const branchUsage = subscription.data?.usage.find((item) => item.key === "branches")
 
   return (
     <>
@@ -130,7 +135,7 @@ const Sidebar = () => {
             <span className="flex h-6 w-6 items-center justify-center rounded bg-white text-[#16866f]"><Store size={13} /></span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[11px] font-medium text-[#52615c]">Mộc Store</span>
-              <span className="mt-0.5 flex items-center gap-1 text-[8px] text-[#9aa6a2]"><b className="rounded bg-[#d9efe5] px-1 text-[7px] font-semibold text-[#16866f]">GÓI PRO</b> 2 chi nhánh</span>
+              <span className="mt-0.5 flex items-center gap-1 text-[8px] text-[#9aa6a2]"><b className="rounded bg-[#d9efe5] px-1 text-[7px] font-semibold uppercase text-[#16866f]">Gói {subscription.data?.plan.name ?? "—"}</b>{branchUsage ? `${branchUsage.used}/${branchUsage.limit} chi nhánh` : "Đang tải"}</span>
             </span>
             <ChevronDown size={13} className="text-[#9aa6a2]" />
           </button>
