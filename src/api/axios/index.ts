@@ -1,6 +1,9 @@
 import { API_URL } from "@/config/env-config"
 import { useStoreAuth } from "@/store/zustand/useStoreAuth"
-import Axios, { type AxiosInstance, type InternalAxiosRequestConfig } from "axios"
+import Axios, {
+  type AxiosInstance,
+  type InternalAxiosRequestConfig
+} from "axios"
 
 export const axiosClient = Axios.create({ baseURL: API_URL })
 export const gatewayClient = Axios.create({ baseURL: "/" })
@@ -42,10 +45,11 @@ const attachAuthInterceptors = (client: AxiosInstance) => {
 
       config._retry = true
       refreshPromise ??= refreshClient
-        .post<{ accessToken: string; refreshToken: string; tokenExpires: number }>(
-          "/auth/refresh",
-          { refreshToken: tokens.refreshToken }
-        )
+        .post<{
+          accessToken: string
+          refreshToken: string
+          tokenExpires: number
+        }>("/auth/refresh", { refreshToken: tokens.refreshToken })
         .then(({ data }) => {
           useStoreAuth.getState().setTokens({ ...tokens, ...data })
           return data.accessToken

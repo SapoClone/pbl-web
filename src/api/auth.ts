@@ -26,15 +26,14 @@ export const createDemoTokens = (): AuthTokens => ({
   tenants: [{ id: "demo-tenant", name: "Cửa hàng demo", role: "owner" }]
 })
 
-export const login = async (credentials: Credentials & { tenantId?: string }) => {
-  const { data } = await axiosClient.post<AuthTokens>(
-    "/auth/email/login",
-    {
-      email: credentials.email.trim(),
-      password: credentials.password,
-      tenantId: credentials.tenantId
-    }
-  )
+export const login = async (
+  credentials: Credentials & { tenantId?: string }
+) => {
+  const { data } = await axiosClient.post<AuthTokens>("/auth/email/login", {
+    email: credentials.email.trim(),
+    password: credentials.password,
+    tenantId: credentials.tenantId
+  })
   return data
 }
 

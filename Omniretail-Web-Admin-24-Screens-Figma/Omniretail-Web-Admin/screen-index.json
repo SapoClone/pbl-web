@@ -1,0 +1,98 @@
+[
+  {
+    "name": "01-Tong-quan",
+    "requirements": "FR-M01-06; Báo cáo tổng quan §11"
+  },
+  {
+    "name": "02-Doanh-nghiep",
+    "requirements": "FR-M01-01"
+  },
+  {
+    "name": "03-Chi-tiet-doanh-nghiep",
+    "requirements": "FR-M01-01, 03, 04, 08"
+  },
+  {
+    "name": "04-Tao-doanh-nghiep",
+    "requirements": "FR-M01-01; FR-M02-01"
+  },
+  {
+    "name": "05-Sua-doanh-nghiep",
+    "requirements": "FR-M01-01; FR-M02-01"
+  },
+  {
+    "name": "06-Khoa-doanh-nghiep",
+    "requirements": "FR-M01-01"
+  },
+  {
+    "name": "07-Nguoi-dung",
+    "requirements": "Báo cáo tổng quan §11; FR-M02-02, 03"
+  },
+  {
+    "name": "08-Chi-tiet-nguoi-dung",
+    "requirements": "Báo cáo tổng quan §11; FR-M02-03; NFR-SE-04"
+  },
+  {
+    "name": "09-Goi-dich-vu",
+    "requirements": "FR-M01-02; SRS Phụ lục C – chính sách giá chưa chốt"
+  },
+  {
+    "name": "10-Cau-hinh-goi",
+    "requirements": "FR-M01-02, 04"
+  },
+  {
+    "name": "11-Thue-bao",
+    "requirements": "FR-M01-03, 05"
+  },
+  {
+    "name": "12-Chi-tiet-thue-bao",
+    "requirements": "FR-M01-03, 05"
+  },
+  {
+    "name": "13-Gan-doi-goi",
+    "requirements": "FR-M01-03, 04; trạng thái lỗi khi hạ cấp vượt hạn mức"
+  },
+  {
+    "name": "14-Han-muc",
+    "requirements": "FR-M01-04; Báo cáo tổng quan §11"
+  },
+  {
+    "name": "15-Giam-sat",
+    "requirements": "FR-M01-06; Báo cáo tổng quan §11"
+  },
+  {
+    "name": "16-Tich-hop",
+    "requirements": "Báo cáo tổng quan §7, §11; môi trường sandbox/development chính thức"
+  },
+  {
+    "name": "17-Job-loi",
+    "requirements": "Báo cáo tổng quan §11; BR-07"
+  },
+  {
+    "name": "18-Chi-tiet-job",
+    "requirements": "Báo cáo tổng quan §11; BR-07 – giữ mã tham chiếu khi thử lại"
+  },
+  {
+    "name": "19-Nhat-ky",
+    "requirements": "Báo cáo tổng quan §11; NFR-SE-08"
+  },
+  {
+    "name": "20-Thong-bao",
+    "requirements": "FR-M01-07 – ưu tiên thấp"
+  },
+  {
+    "name": "21-Soan-thong-bao",
+    "requirements": "FR-M01-07 – ưu tiên thấp"
+  },
+  {
+    "name": "22-Ho-tro",
+    "requirements": "FR-M01-08 – ưu tiên thấp"
+  },
+  {
+    "name": "23-Cau-hinh",
+    "requirements": "Báo cáo tổng quan §11; C04, C05; FR-M02-02, 04; NFR-SE-08"
+  },
+  {
+    "name": "24-Dang-nhap-admin",
+    "requirements": "FR-M02-02, 04; A01"
+  }
+]

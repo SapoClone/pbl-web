@@ -1,0 +1,46 @@
+OMNIRETAIL — WEB ADMIN SAAS — 24 MÀN
+
+Dành cho quản trị viên nền tảng, theo báo cáo SRS (1)(1) và báo cáo tổng quan (3)(1). Màu xanh #00876A, nền #F3F6F5, sidebar trắng, card và bảng theo giao diện web người dùng cung cấp. Số liệu, tên, giá và hạn mức là dữ liệu minh họa. Chính sách giá chưa được chốt trong SRS.
+
+FIGMA WEB
+Giải nén rồi chọn các file SVG 01–24, kéo vào vùng thiết kế của page bạn chọn. Mỗi file là một màn. Hoặc kéo 00-Tat-ca-24-man.svg để đưa cả bộ vào một lần. Có thể Ungroup để chỉnh hình và màu; SVG có thể bị chuyển chữ thành vector.
+
+CHỈNH ĐƯỢC CHỮ DƯỚI DẠNG TEXT
+Mở cùng file thiết kế trong Figma Desktop. Chọn page dành cho Web Admin. Plugins > Development > Import plugin from manifest… > chọn manifest.json. Chạy Omniretail – Web Admin SaaS (24 screens). Plugin tạo 24 frame riêng 1440 × 960, với layer nhóm theo khu vực và text có thể sửa. Sau đó tiếp tục chỉnh sửa file trên web.
+
+Phạm vi gồm màn danh sách, chi tiết, biểu mẫu, xác nhận khóa, trạng thái lỗi khi hạ cấp vượt hạn mức. Các nút là thiết kế tĩnh, chưa gắn prototype hoặc API. Chưa thiết lập Auto Layout. Plugin đã kiểm tra cú pháp, chưa chạy trực tiếp trong Figma ở môi trường tạo file.
+
+GHI CHÚ NGHIỆP VỤ
+- Tạo doanh nghiệp: tự khởi tạo tài khoản chủ và chi nhánh mặc định; liên kết thiết lập mật khẩu là lựa chọn thiết kế cho luồng cấp tài khoản.
+- Hạ cấp gói cần xử lý phần sử dụng vượt hạn mức trước khi xác nhận.
+- Khóa doanh nghiệp có lý do và khả năng kích hoạt lại, giữ dữ liệu.
+- Hỗ trợ chỉ đọc, ghi nhật ký từng phiên.
+- Audit log không có nút sửa hoặc xóa.
+- Các màn tích hợp dùng môi trường Official Sandbox / Development Shop theo báo cáo.
+- Thông báo và hỗ trợ chỉ đọc có ưu tiên thấp trong SRS, vẫn được thiết kế để hoàn thiện luồng.
+
+MÃ YÊU CẦU THEO MÀN
+01-Tong-quan — FR-M01-06; Báo cáo tổng quan §11
+02-Doanh-nghiep — FR-M01-01
+03-Chi-tiet-doanh-nghiep — FR-M01-01, 03, 04, 08
+04-Tao-doanh-nghiep — FR-M01-01; FR-M02-01
+05-Sua-doanh-nghiep — FR-M01-01; FR-M02-01
+06-Khoa-doanh-nghiep — FR-M01-01
+07-Nguoi-dung — Báo cáo tổng quan §11; FR-M02-02, 03
+08-Chi-tiet-nguoi-dung — Báo cáo tổng quan §11; FR-M02-03; NFR-SE-04
+09-Goi-dich-vu — FR-M01-02; SRS Phụ lục C – chính sách giá chưa chốt
+10-Cau-hinh-goi — FR-M01-02, 04
+11-Thue-bao — FR-M01-03, 05
+12-Chi-tiet-thue-bao — FR-M01-03, 05
+13-Gan-doi-goi — FR-M01-03, 04; trạng thái lỗi khi hạ cấp vượt hạn mức
+14-Han-muc — FR-M01-04; Báo cáo tổng quan §11
+15-Giam-sat — FR-M01-06; Báo cáo tổng quan §11
+16-Tich-hop — Báo cáo tổng quan §7, §11; môi trường sandbox/development chính thức
+17-Job-loi — Báo cáo tổng quan §11; BR-07
+18-Chi-tiet-job — Báo cáo tổng quan §11; BR-07 – giữ mã tham chiếu khi thử lại
+19-Nhat-ky — Báo cáo tổng quan §11; NFR-SE-08
+20-Thong-bao — FR-M01-07 – ưu tiên thấp
+21-Soan-thong-bao — FR-M01-07 – ưu tiên thấp
+22-Ho-tro — FR-M01-08 – ưu tiên thấp
+23-Cau-hinh — Báo cáo tổng quan §11; C04, C05; FR-M02-02, 04; NFR-SE-08
+24-Dang-nhap-admin — FR-M02-02, 04; A01
