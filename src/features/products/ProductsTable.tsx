@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react"
-import { Pencil, Search } from "lucide-react"
+import { List, Pencil, Search, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { products as defaultProducts } from "@/shared/dashboard/dashboard.mock"
 import type { Product } from "@/shared/dashboard/dashboard.types"
@@ -10,36 +10,40 @@ const formatPrice = (value?: number, fallback = "—") =>
 export function ProductsTable({
   section,
   products,
-  onEdit
+  onEdit,
+  onViewVariants,
+  onDelete
 }: {
   section: "products" | "inventory"
   products?: Product[]
   onEdit?: (product: Product) => void
+  onViewVariants?: (product: Product) => void
+  onDelete?: (product: Product) => Promise<void>
 }) {
   const [query, setQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
-  const [sortBy, setSortBy] = useState("default")
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const rows = products ?? defaultProducts
   const filtered = useMemo(
-    () => {
-      const result = rows.filter((product) => {
-        const matchesQuery = `${product.name} ${product.sku} ${product.barcode ?? ""} ${product.brand ?? ""}`
+    () => rows.filter((product) => {
+        const matchesQuery = `${product.name} ${product.brand ?? ""} ${product.category}`
           .toLowerCase()
           .includes(query.toLowerCase())
         const matchesStatus = statusFilter === "all" || product.state === statusFilter
         return matchesQuery && matchesStatus
-      })
-
-      if (sortBy === "default") return result
-
-      return [...result].sort((first, second) => {
-        const firstValue = sortBy === "costPrice" ? first.costPrice ?? 0 : sortBy === "retailPrice" ? first.retailPrice ?? 0 : first.stock
-        const secondValue = sortBy === "costPrice" ? second.costPrice ?? 0 : sortBy === "retailPrice" ? second.retailPrice ?? 0 : second.stock
-        return secondValue - firstValue
-      })
-    },
-    [query, rows, sortBy, statusFilter]
+      }),
+    [query, rows, statusFilter]
   )
+
+  const handleDelete = async (product: Product) => {
+    if (!product.id || !onDelete || !window.confirm(`Xóa sản phẩm ${product.name}? Các biến thể liên quan cũng sẽ được lưu trữ.`)) return
+    setDeletingId(product.id)
+    try {
+      await onDelete(product)
+    } finally {
+      setDeletingId(null)
+    }
+  }
 
   return (
     <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_3px_15px_rgba(20,50,45,0.04)]">
@@ -49,7 +53,7 @@ export function ProductsTable({
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Tìm tên, SKU, mã vạch..."
+            placeholder="Tìm tên sản phẩm..."
             className="w-52 outline-none placeholder:text-slate-400"
           />
         </div>
@@ -64,23 +68,9 @@ export function ProductsTable({
             >
               <option value="all">Tất cả</option>
               <option value="Đang bán">Đang bán</option>
-              <option value="Hết hàng">Hết hàng</option>
-              <option value="Sắp hết hàng">Sắp hết hàng</option>
+              <option value="Lưu nháp">Lưu nháp</option>
               <option value="Ngừng kinh doanh">Ngừng kinh doanh</option>
-            </select>
-          </label>
-          <label className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-500">
-            <span className="whitespace-nowrap">Sắp xếp theo</span>
-            <select
-              aria-label="Sắp xếp sản phẩm theo"
-              value={sortBy}
-              onChange={(event) => setSortBy(event.target.value)}
-              className="bg-transparent font-medium text-slate-700 outline-none"
-            >
-              <option value="default">Mặc định</option>
-              <option value="costPrice">Giá vốn</option>
-              <option value="retailPrice">Giá bán lẻ</option>
-              <option value="stock">Số lượng tồn kho</option>
+              <option value="Đã lưu trữ">Đã lưu trữ</option>
             </select>
           </label>
         </div>
@@ -90,14 +80,21 @@ export function ProductsTable({
         <table className="w-full min-w-[1180px] text-left text-sm">
           <thead className="bg-[#fbfcfc] text-[10px] uppercase tracking-[0.12em] text-slate-400">
             <tr>
-              {["Sản phẩm", "SKU / Mã vạch", "Danh mục / Thương hiệu", "Đơn vị", "Giá vốn", "Giá bán lẻ", "Tồn kho", "Trạng thái", ""].map((heading) => (
+              {[
+                "Sản phẩm",
+                "Danh mục / Thương hiệu",
+                "Đơn vị",
+                ...(section === "inventory" ? ["Giá vốn", "Giá bán (VND)", "Tồn kho"] : []),
+                "Trạng thái",
+                ""
+              ].map((heading) => (
                 <th key={heading} className="px-5 py-3 font-semibold">{heading}</th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {filtered.map((product) => (
-              <tr key={product.sku} className="hover:bg-slate-50">
+              <tr key={product.id} className="hover:bg-slate-50">
                 <td className="px-5 py-4">
                   <div className="flex items-center gap-3">
                     {product.imageUrls?.[0] ? (
@@ -114,20 +111,17 @@ export function ProductsTable({
                   </div>
                 </td>
                 <td className="px-5 py-4">
-                  <span className="block font-medium text-slate-600">{product.sku}</span>
-                  <span className="text-xs text-slate-400">{product.barcode || "Chưa có mã vạch"}</span>
-                </td>
-                <td className="px-5 py-4">
                   <span className="block text-slate-600">{product.category}</span>
                   <span className="text-xs text-slate-400">{product.brand || "Chưa có thương hiệu"}</span>
                 </td>
                 <td className="px-5 py-4 text-slate-500">{product.unit || "Cái"}</td>
-                <td className="px-5 py-4 text-slate-600">{formatPrice(product.costPrice)}</td>
-                <td className="px-5 py-4 font-medium text-slate-700">{product.retailPrice === undefined ? product.price : formatPrice(product.retailPrice)}</td>
-                <td className="px-5 py-4 font-semibold text-slate-700">
-                  {product.stock}
-                  {section === "inventory" && product.stock < 10 && <span className="ml-2 text-xs font-normal text-[#c44a42]">Cần nhập</span>}
-                </td>
+                {section === "inventory" && (
+                  <>
+                    <td className="px-5 py-4 text-slate-400">{formatPrice(product.costPrice)}</td>
+                    <td className="px-5 py-4 font-medium text-slate-700">{product.retailPrice === undefined ? product.price : formatPrice(product.retailPrice)}</td>
+                    <td className="px-5 py-4 font-semibold text-slate-700">{product.stock ?? 0}</td>
+                  </>
+                )}
                 <td className="px-5 py-4">
                   <span className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
                     product.state === "Đang bán"
@@ -143,12 +137,33 @@ export function ProductsTable({
                   <Button
                     variant="ghost"
                     size="icon"
+                    aria-label={`Xem biến thể của ${product.name}`}
+                    title="Xem biến thể"
+                    onClick={() => onViewVariants?.(product)}
+                    className="text-slate-400 hover:bg-[#e6f5ee] hover:text-[#16866f]"
+                  >
+                    <List size={16} />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     aria-label={`Chỉnh sửa ${product.name}`}
                     title="Chỉnh sửa sản phẩm"
                     onClick={() => onEdit?.(product)}
                     className="text-slate-400 hover:bg-[#e6f5ee] hover:text-[#16866f]"
                   >
                     <Pencil size={16} />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Xóa ${product.name}`}
+                    title="Xóa sản phẩm"
+                    disabled={deletingId === product.id}
+                    onClick={() => void handleDelete(product)}
+                    className="text-red-500 hover:bg-red-50 hover:text-red-700"
+                  >
+                    <Trash2 size={16} />
                   </Button>
                 </td>
               </tr>
