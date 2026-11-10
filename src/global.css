@@ -2,6 +2,32 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer components {
+  .inventory-table thead {
+    @apply bg-slate-50 text-[10px] uppercase tracking-[0.12em] text-slate-400;
+  }
+
+  .inventory-table th {
+    @apply whitespace-nowrap px-5 py-3 font-semibold;
+  }
+
+  .inventory-table tbody {
+    @apply divide-y divide-slate-100;
+  }
+
+  .inventory-table td {
+    @apply px-5 py-4 text-slate-600;
+  }
+
+  .inventory-table tbody tr {
+    @apply hover:bg-slate-50;
+  }
+
+  .inventory-table td small {
+    @apply mt-0.5 block text-xs text-slate-400;
+  }
+}
+
 @layer base {
   :root {
     --background: 214 40% 97%;

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Building2, Check, Plus, Store, Trash2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { SubscriptionPlans } from "./SubscriptionPlans"
 import {
   createBranch,
   deleteBranch,
@@ -162,6 +163,8 @@ export function SettingsPage() {
         <h1 className="text-[30px] font-semibold tracking-[-0.03em] text-[#163d36]">Cài đặt cửa hàng</h1>
         <p className="mt-2 text-sm text-slate-500">Quản lý thông tin cửa hàng và các chi nhánh thuộc cửa hàng hiện tại.</p>
       </div>
+
+      <SubscriptionPlans />
 
       <section className="mb-7 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-5 flex items-start gap-3">
