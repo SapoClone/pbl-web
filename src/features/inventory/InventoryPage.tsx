@@ -4,8 +4,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { listBranches } from "@/api/platform/branches"
 import { listStock, receiveStock } from "@/api/inventory/stock"
+import { listWarehouses } from "@/api/inventory/warehouses"
+import { listCatalogProducts, listCatalogProductVariants, type CatalogVariant } from "@/api/catalog/products"
 import { useStoreAuth } from "@/store/zustand/useStoreAuth"
-import { products as catalogProducts } from "@/shared/dashboard/dashboard.mock"
 import type { Product } from "@/shared/dashboard/dashboard.types"
 import { DashboardHeader } from "@/shared/dashboard/DashboardHeader"
 import { ProductsTable } from "@/features/products/ProductsTable"
@@ -13,22 +14,20 @@ import { ProductsTable } from "@/features/products/ProductsTable"
 const DEMO_BRANCH_ID = "demo-branch"
 
 type ReceiptForm = {
-  sku: string
-  quantity: string
+  skuId: string
+  qty: string
 }
 
-const initialReceipt: ReceiptForm = { sku: "", quantity: "" }
+const initialReceipt: ReceiptForm = { skuId: "", qty: "" }
 
 export function InventoryPage() {
   const queryClient = useQueryClient()
   const isDemo = Boolean(useStoreAuth((state) => state.tokens?.isDemo))
   const [branchId, setBranchId] = useState("")
+  const [warehouseId, setWarehouseId] = useState("")
   const [showReceipt, setShowReceipt] = useState(false)
   const [receipt, setReceipt] = useState(initialReceipt)
   const [receiptError, setReceiptError] = useState("")
-  const [demoStock, setDemoStock] = useState<Record<string, number>>(
-    () => Object.fromEntries(catalogProducts.map((product) => [product.sku, product.stock]))
-  )
 
   const branchesQuery = useQuery({
     queryKey: ["branches"],
@@ -36,6 +35,23 @@ export function InventoryPage() {
     enabled: !isDemo
   })
   const selectedBranchId = branchId || (isDemo ? DEMO_BRANCH_ID : branchesQuery.data?.data[0]?.id)
+  const warehousesQuery = useQuery({
+    queryKey: ["inventory-warehouses", selectedBranchId],
+    queryFn: () => listWarehouses(selectedBranchId),
+    enabled: Boolean(selectedBranchId) && !isDemo
+  })
+  const warehouses = warehousesQuery.data ?? []
+  const selectedWarehouseId = warehouseId || warehousesQuery.data?.find((warehouse) => warehouse.isDefault && warehouse.status === "ACTIVE")?.id || warehousesQuery.data?.find((warehouse) => warehouse.status === "ACTIVE")?.id
+  const catalogQuery = useQuery({
+    queryKey: ["catalog-product-variants"],
+    queryFn: async () => {
+      const products = await listCatalogProducts({ limit: 100 })
+      const groups = await Promise.all(products.items.map(async (product) => listCatalogProductVariants(product.id)))
+      return groups.flat()
+    },
+    enabled: !isDemo
+  })
+  const loadedVariants = isDemo ? [] : catalogQuery.data ?? []
   const stockQuery = useQuery({
     queryKey: ["inventory-stock", selectedBranchId],
     queryFn: () => listStock(selectedBranchId),
@@ -43,26 +59,24 @@ export function InventoryPage() {
   })
 
   const stockBySku = useMemo(() => {
-    if (isDemo) {
-      return Object.fromEntries(
-        Object.entries(demoStock).map(([sku, onHand]) => [
-          sku,
-          { onHand, reserved: 0, available: onHand }
-        ])
-      )
-    }
     return Object.fromEntries(
       (stockQuery.data?.data ?? []).map((item) => [item.sku, item])
     )
-  }, [demoStock, isDemo, stockQuery.data?.data])
+  }, [stockQuery.data?.data])
 
-  const inventoryProducts: Product[] = catalogProducts.map((product) => {
-    const stock = stockBySku[product.sku]
+  const inventoryProducts: Product[] = loadedVariants.map((variant) => {
+    const stock = stockBySku[variant.skuCode]
     return {
-      ...product,
+      id: variant.id,
+      variantId: variant.id,
+      name: variant.name,
+      sku: variant.skuCode,
+      category: "—",
+      barcode: variant.barcode ?? undefined,
       stock: stock?.onHand ?? 0,
-      state: product.state === "Ngừng kinh doanh"
-        ? product.state
+      price: `${variant.basePrice.toLocaleString("vi-VN")} ₫`,
+      state: variant.status !== "ACTIVE"
+        ? variant.status === "ARCHIVED" ? "Đã lưu trữ" : "Ngừng kinh doanh"
         : stock?.onHand === 0
           ? "Hết hàng"
           : stock?.onHand < 10
@@ -88,8 +102,8 @@ export function InventoryPage() {
 
   const submitReceipt = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const quantity = Number(receipt.quantity)
-    if (!receipt.sku || !Number.isInteger(quantity) || quantity <= 0) {
+    const quantity = Number(receipt.qty)
+    if (!receipt.skuId || !Number.isInteger(quantity) || quantity <= 0) {
       setReceiptError("Vui lòng chọn sản phẩm và nhập số lượng nguyên dương.")
       return
     }
@@ -97,17 +111,20 @@ export function InventoryPage() {
       setReceiptError("Chưa có chi nhánh hoạt động để nhập kho.")
       return
     }
+    if (!selectedWarehouseId) {
+      setReceiptError("Chưa có kho hoạt động để nhập kho.")
+      return
+    }
 
     setReceiptError("")
     if (isDemo) {
-      setDemoStock((current) => ({ ...current, [receipt.sku]: (current[receipt.sku] ?? 0) + quantity }))
       setReceipt(initialReceipt)
       setShowReceipt(false)
       return
     }
     receiveMutation.mutate({
-      branchId: selectedBranchId,
-      items: [{ sku: receipt.sku, quantity }]
+      warehouseId: selectedWarehouseId,
+      items: [{ skuId: receipt.skuId, qty: String(quantity) }]
     })
   }
 
@@ -135,6 +152,7 @@ export function InventoryPage() {
             </select>
           )}
         </div>
+        {!isDemo && warehouses.length > 0 && <label className="text-xs font-medium text-slate-500">Kho<select value={selectedWarehouseId ?? ""} onChange={(event) => setWarehouseId(event.target.value)} className="ml-2 rounded border border-slate-200 px-2 py-1 text-sm text-[#163d36]"><option value="" disabled>Chọn kho</option>{warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.name} ({warehouse.code})</option>)}</select></label>}
         {isDemo && <span className="rounded-full bg-amber-50 px-3 py-1 text-xs text-amber-700">Dữ liệu demo</span>}
       </div>
 
@@ -147,6 +165,7 @@ export function InventoryPage() {
 
       {stockQuery.isError && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">Không thể tải tồn kho từ pbl-api.</p>}
       {!isDemo && !selectedBranchId && !branchesQuery.isLoading && <p className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-700">Chưa có chi nhánh hoạt động để xem tồn kho.</p>}
+      {catalogQuery.isError && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">Không thể tải product variant từ pbl-api.</p>}
 
       <ProductsTable section="inventory" products={inventoryProducts} />
 
@@ -155,14 +174,14 @@ export function InventoryPage() {
           <form onSubmit={submitReceipt} className="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl">
             <h2 className="text-lg font-semibold text-[#163d36]">Nhập kho</h2>
             <p className="mt-1 text-sm text-slate-500">Tồn kho chỉ thay đổi thông qua phiếu nhập.</p>
-            <label className="mt-5 block text-xs font-medium text-slate-600">Sản phẩm
-              <select value={receipt.sku} onChange={(event) => setReceipt({ ...receipt, sku: event.target.value })} className="mt-1 h-10 w-full rounded-md border border-slate-200 px-3 text-sm" required>
-                <option value="">Chọn sản phẩm</option>
-                {catalogProducts.map((product) => <option key={product.sku} value={product.sku}>{product.name} ({product.sku})</option>)}
+            <label className="mt-5 block text-xs font-medium text-slate-600">Biến thể / SKU
+              <select value={receipt.skuId} onChange={(event) => setReceipt({ ...receipt, skuId: event.target.value })} className="mt-1 h-10 w-full rounded-md border border-slate-200 px-3 text-sm" required>
+                <option value="">Chọn biến thể</option>
+                {loadedVariants.map((variant) => <option key={variant.id} value={variant.id}>{variant.name} ({variant.skuCode})</option>)}
               </select>
             </label>
             <label className="mt-4 block text-xs font-medium text-slate-600">Số lượng nhập
-              <input type="number" min="1" step="1" value={receipt.quantity} onChange={(event) => setReceipt({ ...receipt, quantity: event.target.value })} className="mt-1 h-10 w-full rounded-md border border-slate-200 px-3 text-sm" required />
+              <input type="number" min="1" step="1" value={receipt.qty} onChange={(event) => setReceipt({ ...receipt, qty: event.target.value })} className="mt-1 h-10 w-full rounded-md border border-slate-200 px-3 text-sm" required />
             </label>
             {receiptError && <p className="mt-3 text-sm text-red-600">{receiptError}</p>}
             <div className="mt-6 flex justify-end gap-2">

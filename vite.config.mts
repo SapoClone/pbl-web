@@ -36,6 +36,10 @@ export default defineConfig({
       "/customer": {
         target: "http://localhost:8080",
         changeOrigin: true
+      },
+      "/catalog": {
+        target: "http://localhost:8080",
+        changeOrigin: true
       }
     }
   },

@@ -18,8 +18,8 @@ type StockResponse = {
 }
 
 export type StockReceiptInput = {
-  branchId: string
-  items: Array<{ sku: string; quantity: number }>
+  warehouseId: string
+  items: Array<{ skuId: string; qty: string; unitCost?: number }>
 }
 
 export const listStock = async (branchId?: string) => {
@@ -30,7 +30,7 @@ export const listStock = async (branchId?: string) => {
 }
 
 export const receiveStock = async (input: StockReceiptInput) => {
-  const { data } = await gatewayClient.post<StockItem[]>(
+  const { data } = await gatewayClient.post(
     "/inventory/api/v1/stock-receipts",
     input
   )

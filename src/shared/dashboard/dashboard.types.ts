@@ -12,11 +12,17 @@ export type Order = {
 }
 
 export type Product = {
+  id?: string
+  variantId?: string
   name: string
   sku: string
   category: string
+  categoryId?: string
   brand?: string
+  brandId?: string
   description?: string
+  version?: number
+  catalogStatus?: "DRAFT" | "ACTIVE" | "INACTIVE" | "ARCHIVED"
   unit?: string
   barcode?: string
   costPrice?: number
@@ -24,7 +30,7 @@ export type Product = {
   imageUrls?: string[]
   stock: number
   price: string
-  state: string
+  state: "Đang bán" | "Ngừng kinh doanh" | "Sắp hết hàng" | "Hết hàng" | "Lưu nháp" | "Đã lưu trữ"
 }
 
 export type SectionMeta = {

@@ -3,8 +3,9 @@ import { ClipboardList, PackagePlus, Pencil, Plus, Search, Truck, X } from "luci
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { receiveStock } from "@/api/inventory/stock"
+import { listWarehouses } from "@/api/inventory/warehouses"
+import { listCatalogProducts, listCatalogProductVariants, type CatalogVariant } from "@/api/catalog/products"
 import { listBranches } from "@/api/platform/branches"
-import { products } from "@/shared/dashboard/dashboard.mock"
 import { useStoreAuth } from "@/store/zustand/useStoreAuth"
 
 type Supplier = {
@@ -41,6 +42,20 @@ export function SuppliersPage() {
   const isDemo = Boolean(useStoreAuth((state) => state.tokens?.isDemo))
   const branchesQuery = useQuery({ queryKey: ["branches"], queryFn: listBranches, enabled: !isDemo })
   const branchId = branchesQuery.data?.data[0]?.id
+  const warehousesQuery = useQuery({
+    queryKey: ["inventory-warehouses", branchId],
+    queryFn: () => listWarehouses(branchId),
+    enabled: Boolean(branchId) && !isDemo
+  })
+  const variantsQuery = useQuery({
+    queryKey: ["catalog-product-variants"],
+    queryFn: async () => {
+      const catalogProducts = await listCatalogProducts({ limit: 100 })
+      const groups = await Promise.all(catalogProducts.items.map((product) => listCatalogProductVariants(product.id)))
+      return groups.flat()
+    },
+    enabled: !isDemo
+  })
   const [tab, setTab] = useState<"purchases" | "suppliers">("purchases")
   const [suppliers, setSuppliers] = useState(initialSuppliers)
   const [purchases, setPurchases] = useState(initialPurchases)
@@ -83,7 +98,13 @@ export function SuppliersPage() {
       setError("Chưa có chi nhánh hoạt động để nhập kho.")
       return
     }
-    receiveMutation.mutate({ branchId, items: [{ sku: purchaseDraft.sku, quantity }] })
+    const warehouseId = warehousesQuery.data?.find((warehouse) => warehouse.isDefault && warehouse.status === "ACTIVE")?.id
+      ?? warehousesQuery.data?.find((warehouse) => warehouse.status === "ACTIVE")?.id
+    if (!warehouseId) {
+      setError("Chưa có kho hoạt động để nhập kho.")
+      return
+    }
+    receiveMutation.mutate({ warehouseId, items: [{ skuId: purchaseDraft.sku, qty: String(quantity), unitCost: costPrice }] })
   }
 
   const finishPurchase = (total = Number(purchaseDraft.quantity) * Number(purchaseDraft.costPrice)) => {
@@ -101,7 +122,7 @@ export function SuppliersPage() {
         {tab === "purchases" ? <PurchaseTable rows={filteredPurchases} /> : <SupplierTable rows={filteredSuppliers} />}
       </section>
       {showSupplierForm && <SupplierForm draft={supplierDraft} onChange={setSupplierDraft} onSubmit={saveSupplier} onClose={() => setShowSupplierForm(false)} error={error} />}
-      {showPurchaseForm && <PurchaseForm draft={purchaseDraft} suppliers={suppliers} onChange={setPurchaseDraft} onSubmit={savePurchase} onClose={() => setShowPurchaseForm(false)} error={error} />}
+      {showPurchaseForm && <PurchaseForm draft={purchaseDraft} suppliers={suppliers} variants={variantsQuery.data ?? []} onChange={setPurchaseDraft} onSubmit={savePurchase} onClose={() => setShowPurchaseForm(false)} error={error} />}
     </main>
   )
 }
@@ -110,6 +131,6 @@ function SummaryCard({ label, value }: { label: string; value: string | number }
 function SupplierTable({ rows }: { rows: Supplier[] }) { return <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm"><thead className="bg-[#fbfcfc] text-xs uppercase tracking-wide text-slate-400"><tr>{["Nhà cung cấp", "Liên hệ", "Địa chỉ", "Ghi chú", ""].map((item) => <th key={item} className="px-5 py-3">{item}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{rows.map((row) => <tr key={row.id}><td className="px-5 py-4 font-medium text-[#163d36]">{row.name}</td><td className="px-5 py-4 text-slate-600">{row.phone}<span className="block text-xs text-slate-400">{row.email}</span></td><td className="px-5 py-4 text-slate-500">{row.address || "—"}</td><td className="px-5 py-4 text-slate-500">{row.note || "—"}</td><td className="px-5 py-4 text-right"><Pencil size={16} className="text-slate-400" /></td></tr>)}</tbody></table>{!rows.length && <p className="p-10 text-center text-sm text-slate-500">Không tìm thấy nhà cung cấp.</p>}</div> }
 function PurchaseTable({ rows }: { rows: Purchase[] }) { return <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm"><thead className="bg-[#fbfcfc] text-xs uppercase tracking-wide text-slate-400"><tr>{["Mã phiếu", "Nhà cung cấp", "Ngày nhập", "Số lượng", "Tổng tiền", "Trạng thái"].map((item) => <th key={item} className="px-5 py-3">{item}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{rows.map((row) => <tr key={row.id}><td className="px-5 py-4 font-semibold text-[#163d36]">{row.id}</td><td className="px-5 py-4 text-slate-600">{row.supplier}</td><td className="px-5 py-4 text-slate-500">{row.date}</td><td className="px-5 py-4 text-slate-600">{row.items}</td><td className="px-5 py-4 font-medium text-slate-700">{money(row.total)}</td><td className="px-5 py-4"><span className="rounded-full bg-[#e6f5ee] px-2.5 py-1 text-xs text-[#147853]">{row.status}</span></td></tr>)}</tbody></table>{!rows.length && <p className="p-10 text-center text-sm text-slate-500">Chưa có đơn nhập.</p>}</div> }
 function SupplierForm({ draft, onChange, onSubmit, onClose, error }: { draft: Omit<Supplier, "id">; onChange: (value: Omit<Supplier, "id">) => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; onClose: () => void; error: string }) { const update = (key: keyof Omit<Supplier, "id">, value: string) => onChange({ ...draft, [key]: value }); return <Modal title="Thêm nhà cung cấp" onClose={onClose}><form onSubmit={onSubmit} className="grid gap-4 md:grid-cols-2">{(["name", "phone", "email", "address"] as const).map((key) => <label key={key} className="text-xs font-medium text-slate-600">{({ name: "Tên nhà cung cấp *", phone: "Số điện thoại *", email: "Email", address: "Địa chỉ" } as Record<string, string>)[key]}<input required={key === "name" || key === "phone"} type={key === "email" ? "email" : "text"} className={inputClass} value={draft[key]} onChange={(event) => update(key, event.target.value)} /></label>)}<label className="text-xs font-medium text-slate-600 md:col-span-2">Ghi chú<textarea className="mt-1 min-h-20 w-full rounded-lg border border-slate-200 p-3 text-sm" value={draft.note} onChange={(event) => update("note", event.target.value)} /></label>{error && <p className="text-sm text-red-600 md:col-span-2">{error}</p>}<ModalActions onClose={onClose} submit="Lưu nhà cung cấp" /></form></Modal> }
-function PurchaseForm({ draft, suppliers, onChange, onSubmit, onClose, error }: { draft: { supplier: string; sku: string; quantity: string; costPrice: string }; suppliers: Supplier[]; onChange: (value: { supplier: string; sku: string; quantity: string; costPrice: string }) => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; onClose: () => void; error: string }) { const update = (key: keyof typeof draft, value: string) => onChange({ ...draft, [key]: value }); return <Modal title="Tạo đơn nhập hàng" onClose={onClose}><form onSubmit={onSubmit} className="grid gap-4"><label className="text-xs font-medium text-slate-600">Nhà cung cấp<select required className={inputClass} value={draft.supplier} onChange={(event) => update("supplier", event.target.value)}><option value="">Chọn nhà cung cấp</option>{suppliers.map((item) => <option key={item.id}>{item.name}</option>)}</select></label><label className="text-xs font-medium text-slate-600">Sản phẩm<select required className={inputClass} value={draft.sku} onChange={(event) => update("sku", event.target.value)}><option value="">Chọn sản phẩm</option>{products.map((item) => <option key={item.sku} value={item.sku}>{item.name} ({item.sku})</option>)}</select></label><div className="grid gap-4 sm:grid-cols-2"><label className="text-xs font-medium text-slate-600">Số lượng<input required min="1" type="number" className={inputClass} value={draft.quantity} onChange={(event) => update("quantity", event.target.value)} /></label><label className="text-xs font-medium text-slate-600">Giá nhập / đơn vị<input required min="0" type="number" className={inputClass} value={draft.costPrice} onChange={(event) => update("costPrice", event.target.value)} /></label></div><p className="text-xs text-slate-400">Khi xác nhận, số lượng sẽ được ghi nhận vào tồn kho thông qua phiếu nhập.</p>{error && <p className="text-sm text-red-600">{error}</p>}<ModalActions onClose={onClose} submit="Xác nhận nhập kho" /></form></Modal> }
+function PurchaseForm({ draft, suppliers, variants, onChange, onSubmit, onClose, error }: { draft: { supplier: string; sku: string; quantity: string; costPrice: string }; suppliers: Supplier[]; variants: CatalogVariant[]; onChange: (value: { supplier: string; sku: string; quantity: string; costPrice: string }) => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; onClose: () => void; error: string }) { const update = (key: keyof typeof draft, value: string) => onChange({ ...draft, [key]: value }); return <Modal title="Tạo đơn nhập hàng" onClose={onClose}><form onSubmit={onSubmit} className="grid gap-4"><label className="text-xs font-medium text-slate-600">Nhà cung cấp<select required className={inputClass} value={draft.supplier} onChange={(event) => update("supplier", event.target.value)}><option value="">Chọn nhà cung cấp</option>{suppliers.map((item) => <option key={item.id}>{item.name}</option>)}</select></label><label className="text-xs font-medium text-slate-600">Biến thể / SKU<select required className={inputClass} value={draft.sku} onChange={(event) => update("sku", event.target.value)}><option value="">Chọn biến thể</option>{variants.map((item) => <option key={item.id} value={item.id}>{item.name} ({item.skuCode})</option>)}</select></label><div className="grid gap-4 sm:grid-cols-2"><label className="text-xs font-medium text-slate-600">Số lượng<input required min="1" type="number" className={inputClass} value={draft.quantity} onChange={(event) => update("quantity", event.target.value)} /></label><label className="text-xs font-medium text-slate-600">Giá nhập / đơn vị<input required min="0" type="number" className={inputClass} value={draft.costPrice} onChange={(event) => update("costPrice", event.target.value)} /></label></div><p className="text-xs text-slate-400">Khi xác nhận, số lượng sẽ được ghi nhận vào tồn kho thông qua phiếu nhập.</p>{error && <p className="text-sm text-red-600">{error}</p>}<ModalActions onClose={onClose} submit="Xác nhận nhập kho" /></form></Modal> }
 function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) { return <div className="fixed inset-0 z-[60] flex items-start justify-center bg-[#163d36]/30 p-4 pt-16 backdrop-blur-sm"><section className="w-full max-w-xl rounded-xl bg-white p-6 shadow-2xl"><div className="mb-5 flex items-center justify-between"><h2 className="text-lg font-semibold text-[#163d36]">{title}</h2><button type="button" onClick={onClose} aria-label="Đóng"><X size={19} className="text-slate-400" /></button></div>{children}</section></div> }
 function ModalActions({ onClose, submit }: { onClose: () => void; submit: string }) { return <div className="flex justify-end gap-2 border-t border-slate-100 pt-4 md:col-span-2"><Button type="button" variant="outline" onClick={onClose}>Hủy</Button><Button type="submit" className="bg-[#16866f] text-white hover:bg-[#0f705d]">{submit}</Button></div> }
