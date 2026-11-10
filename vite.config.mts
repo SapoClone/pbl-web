@@ -29,6 +29,10 @@ export default defineConfig({
         target: "http://localhost:8080",
         changeOrigin: true
       },
+      "/catalog": {
+        target: "http://localhost:8080",
+        changeOrigin: true
+      },
       "/integration": {
         target: "http://localhost:8080",
         changeOrigin: true

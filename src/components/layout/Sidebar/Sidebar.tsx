@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import {
@@ -15,11 +15,35 @@ import { useStoreAuth } from "@/store/zustand/useStoreAuth"
 import { navigation } from "@/shared/navigation/navigation"
 import { getCurrentSubscription } from "@/api/platform/subscription"
 
-function Navigation({ pathname, onNavigate }: { pathname: string; onNavigate: () => void }) {
+function Navigation({ pathname, search, onNavigate }: { pathname: string; search: string; onNavigate: () => void }) {
+  const [inventoryOpen, setInventoryOpen] = useState(pathname.startsWith("/inventory"))
+  useEffect(() => { if (pathname.startsWith("/inventory")) setInventoryOpen(true) }, [pathname])
+  const currentTab = new URLSearchParams(search).get("tab") ?? "stock"
   return (
     <nav className="space-y-1">
-      {navigation.map(({ label, icon: Icon, to, badge }) => {
+      {navigation.map(({ label, icon: Icon, to, badge, children }) => {
         const active = to === "/" ? pathname === "/" : pathname.startsWith(to)
+        if (children) return <div key={to}>
+          <button
+            type="button"
+            onClick={() => setInventoryOpen((value) => !value)}
+            className={`flex w-full items-center gap-3 rounded-md px-3.5 py-2.5 text-left text-xs transition ${active ? "bg-[#e6f4ee] font-semibold text-[#16866f]" : "text-[#75817e] hover:bg-[#f1f6f4] hover:text-[#163d36]"}`}
+            aria-expanded={inventoryOpen}
+          >
+            <Icon size={16} strokeWidth={active ? 2 : 1.6} />
+            <span className="flex-1 whitespace-nowrap">{label}</span>
+            <ChevronDown size={14} className={`transition-transform ${inventoryOpen ? "rotate-180" : ""}`} />
+          </button>
+          {inventoryOpen && <div className="ml-5 mt-1 space-y-0.5 border-l border-[#e1ebe7] pl-2">
+            {children.map((child) => <Link
+              key={child.tab}
+              to={to as never}
+              search={{ tab: child.tab } as never}
+              onClick={onNavigate}
+              className={`block rounded-md px-3 py-2 text-[11px] transition ${active && currentTab === child.tab ? "bg-[#eff8f4] font-semibold text-[#16866f]" : "text-[#7b8984] hover:bg-[#f4f7f6] hover:text-[#163d36]"}`}
+            >{child.label}</Link>)}
+          </div>}
+        </div>
         return (
           <Link
             key={to}
@@ -45,7 +69,7 @@ function Navigation({ pathname, onNavigate }: { pathname: string; onNavigate: ()
   )
 }
 
-function SidebarBody({ pathname, onNavigate }: { pathname: string; onNavigate: () => void }) {
+function SidebarBody({ pathname, search, onNavigate }: { pathname: string; search: string; onNavigate: () => void }) {
   const navigate = useNavigate()
   const clearTokens = useStoreAuth((state) => state.clearTokens)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
@@ -70,7 +94,7 @@ function SidebarBody({ pathname, onNavigate }: { pathname: string; onNavigate: (
     <>
       <div className="flex-1 overflow-y-auto px-3 py-4">
         <p className="mb-3 px-2 text-xs font-semibold uppercase tracking-[0.08em] text-[#8d9b96]">Không gian làm việc</p>
-        <Navigation pathname={pathname} onNavigate={onNavigate} />
+        <Navigation pathname={pathname} search={search} onNavigate={onNavigate} />
       </div>
       <div className="border-t border-[#edf0ef] px-3 py-3">
         <Link
@@ -98,6 +122,7 @@ function SidebarBody({ pathname, onNavigate }: { pathname: string; onNavigate: (
 
 const Sidebar = () => {
   const pathname = useRouterState({ select: (state) => state.location.pathname })
+  const search = useRouterState({ select: (state) => state.location.searchStr })
   const tokens = useStoreAuth((state) => state.tokens)
   const subscription = useQuery({ queryKey: ["current-subscription"], queryFn: getCurrentSubscription, enabled: Boolean(tokens?.tenantId) && !tokens?.isDemo })
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -140,7 +165,7 @@ const Sidebar = () => {
             <ChevronDown size={13} className="text-[#9aa6a2]" />
           </button>
         </div>
-        <SidebarBody pathname={pathname} onNavigate={closeMobile} />
+        <SidebarBody pathname={pathname} search={search} onNavigate={closeMobile} />
       </aside>
     </>
   )
