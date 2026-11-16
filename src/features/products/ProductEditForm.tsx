@@ -3,6 +3,7 @@ import { useState, type FormEvent } from "react"
 import { Button } from "@/components/ui/button"
 import type { CatalogBrand, CatalogCategory, UpdateCatalogProductInput } from "@/api/catalog/products"
 import type { Product } from "@/shared/dashboard/dashboard.types"
+import { ProductImageUpload, productImageDrafts, type ProductImageDraft } from "./ProductImageUpload"
 
 type Props = {
   product: Product
@@ -28,6 +29,9 @@ export function ProductEditForm({ product, categories, brands, onClose, onUpdate
   })
   const [error, setError] = useState("")
   const [saving, setSaving] = useState(false)
+  const [uploadingImages, setUploadingImages] = useState(false)
+  const [images, setImages] = useState<ProductImageDraft[]>(() => productImageDrafts(product.images ?? []))
+  const [imagesChanged, setImagesChanged] = useState(false)
   const update = (field: keyof typeof draft, value: string) => setDraft((current) => ({ ...current, [field]: value }))
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
@@ -36,11 +40,18 @@ export function ProductEditForm({ product, categories, brands, onClose, onUpdate
       setError("Vui lòng nhập tên sản phẩm.")
       return
     }
+    if (uploadingImages) {
+      setError("Vui lòng chờ tải ảnh hoàn tất.")
+      return
+    }
     setSaving(true)
     setError("")
     try {
       if (!product.id) {
         throw new Error("Không xác định được sản phẩm cần cập nhật.")
+      }
+      if (imagesChanged && images.some((image) => !image.id)) {
+        throw new Error("Một ảnh cũ không có mã upload nên chưa thể thay đổi danh sách ảnh của sản phẩm này.")
       }
       await onUpdated(product.id, {
         name: draft.name.trim(),
@@ -48,7 +59,8 @@ export function ProductEditForm({ product, categories, brands, onClose, onUpdate
         categoryId: draft.categoryId || null,
         brandId: draft.brandId || null,
         baseUnit: draft.unit.trim() || "piece",
-        version: product.version
+        version: product.version,
+        ...(imagesChanged ? { imageIds: images.map((image) => image.id as string) } : {})
       }, draft.status)
       onClose()
     } catch (requestError) {
@@ -72,9 +84,10 @@ export function ProductEditForm({ product, categories, brands, onClose, onUpdate
           <label className={labelClass}>Đơn vị cơ bản<input className={inputClass} value={draft.unit} onChange={(event) => update("unit", event.target.value)} /></label>
           <label className={labelClass}>Trạng thái<select disabled={isArchived} className={inputClass} value={draft.status} onChange={(event) => update("status", event.target.value)}>{isArchived ? <option value="ARCHIVED">Đã lưu trữ</option> : <><option value="ACTIVE">Đang bán</option>{canRemainDraft && <option value="DRAFT">Bản nháp</option>}<option value="INACTIVE">Ngừng kinh doanh</option><option value="ARCHIVED">Đã lưu trữ</option></>}</select></label>
           <label className={`${labelClass} md:col-span-2`}>Mô tả<textarea className="mt-1 min-h-20 w-full rounded-md border border-slate-200 p-3 text-sm outline-none focus:border-[#16866f] focus:ring-4 focus:ring-[#16866f]/10" value={draft.description} onChange={(event) => update("description", event.target.value)} /></label>
+          <ProductImageUpload images={images} disabled={saving || isArchived} onUploadingChange={setUploadingImages} onChange={(nextImages) => { setImages(nextImages); setImagesChanged(true) }} />
         </div>
         {error && <p className="px-6 pb-2 text-sm text-red-600" role="alert">{error}</p>}
-        <div className="flex justify-end gap-2 border-t border-slate-100 px-6 py-4"><Button type="button" variant="outline" onClick={onClose}>Hủy</Button><Button disabled={saving} type="submit" className="bg-[#16866f] text-white hover:bg-[#0f705d]">{saving ? "Đang lưu..." : "Lưu thay đổi"}</Button></div>
+        <div className="flex justify-end gap-2 border-t border-slate-100 px-6 py-4"><Button type="button" variant="outline" disabled={saving || uploadingImages} onClick={onClose}>Hủy</Button><Button disabled={saving || uploadingImages} type="submit" className="bg-[#16866f] text-white hover:bg-[#0f705d]">{uploadingImages ? "Đang tải ảnh..." : saving ? "Đang lưu..." : "Lưu thay đổi"}</Button></div>
       </form>
     </div>
   )
