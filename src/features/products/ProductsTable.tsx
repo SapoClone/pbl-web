@@ -1,11 +1,26 @@
 import { useMemo, useState } from "react"
-import { List, Pencil, Search, Trash2 } from "lucide-react"
+import { ImageOff, List, Pencil, Search, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { products as defaultProducts } from "@/shared/dashboard/dashboard.mock"
 import type { Product } from "@/shared/dashboard/dashboard.types"
 
 const formatPrice = (value?: number, fallback = "—") =>
   value === undefined ? fallback : `${value.toLocaleString("vi-VN")} ₫`
+
+function ProductThumbnail({ product }: { product: Product }) {
+  const [failed, setFailed] = useState(false)
+  const imageUrl = product.imageUrls?.[0]
+
+  if (!imageUrl || failed) {
+    return (
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[#e6f5ee] text-[#16866f]" title={failed ? "Không thể tải ảnh sản phẩm" : "Sản phẩm chưa có ảnh"}>
+        {failed ? <ImageOff size={16} aria-hidden="true" /> : <span className="text-xs font-semibold">{product.name.slice(0, 1).toUpperCase()}</span>}
+      </div>
+    )
+  }
+
+  return <img src={imageUrl} alt={`Ảnh bìa của ${product.name}`} onError={() => setFailed(true)} className="h-10 w-10 shrink-0 rounded-md border border-slate-100 object-cover" />
+}
 
 export function ProductsTable({
   section,
@@ -97,13 +112,7 @@ export function ProductsTable({
               <tr key={product.id} className="hover:bg-slate-50">
                 <td className="px-5 py-4">
                   <div className="flex items-center gap-3">
-                    {product.imageUrls?.[0] ? (
-                      <img src={product.imageUrls[0]} alt="" className="h-10 w-10 rounded-md object-cover" />
-                    ) : (
-                      <div className="flex h-10 w-10 items-center justify-center rounded-md bg-[#e6f5ee] text-xs font-semibold text-[#16866f]">
-                        {product.name.slice(0, 1).toUpperCase()}
-                      </div>
-                    )}
+                    <ProductThumbnail product={product} />
                     <span className="min-w-0">
                       <b className="block max-w-[190px] truncate font-medium text-[#163d36]">{product.name}</b>
                       <span className="block max-w-[190px] truncate text-xs text-slate-400">{product.description || "Chưa có mô tả"}</span>

@@ -1,7 +1,7 @@
 import { Pencil, Plus, Trash2, X } from "lucide-react"
 import { useState, type FormEvent } from "react"
 import { Button } from "@/components/ui/button"
-import type { CatalogVariant } from "@/api/catalog/products"
+import type { CatalogProductAttribute, CatalogVariant } from "@/api/catalog/products"
 import type { Product } from "@/shared/dashboard/dashboard.types"
 
 const displayVariantName = (variant: CatalogVariant) => {
@@ -29,6 +29,8 @@ type VariantDraft = {
   barcode: string
   basePrice: string
   weight: string
+  imageUrl: string
+  attributeValues: Record<string, string>
   status: CatalogVariant["status"]
 }
 
@@ -38,12 +40,15 @@ const toDraft = (variant: CatalogVariant): VariantDraft => ({
   barcode: variant.barcode ?? "",
   basePrice: String(variant.basePrice),
   weight: variant.weight ? trimTrailingWeightZeros(variant.weight) : "",
+  imageUrl: variant.imageUrl ?? "",
+  attributeValues: Object.fromEntries(variant.attributes.map((attribute) => [attribute.attributeId, attribute.attributeValueId])),
   status: variant.status
 })
 
 export function ProductVariantList({
   product,
   variants,
+  attributes,
   onClose,
   onAddVariant,
   onUpdateVariant,
@@ -51,6 +56,7 @@ export function ProductVariantList({
 }: {
   product: Product
   variants: CatalogVariant[] | null
+  attributes: CatalogProductAttribute[]
   onClose: () => void
   onAddVariant: () => void
   onUpdateVariant: (variant: CatalogVariant, input: Omit<VariantDraft, "basePrice"> & { basePrice: number }) => Promise<void>
@@ -154,7 +160,16 @@ export function ProductVariantList({
                     <label className="text-xs font-medium text-slate-600">Mã vạch<input className="mt-1 h-9 w-full rounded-md border border-slate-200 bg-white px-2.5 text-sm outline-none focus:border-[#16866f]" value={draft.barcode} onChange={(event) => setDraft({ ...draft, barcode: event.target.value })} /></label>
                     <label className="text-xs font-medium text-slate-600">Giá bán (VND)<input required min="0" step="1" type="number" className="mt-1 h-9 w-full rounded-md border border-slate-200 bg-white px-2.5 text-sm outline-none focus:border-[#16866f]" value={draft.basePrice} onChange={(event) => setDraft({ ...draft, basePrice: event.target.value })} /></label>
                     <label className="text-xs font-medium text-slate-600">Khối lượng (kg)<input className="mt-1 h-9 w-full rounded-md border border-slate-200 bg-white px-2.5 text-sm outline-none focus:border-[#16866f]" value={draft.weight} onChange={(event) => setDraft({ ...draft, weight: event.target.value })} /></label>
+                    <label className="text-xs font-medium text-slate-600">URL ảnh<input type="url" className="mt-1 h-9 w-full rounded-md border border-slate-200 bg-white px-2.5 text-sm outline-none focus:border-[#16866f]" value={draft.imageUrl} onChange={(event) => setDraft({ ...draft, imageUrl: event.target.value })} /></label>
                     <label className="text-xs font-medium text-slate-600">Trạng thái<select className="mt-1 h-9 w-full rounded-md border border-slate-200 bg-white px-2.5 text-sm outline-none focus:border-[#16866f]" value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value as CatalogVariant["status"] })}><option value="ACTIVE">Đang bán</option><option value="INACTIVE">Ngừng kinh doanh</option><option value="ARCHIVED">Đã lưu trữ</option></select></label>
+                    <div className="rounded-lg border border-slate-200 bg-white p-3 md:col-span-2">
+                      <p className="text-xs font-semibold text-slate-700">Thuộc tính biến thể</p>
+                      <p className="mt-1 text-xs text-slate-400">API hiện tại chưa hỗ trợ đổi tổ hợp thuộc tính sau khi tạo biến thể.</p>
+                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                        {attributes.map((attribute) => <label key={attribute.id} className="text-xs font-medium text-slate-600">{attribute.name}<select disabled className="mt-1 h-9 w-full cursor-not-allowed rounded-md border border-slate-200 bg-slate-100 px-2.5 text-sm text-slate-500" value={draft.attributeValues[attribute.id] ?? ""}><option value="">Không chọn</option>{attribute.values.map((value) => <option key={value.id} value={value.id}>{value.value}</option>)}</select></label>)}
+                        {attributes.length === 0 && <p className="text-xs text-slate-500 sm:col-span-2">Sản phẩm chưa có thuộc tính.</p>}
+                      </div>
+                    </div>
                     {actionError && <p className="text-sm text-red-600 md:col-span-2">{actionError}</p>}
                     <div className="flex justify-end gap-2 md:col-span-2"><Button type="button" variant="outline" disabled={saving} onClick={() => { setEditingId(null); setDraft(null); setActionError("") }}>Hủy</Button><Button type="submit" disabled={saving} className="bg-[#16866f] text-white hover:bg-[#0f705d]">{saving ? "Đang lưu..." : "Lưu thay đổi"}</Button></div>
                   </form>}

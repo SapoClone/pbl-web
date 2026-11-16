@@ -2,6 +2,7 @@ import { X } from "lucide-react"
 import { useState, type FormEvent } from "react"
 import { Button } from "@/components/ui/button"
 import type { CatalogBrand, CatalogCategory, CreateCatalogProductInput } from "@/api/catalog/products"
+import { ProductImageUpload, type ProductImageDraft } from "./ProductImageUpload"
 
 type Props = {
   categories: CatalogCategory[]
@@ -21,12 +22,18 @@ export function ProductCreateForm({ categories, brands, onClose, onCreated }: Pr
   })
   const [error, setError] = useState("")
   const [saving, setSaving] = useState(false)
+  const [uploadingImages, setUploadingImages] = useState(false)
+  const [images, setImages] = useState<ProductImageDraft[]>([])
   const update = (field: keyof typeof draft, value: string) => setDraft((current) => ({ ...current, [field]: value }))
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!draft.name.trim()) {
       setError("Vui lòng nhập tên sản phẩm.")
+      return
+    }
+    if (uploadingImages) {
+      setError("Vui lòng chờ tải ảnh hoàn tất.")
       return
     }
     setSaving(true)
@@ -38,7 +45,8 @@ export function ProductCreateForm({ categories, brands, onClose, onCreated }: Pr
         ...(draft.categoryId ? { categoryId: draft.categoryId } : {}),
         ...(draft.brandId ? { brandId: draft.brandId } : {}),
         baseUnit: draft.unit.trim() || "piece",
-        status: draft.status
+        status: draft.status,
+        ...(images.length ? { imageIds: images.map((image) => image.id).filter((id): id is string => Boolean(id)) } : {})
       })
       onClose()
     } catch (requestError) {
@@ -62,9 +70,10 @@ export function ProductCreateForm({ categories, brands, onClose, onCreated }: Pr
           <label className={labelClass}>Đơn vị cơ bản<input className={inputClass} value={draft.unit} onChange={(event) => update("unit", event.target.value)} /></label>
           <label className={labelClass}>Trạng thái<select className={inputClass} value={draft.status} onChange={(event) => update("status", event.target.value)}><option value="ACTIVE">Đang bán</option><option value="DRAFT">Bản nháp</option><option value="INACTIVE">Ngừng kinh doanh</option></select></label>
           <label className={`${labelClass} md:col-span-2`}>Mô tả<textarea className="mt-1 min-h-20 w-full rounded-md border border-slate-200 p-3 text-sm outline-none focus:border-[#16866f] focus:ring-4 focus:ring-[#16866f]/10" value={draft.description} onChange={(event) => update("description", event.target.value)} /></label>
+          <ProductImageUpload images={images} onChange={setImages} onUploadingChange={setUploadingImages} disabled={saving} />
         </div>
         {error && <p className="px-6 pb-2 text-sm text-red-600" role="alert">{error}</p>}
-        <div className="flex justify-end gap-2 border-t border-slate-100 px-6 py-4"><Button type="button" variant="outline" onClick={onClose}>Hủy</Button><Button disabled={saving} type="submit" className="bg-[#16866f] text-white hover:bg-[#0f705d]">{saving ? "Đang lưu..." : "Lưu sản phẩm"}</Button></div>
+        <div className="flex justify-end gap-2 border-t border-slate-100 px-6 py-4"><Button type="button" variant="outline" disabled={saving || uploadingImages} onClick={onClose}>Hủy</Button><Button disabled={saving || uploadingImages} type="submit" className="bg-[#16866f] text-white hover:bg-[#0f705d]">{uploadingImages ? "Đang tải ảnh..." : saving ? "Đang lưu..." : "Lưu sản phẩm"}</Button></div>
       </form>
     </div>
   )

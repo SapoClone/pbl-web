@@ -27,6 +27,7 @@ export type Product = {
   barcode?: string
   costPrice?: number
   retailPrice?: number
+  images?: Array<{ key: string; url: string; altText?: string | null; sortOrder: number }>
   imageUrls?: string[]
   stock: number
   price: string
