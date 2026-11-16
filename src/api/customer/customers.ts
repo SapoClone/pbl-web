@@ -20,6 +20,7 @@ export type Customer = {
   phone: string | null
   phoneMasked?: string | null
   email: string | null
+  source?: string | null
   gender?: string | null
   dateOfBirth?: string | null
   dob?: string | null
@@ -29,6 +30,7 @@ export type Customer = {
   createdAt: string
   group?: { id: string; code: string; name: string } | null
   customerGroupId?: string | null
+  tags?: Array<{ id: string; name: string }>
   addresses?: CustomerAddress[]
   orderCount?: number
   totalSpent?: number
@@ -63,7 +65,7 @@ export type CustomerSummary = {
   groupCounts: Record<string, number>
 }
 
-type CustomerListParams = { q?: string; page?: number; limit?: number }
+type CustomerListParams = { q?: string; page?: number; limit?: number; group?: string; tagId?: string }
 type CustomerPayload = {
   name: string
   phone: string | null
@@ -85,7 +87,7 @@ export const getCustomer = async (id: string) =>
 export const createCustomer = async (input: CustomerPayload) =>
   (await gatewayClient.post<Customer>(CUSTOMER_API, input)).data
 
-export const updateCustomer = async (id: string, input: CustomerPayload & { version: number }) =>
+export const updateCustomer = async (id: string, input: Partial<CustomerPayload> & { version: number; tagIds?: string[] }) =>
   (await gatewayClient.patch<Customer>(`${CUSTOMER_API}/${id}`, input)).data
 
 export const deactivateCustomer = async (id: string) =>

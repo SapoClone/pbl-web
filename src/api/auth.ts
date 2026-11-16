@@ -13,8 +13,8 @@ export type Registration = Credentials & {
 }
 
 export const isDemoCredentials = ({ email, password }: Credentials) =>
-  email.trim().toLowerCase() === "admin@gmail.com" &&
-  password === "admin@gmail.com"
+  email.trim().toLowerCase() === "test1@gmail.com" &&
+  password === "123456"
 
 export const createDemoTokens = (): AuthTokens => ({
   userId: "demo-admin",
