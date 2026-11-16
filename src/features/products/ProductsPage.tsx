@@ -90,6 +90,7 @@ export function ProductsPage() {
       version: row.version,
       catalogStatus: row.status,
       unit: row.baseUnit,
+      images: row.images,
       imageUrls: row.images.map((image) => image.url),
       stock: 0,
       price: "—",
@@ -149,6 +150,8 @@ export function ProductsPage() {
     barcode: string
     basePrice: number
     weight: string
+    imageUrl: string
+    attributeValues: Record<string, string>
     status: CatalogVariant["status"]
   }) => {
     try {
@@ -158,6 +161,7 @@ export function ProductsPage() {
         barcode: input.barcode.trim() || null,
         basePrice: input.basePrice,
         weight: normalizeWeight(input.weight) || null,
+        imageUrl: input.imageUrl.trim() || null,
         version: variant.version
       })
       const result = input.status === updated.status
@@ -203,8 +207,12 @@ export function ProductsPage() {
     const requestId = ++variantListRequestId.current
     setViewingVariants({ product, variants: null })
     try {
-      const variants = await listCatalogProductVariants(product.id)
+      const [variants, productAttributes] = await Promise.all([
+        listCatalogProductVariants(product.id),
+        listCatalogProductAttributes(product.id)
+      ])
       if (requestId !== variantListRequestId.current) return
+      setAttributes(productAttributes)
       setViewingVariants({ product, variants })
       setError("")
     } catch (error) {
@@ -297,7 +305,7 @@ export function ProductsPage() {
       <ProductsTable section="products" products={products} onEdit={setEditingProduct} onViewVariants={(product) => void handleViewVariants(product)} onDelete={handleProductDeleted} />
       {showCreate && <ProductCreateForm categories={categories} brands={brands} onClose={() => setShowCreate(false)} onCreated={handleCreated} />}
       {editingProduct && <ProductEditForm product={editingProduct} categories={categories} brands={brands} onClose={() => setEditingProduct(null)} onUpdated={handleUpdated} />}
-      {viewingVariants && <ProductVariantList product={viewingVariants.product} variants={viewingVariants.variants} onAddVariant={() => void handleOpenVariantForm(viewingVariants.product)} onUpdateVariant={handleVariantUpdated} onDeleteVariant={handleVariantDeleted} onClose={() => { variantListRequestId.current += 1; setViewingVariants(null) }} />}
+      {viewingVariants && <ProductVariantList product={viewingVariants.product} variants={viewingVariants.variants} attributes={attributes} onAddVariant={() => void handleOpenVariantForm(viewingVariants.product)} onUpdateVariant={handleVariantUpdated} onDeleteVariant={handleVariantDeleted} onClose={() => { variantListRequestId.current += 1; setViewingVariants(null) }} />}
       {variantProduct && <ProductVariantCreateForm product={variantProduct} attributes={attributes} onCreateAttribute={handleCreateAttribute} onCreateAttributeValue={handleCreateAttributeValue} onClose={() => setVariantProduct(null)} onCreated={handleVariantCreated} />}
       {showCatalogManagement && <ProductCatalogManagement categories={categories} brands={brands} onClose={() => setShowCatalogManagement(false)} onCreateCategory={handleCreateCategory} onCreateBrand={handleCreateBrand} onUpdateCategory={handleUpdateCategory} onDeleteCategory={handleDeleteCategory} onUpdateBrand={handleUpdateBrand} onDeleteBrand={handleDeleteBrand} />}
     </main>

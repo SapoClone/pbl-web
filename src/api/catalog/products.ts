@@ -16,6 +16,21 @@ export type CatalogProduct = {
   updatedAt: string
 }
 
+export type ProductImageUpload = {
+  imageId: string
+  uploadUrl: string
+  uploadHeaders: Record<string, string>
+  publicUrl: string
+  expiresAt: string
+}
+
+type CompletedProductImageUpload = {
+  id: string
+  status: "uploaded"
+  size: number
+  publicUrl?: string
+}
+
 export type CatalogProductListResponse = {
   items: CatalogProduct[]
   page: number
@@ -188,6 +203,7 @@ export type CreateCatalogProductInput = {
   brandId?: string
   baseUnit?: string
   status?: Exclude<CatalogStatus, "ARCHIVED">
+  imageIds?: string[]
 }
 
 export type UpdateCatalogProductInput = {
@@ -197,6 +213,7 @@ export type UpdateCatalogProductInput = {
   brandId?: string | null
   baseUnit?: string
   version?: number
+  imageIds?: string[]
 }
 
 export const listProductVariants = async (params?: { q?: string; page?: number; limit?: number }) => {
@@ -295,6 +312,34 @@ export const deleteCatalogBrand = async (id: string) => {
 export const createCatalogProduct = async (input: CreateCatalogProductInput) => {
   const { data } = await gatewayClient.post<CatalogProduct>("/catalog/api/v1/products", input)
   return data
+}
+
+export const uploadProductImage = async (file: File) => {
+  const { data: upload } = await gatewayClient.post<ProductImageUpload>("/catalog/api/v1/uploads/images", {
+    fileName: file.name,
+    contentType: file.type,
+    size: file.size
+  })
+
+  const isGatewayUpload = upload.uploadUrl.startsWith("/")
+  if (isGatewayUpload) {
+    await gatewayClient.put(upload.uploadUrl, file, { headers: upload.uploadHeaders })
+  } else {
+    const response = await fetch(upload.uploadUrl, {
+      method: "PUT",
+      headers: upload.uploadHeaders,
+      body: file
+    })
+    if (!response.ok) throw new Error("Không thể tải ảnh lên kho lưu trữ.")
+  }
+
+  const { data: completed } = await gatewayClient.post<CompletedProductImageUpload>(
+    `/catalog/api/v1/uploads/${upload.imageId}/complete`
+  )
+  if (completed.id !== upload.imageId || completed.status !== "uploaded") {
+    throw new Error("Ảnh chưa được xác nhận tải lên thành công.")
+  }
+  return { id: upload.imageId, key: "", url: completed.publicUrl || upload.publicUrl }
 }
 
 export const updateCatalogProduct = async (id: string, input: UpdateCatalogProductInput) => {

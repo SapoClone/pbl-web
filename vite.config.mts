@@ -4,42 +4,44 @@ import react from "@vitejs/plugin-react-swc"
 import tsconfigPaths from "vite-tsconfig-paths"
 import path from "path"
 
+const productionGateway = "https://api.sapo.makeasy.id.vn"
+const gatewayProxy = {
+  target: productionGateway,
+  changeOrigin: true,
+  secure: true
+}
+
 // https://vitejs.dev/config https://vitest.dev/config
 export default defineConfig({
   plugins: [react(), tsconfigPaths()],
   server: {
     proxy: {
       "/api": {
-        target: "http://localhost:8080",
-        changeOrigin: true
+        ...gatewayProxy
       },
       "/platform": {
-        target: "http://localhost:8080",
-        changeOrigin: true
+        ...gatewayProxy
       },
       "/sales": {
-        target: "http://localhost:8080",
-        changeOrigin: true
+        ...gatewayProxy
       },
       "/insight": {
-        target: "http://localhost:8080",
-        changeOrigin: true
+        ...gatewayProxy
       },
       "/inventory": {
-        target: "http://localhost:8080",
-        changeOrigin: true
+        ...gatewayProxy
       },
       "/catalog": {
-        target: "http://localhost:8080",
-        changeOrigin: true
+        ...gatewayProxy
+      },
+      "/static": {
+        ...gatewayProxy
       },
       "/integration": {
-        target: "http://localhost:8080",
-        changeOrigin: true
+        ...gatewayProxy
       },
       "/customer": {
-        target: "http://localhost:8080",
-        changeOrigin: true
+        ...gatewayProxy
       }
     }
   },
