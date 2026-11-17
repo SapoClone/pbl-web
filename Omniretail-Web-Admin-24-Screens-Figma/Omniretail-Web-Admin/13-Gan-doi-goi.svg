@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="960" viewBox="0 0 1440 960"><rect x="0" y="0" width="1440" height="960" rx="0" fill="#F3F6F5" opacity="1"/>
+<rect x="0" y="0" width="216" height="960" rx="0" fill="#FFFFFF" opacity="1"/>
+<line x1="216" y1="0" x2="216" y2="960" stroke="#DFE7E5" stroke-width="1"/>
+<rect x="24" y="24" width="29" height="29" rx="8" fill="#00876A" opacity="1"/>
+<rect x="32" y="33" width="12" height="11" rx="2" fill="none" opacity="1" stroke="#FFFFFF"/>
+<line x1="32" y1="37" x2="44" y2="37" stroke="#FFFFFF" stroke-width="1"/>
+<text x="62" y="46.2" font-family="Inter,Arial,sans-serif" font-size="20" font-weight="600" fill="#284341">omniretail</text>
+<rect x="16" y="77" width="184" height="58" rx="6" fill="#F3F6F5" opacity="1"/>
+<text x="29" y="99.6" font-family="Inter,Arial,sans-serif" font-size="10" font-weight="600" fill="#829591">QUẢN TRỊ NỀN TẢNG</text>
+<text x="29" y="122.18" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="600" fill="#284341">SaaS Admin</text>
+<text x="24" y="167.74" font-family="Inter,Arial,sans-serif" font-size="9" font-weight="400" fill="#829591">KHÔNG GIAN QUẢN TRỊ</text>
+<rect x="28" y="189" width="4" height="4" rx="1" fill="none" opacity="1" stroke="#829591"/>
+<rect x="35" y="189" width="4" height="4" rx="1" fill="none" opacity="1" stroke="#829591"/>
+<rect x="28" y="196" width="4" height="4" rx="1" fill="none" opacity="1" stroke="#829591"/>
+<rect x="35" y="196" width="4" height="4" rx="1" fill="none" opacity="1" stroke="#829591"/>
+<text x="50" y="200.32" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="400" fill="#284341">Tổng quan</text>
+<rect x="28" y="232" width="11" height="13" rx="2" fill="none" opacity="1" stroke="#829591"/>
+<line x1="31" y1="236" x2="36" y2="236" stroke="#829591" stroke-width="1"/>
+<line x1="31" y1="239" x2="36" y2="239" stroke="#829591" stroke-width="1"/>
+<text x="50" y="243.32" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="400" fill="#284341">Doanh nghiệp</text>
+<rect x="28" y="275" width="12" height="11" rx="2" fill="none" opacity="1" stroke="#829591"/>
+<line x1="28" y1="279" x2="40" y2="279" stroke="#829591" stroke-width="1"/>
+<text x="50" y="286.32" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="400" fill="#284341">Người dùng</text>
+<rect x="28" y="318" width="4" height="4" rx="1" fill="none" opacity="1" stroke="#829591"/>
+<rect x="35" y="318" width="4" height="4" rx="1" fill="none" opacity="1" stroke="#829591"/>
+<rect x="28" y="325" width="4" height="4" rx="1" fill="none" opacity="1" stroke="#829591"/>
+<rect x="35" y="325" width="4" height="4" rx="1" fill="none" opacity="1" stroke="#829591"/>
+<text x="50" y="329.32" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="400" fill="#284341">Gói dịch vụ</text>
+<rect x="16" y="351" width="184" height="35" rx="5" fill="#E5F3ED" opacity="1"/>
+<rect x="28" y="361" width="11" height="13" rx="2" fill="none" opacity="1" stroke="#00876A"/>
+<line x1="31" y1="365" x2="36" y2="365" stroke="#00876A" stroke-width="1"/>
+<line x1="31" y1="368" x2="36" y2="368" stroke="#00876A" stroke-width="1"/>
+<text x="50" y="372.32" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="600" fill="#00876A">Thuê bao</text>
+<rect x="28" y="404" width="12" height="11" rx="2" fill="none" opacity="1" stroke="#829591"/>
+<line x1="28" y1="408" x2="40" y2="408" stroke="#829591" stroke-width="1"/>
+<text x="50" y="415.32" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="400" fill="#284341">Hạn mức sử dụng</text>
+<rect x="28" y="447" width="4" height="4" rx="1" fill="none" opacity="1" stroke="#829591"/>
+<rect x="35" y="447" width="4" height="4" rx="1" fill="none" opacity="1" stroke="#829591"/>
+<rect x="28" y="454" width="4" height="4" rx="1" fill="none" opacity="1" stroke="#829591"/>
+<rect x="35" y="454" width="4" height="4" rx="1" fill="none" opacity="1" stroke="#829591"/>
+<text x="50" y="458.32" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="400" fill="#284341">Giám sát hệ thống</text>
+<rect x="28" y="490" width="11" height="13" rx="2" fill="none" opacity="1" stroke="#829591"/>
+<line x1="31" y1="494" x2="36" y2="494" stroke="#829591" stroke-width="1"/>
+<line x1="31" y1="497" x2="36" y2="497" stroke="#829591" stroke-width="1"/>
+<text x="50" y="501.32" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="400" fill="#284341">Tích hợp</text>
+<rect x="28" y="533" width="12" height="11" rx="2" fill="none" opacity="1" stroke="#829591"/>
+<line x1="28" y1="537" x2="40" y2="537" stroke="#829591" stroke-width="1"/>
+<text x="50" y="544.32" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="400" fill="#284341">Job lỗi</text>
+<rect x="166" y="531" width="24" height="25" rx="5" fill="#FFF2DC" opacity="1"/>
+<text x="176" y="546.46" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="600" fill="#A97724">8</text>
+<rect x="28" y="576" width="4" height="4" rx="1" fill="none" opacity="1" stroke="#829591"/>
+<rect x="35" y="576" width="4" height="4" rx="1" fill="none" opacity="1" stroke="#829591"/>
+<rect x="28" y="583" width="4" height="4" rx="1" fill="none" opacity="1" stroke="#829591"/>
+<rect x="35" y="583" width="4" height="4" rx="1" fill="none" opacity="1" stroke="#829591"/>
+<text x="50" y="587.32" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="400" fill="#284341">Nhật ký hoạt động</text>
+<rect x="28" y="619" width="11" height="13" rx="2" fill="none" opacity="1" stroke="#829591"/>
+<line x1="31" y1="623" x2="36" y2="623" stroke="#829591" stroke-width="1"/>
+<line x1="31" y1="626" x2="36" y2="626" stroke="#829591" stroke-width="1"/>
+<text x="50" y="630.32" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="400" fill="#284341">Thông báo</text>
+<rect x="28" y="662" width="12" height="11" rx="2" fill="none" opacity="1" stroke="#829591"/>
+<line x1="28" y1="666" x2="40" y2="666" stroke="#829591" stroke-width="1"/>
+<text x="50" y="673.32" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="400" fill="#284341">Hỗ trợ kỹ thuật</text>
+<rect x="28" y="705" width="4" height="4" rx="1" fill="none" opacity="1" stroke="#829591"/>
+<rect x="35" y="705" width="4" height="4" rx="1" fill="none" opacity="1" stroke="#829591"/>
+<rect x="28" y="712" width="4" height="4" rx="1" fill="none" opacity="1" stroke="#829591"/>
+<rect x="35" y="712" width="4" height="4" rx="1" fill="none" opacity="1" stroke="#829591"/>
+<text x="50" y="716.32" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="400" fill="#284341">Cấu hình hệ thống</text>
+<line x1="24" y1="816" x2="192" y2="816" stroke="#DFE7E5" stroke-width="1"/>
+<text x="28" y="850.46" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="400" fill="#829591">Trung tâm trợ giúp</text>
+<text x="28" y="887.46" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="400" fill="#829591">Đăng xuất</text>
+<text x="24" y="935.88" font-family="Inter,Arial,sans-serif" font-size="8" font-weight="400" fill="#829591">OMNIRETAIL · DỮ LIỆU MINH HỌA</text>
+<rect x="217" y="0" width="1223" height="66" rx="0" fill="#FFFFFF" opacity="1"/>
+<text x="248" y="36.32" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="400" fill="#829591">Nền tảng / Thuê bao</text>
+<rect x="958" y="21" width="94" height="25" rx="5" fill="#E5F3ED" opacity="1"/>
+<text x="968" y="36.46" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="600" fill="#00876A">Production</text>
+<text x="1069" y="38.03" font-family="Inter,Arial,sans-serif" font-size="10.5" font-weight="400" fill="#829591">23/10/2026 · UTC+7</text>
+<rect x="1212" y="18" width="30" height="30" rx="15" fill="#E5F3ED" opacity="1"/>
+<text x="1219" y="36.46" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="600" fill="#00876A">LA</text>
+<text x="1253" y="30.32" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="600" fill="#284341">Lan Anh</text>
+<text x="1253" y="47.6" font-family="Inter,Arial,sans-serif" font-size="10" font-weight="400" fill="#829591">Quản trị viên nền tảng</text>
+<text x="248" y="117.36" font-family="Inter,Arial,sans-serif" font-size="26" font-weight="600" fill="#284341">Gán / Đổi gói dịch vụ</text>
+<text x="248" y="144.32" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="400" fill="#829591">Thuê bao / SUB-0001 / Mộc Store</text>
+<rect x="248" y="180" width="742" height="590" rx="8" fill="#FFFFFF" opacity="1" stroke="#DFE7E5"/>
+<text x="268" y="212.9" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="600" fill="#284341">Gói mới và thời gian hiệu lực</text>
+<text x="272" y="255.32" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="600" fill="#284341">Doanh nghiệp</text>
+<rect x="272" y="269" width="694" height="42" rx="6" fill="#FFFFFF" opacity="1" stroke="#DFE7E5"/>
+<text x="285" y="293.32" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="400" fill="#284341">Mộc Store · TN0001</text>
+<text x="272" y="347.32" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="600" fill="#284341">Gói dịch vụ mới *</text>
+<rect x="272" y="361" width="694" height="42" rx="6" fill="#FFFFFF" opacity="1" stroke="#DFE7E5"/>
+<text x="285" y="385.32" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="400" fill="#284341">Basic                          ⌄</text>
+<text x="272" y="439.32" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="600" fill="#284341">Ngày hiệu lực *</text>
+<rect x="272" y="453" width="332" height="42" rx="6" fill="#FFFFFF" opacity="1" stroke="#DFE7E5"/>
+<text x="285" y="477.32" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="400" fill="#284341">25/10/2026</text>
+<text x="624" y="439.32" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="600" fill="#284341">Ngày hết hạn *</text>
+<rect x="624" y="453" width="342" height="42" rx="6" fill="#FFFFFF" opacity="1" stroke="#DFE7E5"/>
+<text x="637" y="477.32" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="400" fill="#284341">25/11/2026</text>
+<text x="272" y="531.32" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="600" fill="#284341">Ghi chú thay đổi</text>
+<rect x="272" y="545" width="694" height="88" rx="6" fill="#FFFFFF" opacity="1" stroke="#DFE7E5"/>
+<text x="285" y="569.32" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="400" fill="#284341">Hạ cấp theo yêu cầu của doanh nghiệp</text>
+<rect x="272" y="653" width="694" height="42" rx="6" fill="#FDEEEE" opacity="1"/>
+<text x="286" y="677.32" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="400" fill="#C85353">Chưa thể hạ cấp: doanh nghiệp đang sử dụng 12 / 10 người dùng của gói Basic.</text>
+<rect x="1006" y="180" width="402" height="410" rx="8" fill="#FFFFFF" opacity="1" stroke="#DFE7E5"/>
+<text x="1026" y="212.9" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="600" fill="#284341">Kiểm tra hạn mức gói mới</text>
+<text x="1030" y="265.32" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="400" fill="#829591">Chi nhánh</text>
+<text x="1245" y="266.18" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="600" fill="#00876A">2 / 2</text>
+<line x1="1030" y1="291" x2="1384" y2="291" stroke="#DFE7E5" stroke-width="1"/>
+<text x="1030" y="329.32" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="400" fill="#829591">Người dùng</text>
+<text x="1245" y="330.18" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="600" fill="#C85353">12 / 10</text>
+<line x1="1030" y1="355" x2="1384" y2="355" stroke="#DFE7E5" stroke-width="1"/>
+<text x="1030" y="393.32" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="400" fill="#829591">Sản phẩm</text>
+<text x="1245" y="394.18" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="600" fill="#00876A">1.250 / 2.000</text>
+<line x1="1030" y1="419" x2="1384" y2="419" stroke="#DFE7E5" stroke-width="1"/>
+<text x="1030" y="457.32" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="400" fill="#829591">Dung lượng</text>
+<text x="1245" y="458.18" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="600" fill="#00876A">4,2 / 10 GB</text>
+<line x1="1030" y1="483" x2="1384" y2="483" stroke="#DFE7E5" stroke-width="1"/>
+<text x="1030" y="558.46" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="400" fill="#C85353">Cần giảm số người dùng hoặc chọn gói phù hợp.</text>
+<rect x="1128" y="810" width="90" height="38" rx="6" fill="#FFFFFF" opacity="1" stroke="#DFE7E5"/>
+<text x="1142" y="832.32" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="600" fill="#284341">Hủy</text>
+<rect x="1232" y="810" width="176" height="38" rx="6" fill="#FFFFFF" opacity="1" stroke="#DFE7E5"/>
+<text x="1246" y="832.32" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="600" fill="#284341">Kiểm tra lại hạn mức</text></svg>
