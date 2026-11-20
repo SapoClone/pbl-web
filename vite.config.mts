@@ -15,6 +15,8 @@ const gatewayProxy = {
 export default defineConfig({
   plugins: [react(), tsconfigPaths()],
   server: {
+    host: true,
+    port: 5174,
     proxy: {
       "/api": {
         ...gatewayProxy
@@ -41,6 +43,9 @@ export default defineConfig({
         ...gatewayProxy
       },
       "/customer": {
+        ...gatewayProxy
+      },
+      "/finance": {
         ...gatewayProxy
       }
     }

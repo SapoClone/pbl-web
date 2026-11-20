@@ -4,6 +4,7 @@ import { Route as StaffImport } from './routes/staff'
 import { Route as SettingsImport } from './routes/settings'
 import { Route as ReportsImport } from './routes/reports'
 import { Route as RegisterImport } from './routes/register'
+import { Route as PromotionsImport } from './routes/promotions'
 import { Route as ProductsImport } from './routes/products'
 import { Route as PosImport } from './routes/pos'
 import { Route as OrdersImport } from './routes/orders'
@@ -37,6 +38,11 @@ const ReportsRoute = ReportsImport.update({
 
 const RegisterRoute = RegisterImport.update({
   path: '/register',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const PromotionsRoute = PromotionsImport.update({
+  path: '/promotions',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -131,6 +137,10 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProductsImport
       parentRoute: typeof rootRoute
     }
+    '/promotions': {
+      preLoaderRoute: typeof PromotionsImport
+      parentRoute: typeof rootRoute
+    }
     '/register': {
       preLoaderRoute: typeof RegisterImport
       parentRoute: typeof rootRoute
@@ -164,6 +174,7 @@ export const routeTree = rootRoute.addChildren([
   OrdersRoute,
   PosRoute,
   ProductsRoute,
+  PromotionsRoute,
   RegisterRoute,
   ReportsRoute,
   SettingsRoute,

@@ -1,12 +1,13 @@
 import type { LucideIcon } from "lucide-react"
 import {
+  BarChart3,
   ClipboardList,
   LayoutDashboard,
   Monitor,
   Package,
-  BarChart3,
   Share2,
   ShieldCheck,
+  Ticket,
   Truck,
   UsersRound,
   Warehouse
@@ -22,7 +23,16 @@ export type NavigationItem = {
 
 export const navigation: NavigationItem[] = [
   { label: "Tổng quan", icon: LayoutDashboard, to: "/" },
-  { label: "Sản phẩm", icon: Package, to: "/products" },
+  {
+    label: "Sản phẩm",
+    icon: Package,
+    to: "/products",
+    children: [
+      { label: "Danh mục sản phẩm", tab: "catalog" },
+      { label: "Bảng giá đa kênh", tab: "price-lists" },
+      { label: "Sản phẩm Combo", tab: "combos" }
+    ]
+  },
   {
     label: "Tồn kho",
     icon: Warehouse,
@@ -41,11 +51,51 @@ export const navigation: NavigationItem[] = [
       { label: "Danh sách kho", tab: "warehouses" }
     ]
   },
-  { label: "Đơn hàng", icon: ClipboardList, to: "/orders", badge: "3" },
+  { label: "Đơn hàng", icon: ClipboardList, to: "/orders" },
   { label: "Bán tại quầy", icon: Monitor, to: "/pos" },
-  { label: "Kênh bán hàng", icon: Share2, to: "/channels" },
-  { label: "Khách hàng", icon: UsersRound, to: "/customers" },
-  { label: "Báo cáo", icon: BarChart3, to: "/reports" },
+  {
+    label: "Khuyến mãi",
+    icon: Ticket,
+    to: "/promotions",
+    children: [
+      { label: "Chương trình KM", tab: "programs" },
+      { label: "Mã giảm giá (Coupon)", tab: "coupons" },
+      { label: "Kiểm thử áp mã", tab: "simulator" }
+    ]
+  },
+  {
+    label: "Kênh bán hàng",
+    icon: Share2,
+    to: "/channels",
+    children: [
+      { label: "Tổng quan & Lazada", tab: "overview" },
+      { label: "Ánh xạ SKU Lazada", tab: "sku-mappings" },
+      { label: "Tiến trình đồng bộ", tab: "sync-jobs" },
+      { label: "Xung đột đồng bộ", tab: "conflicts" },
+      { label: "Đối soát vận hành", tab: "reconciliation" }
+    ]
+  },
+  {
+    label: "Khách hàng",
+    icon: UsersRound,
+    to: "/customers",
+    children: [
+      { label: "Danh sách khách hàng", tab: "customers" },
+      { label: "Nhóm khách hàng", tab: "groups" },
+      { label: "Hạng thành viên & Điểm", tab: "loyalty" }
+    ]
+  },
+  {
+    label: "Báo cáo",
+    icon: BarChart3,
+    to: "/reports",
+    children: [
+      { label: "Bán hàng theo kênh", tab: "channels" },
+      { label: "Báo cáo sản phẩm", tab: "products" },
+      { label: "Giá trị tồn & Xuất nhập", tab: "inventory" },
+      { label: "Tài chính & Lợi nhuận", tab: "finance" }
+    ]
+  },
   { label: "Nhập hàng & NCC", icon: Truck, to: "/suppliers" },
   { label: "Nhân viên & Quyền", icon: ShieldCheck, to: "/staff" }
 ]
