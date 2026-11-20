@@ -56,16 +56,16 @@ export function InventoryPage() {
   const warehouses = useQuery({ queryKey: ["inventory-warehouses"], queryFn: () => listWarehouses(), enabled: !isDemo })
   const selectedWarehouse = warehouseId || warehouses.data?.find((item) => item.isDefault)?.id || warehouses.data?.[0]?.id || ""
   const variants = useQuery({ queryKey: ["catalog-variants"], queryFn: listActiveVariants, enabled: !isDemo })
-  const stock = useQuery({ queryKey: ["inventory-stock", selectedBranch], queryFn: () => listStockLevels(selectedBranch), enabled: Boolean(selectedBranch) && !isDemo })
-  const summary = useQuery({ queryKey: ["inventory-summary", selectedBranch], queryFn: () => getStockSummary(selectedBranch), enabled: Boolean(selectedBranch) && !isDemo })
-  const receipts = useQuery({ queryKey: ["stock-receipts", selectedWarehouse], queryFn: () => listStockReceipts(selectedWarehouse), enabled: Boolean(selectedWarehouse) && !isDemo })
-  const issues = useQuery({ queryKey: ["stock-issues", selectedWarehouse], queryFn: () => listStockIssues(selectedWarehouse), enabled: Boolean(selectedWarehouse) && !isDemo })
-  const transfers = useQuery({ queryKey: ["stock-transfers", selectedWarehouse], queryFn: () => listStockTransfers(selectedWarehouse), enabled: Boolean(selectedWarehouse) && !isDemo })
-  const stocktakes = useQuery({ queryKey: ["stocktakes", selectedWarehouse], queryFn: () => listStocktakes(selectedWarehouse), enabled: Boolean(selectedWarehouse) && !isDemo })
-  const balances = useQuery({ queryKey: ["warehouse-stocks", selectedWarehouse], queryFn: () => listWarehouseStocks(selectedWarehouse), enabled: tab === "balances" && Boolean(selectedWarehouse) && !isDemo })
-  const movements = useQuery({ queryKey: ["stock-movements", selectedWarehouse], queryFn: () => listStockMovements(selectedWarehouse), enabled: tab === "movements" && Boolean(selectedWarehouse) && !isDemo })
-  const ledger = useQuery({ queryKey: ["stock-ledger", selectedBranch], queryFn: () => listLedgerEntries({ branchId: selectedBranch }), enabled: tab === "ledger" && Boolean(selectedBranch) && !isDemo })
-  const thresholds = useQuery({ queryKey: ["stock-thresholds", selectedWarehouse], queryFn: () => listStockThresholds(selectedWarehouse), enabled: tab === "thresholds" && Boolean(selectedWarehouse) && !isDemo })
+  const stock = useQuery({ queryKey: ["inventory-stock", selectedBranch], queryFn: () => listStockLevels(selectedBranch || undefined), enabled: !isDemo })
+  const summary = useQuery({ queryKey: ["inventory-summary", selectedBranch], queryFn: () => getStockSummary(selectedBranch || undefined), enabled: !isDemo })
+  const receipts = useQuery({ queryKey: ["stock-receipts", selectedWarehouse], queryFn: () => listStockReceipts(selectedWarehouse || undefined), enabled: tab === "receipts" && !isDemo })
+  const issues = useQuery({ queryKey: ["stock-issues", selectedWarehouse], queryFn: () => listStockIssues(selectedWarehouse || undefined), enabled: tab === "issues" && !isDemo })
+  const transfers = useQuery({ queryKey: ["stock-transfers", selectedWarehouse], queryFn: () => listStockTransfers(selectedWarehouse || undefined), enabled: tab === "transfers" && !isDemo })
+  const stocktakes = useQuery({ queryKey: ["stocktakes", selectedWarehouse], queryFn: () => listStocktakes(selectedWarehouse || undefined), enabled: tab === "stocktakes" && !isDemo })
+  const balances = useQuery({ queryKey: ["warehouse-stocks", selectedWarehouse], queryFn: () => listWarehouseStocks(selectedWarehouse || undefined), enabled: tab === "balances" && !isDemo })
+  const movements = useQuery({ queryKey: ["stock-movements", selectedWarehouse], queryFn: () => listStockMovements(selectedWarehouse || undefined), enabled: tab === "movements" && !isDemo })
+  const ledger = useQuery({ queryKey: ["stock-ledger", selectedBranch], queryFn: () => listLedgerEntries({ branchId: selectedBranch || undefined }), enabled: tab === "ledger" && !isDemo })
+  const thresholds = useQuery({ queryKey: ["stock-thresholds", selectedWarehouse], queryFn: () => listStockThresholds(selectedWarehouse || undefined), enabled: tab === "thresholds" && !isDemo })
   const skuStock = useQuery({ queryKey: ["stock-by-sku", selectedSku], queryFn: () => getStockBySku(selectedSku), enabled: Boolean(selectedSku) && !isDemo })
 
   const refresh = async () => {
@@ -80,10 +80,11 @@ export function InventoryPage() {
 
   const createMutation = useMutation({
     mutationFn: async (value: InventorySubmitValue) => {
-      if (formMode === "receipt") return createStockReceipt({ warehouseId: value.warehouseId!, note: value.note, items: [{ skuId: value.skuId!, qty: value.qty!, unitCost: value.unitCost }] })
-      if (formMode === "issue") return createStockIssue({ warehouseId: value.warehouseId!, reasonCode: value.reasonCode!, note: value.note, items: [{ skuId: value.skuId!, qty: value.qty! }] })
-      if (formMode === "transfer") return createStockTransfer({ fromWarehouseId: value.fromWarehouseId!, toWarehouseId: value.toWarehouseId!, note: value.note, items: [{ skuId: value.skuId!, qty: value.qty! }] })
-      if (formMode === "stocktake") return createStocktake({ warehouseId: value.warehouseId!, note: value.note, ...(value.skuId ? { skuIds: [value.skuId] } : {}) })
+      const items = value.items && value.items.length > 0 ? value.items : [{ skuId: value.skuId!, qty: value.qty!, unitCost: value.unitCost }]
+      if (formMode === "receipt") return createStockReceipt({ warehouseId: value.warehouseId!, note: value.note, autoPost: value.autoPost, items })
+      if (formMode === "issue") return createStockIssue({ warehouseId: value.warehouseId!, reasonCode: value.reasonCode!, note: value.note, autoPost: value.autoPost, items: items.map(({ skuId, qty }) => ({ skuId, qty })) })
+      if (formMode === "transfer") return createStockTransfer({ fromWarehouseId: value.fromWarehouseId!, toWarehouseId: value.toWarehouseId!, note: value.note, items: items.map(({ skuId, qty }) => ({ skuId, qty })) })
+      if (formMode === "stocktake") return createStocktake({ warehouseId: value.warehouseId!, note: value.note, ...(value.skuIds?.length ? { skuIds: value.skuIds } : value.skuId ? { skuIds: [value.skuId] } : {}) })
       return createWarehouse({ code: value.code!, name: value.name!, kind: value.kind!, branchId: value.branchId, isDefault: value.isDefault, address: value.address })
     },
     onSuccess: async () => { setFormMode(null); setActionError(""); await refresh() },
@@ -160,14 +161,14 @@ export function InventoryPage() {
     {loadingError && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">Không thể tải đầy đủ dữ liệu từ KrakenD.</p>}
     {actionError && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">{actionError}</p>}
 
-    {tab === "stock" && <><StockLookupBar branchId={selectedBranch} pending={lookupMutation.isPending} result={lookupResult} error={lookupMutation.isError ? actionError : ""} onLookup={(code) => lookupMutation.mutate(code)} /><StockTable rows={stock.data?.data ?? []} /></>}
+    {tab === "stock" && <><StockLookupBar branchId={selectedBranch} pending={lookupMutation.isPending} result={lookupResult} error={lookupMutation.isError ? actionError : ""} onLookup={(code) => lookupMutation.mutate(code)} /><StockTable rows={stock.data?.data ?? []} loading={stock.isLoading} /></>}
     {tab === "balances" && <BalanceTable rows={balances.data?.data ?? []} variants={variants.data ?? []} onSelect={setSelectedSku} />}
     {tab === "ledger" && <LedgerTable rows={ledger.data?.data ?? []} variants={variants.data ?? []} branches={branches.data?.data ?? []} />}
     {tab === "movements" && <MovementTable rows={movements.data?.data ?? []} variants={variants.data ?? []} warehouses={warehouses.data ?? []} />}
     {tab === "thresholds" && <><div className="mb-3 flex justify-end gap-2"><Button variant="outline" onClick={() => setBranchThresholdOpen(true)} disabled={isDemo} className="gap-2"><Plus size={16} />Theo chi nhánh</Button><Button onClick={() => setThresholdForm("new")} disabled={isDemo} className="gap-2 bg-[#16866f] text-white"><Plus size={16} />Theo kho</Button></div><ThresholdTable rows={thresholds.data ?? []} variants={variants.data ?? []} warehouses={warehouses.data ?? []} onEdit={setThresholdForm} /></>}
     {tab === "reconcile" && <ReconciliationPanel report={reconciliation} pending={reconcileMutation.isPending} onRun={() => reconcileMutation.mutate()} />}
-    {tab === "warehouses" && <WarehouseTable rows={warehouses.data ?? []} onEdit={editWarehouse} />}
-    {["receipts", "issues", "transfers", "stocktakes"].includes(tab) && <DocumentTable type={tab === "receipts" ? "receipt" : tab === "issues" ? "issue" : tab === "transfers" ? "transfer" : "stocktake"} rows={docs} warehouses={warehouses.data ?? []} variants={variants.data ?? []} pendingId={pendingId} onAction={runAction} />}
+    {tab === "warehouses" && <WarehouseTable rows={warehouses.data ?? []} loading={warehouses.isLoading} onEdit={editWarehouse} />}
+    {["receipts", "issues", "transfers", "stocktakes"].includes(tab) && <DocumentTable type={tab === "receipts" ? "receipt" : tab === "issues" ? "issue" : tab === "transfers" ? "transfer" : "stocktake"} rows={docs} warehouses={warehouses.data ?? []} variants={variants.data ?? []} pendingId={pendingId} loading={[receipts, issues, transfers, stocktakes].some((q) => q.isLoading)} onAction={runAction} />}
 
     {formMode && <InventoryForm mode={formMode} warehouses={warehouses.data ?? []} variants={variants.data ?? []} branches={branches.data?.data ?? []} isPending={createMutation.isPending} error={createMutation.isError ? actionError : ""} onClose={() => setFormMode(null)} onSubmit={async (value) => { await createMutation.mutateAsync(value) }} />}
     {counting && <StocktakeCountForm stocktake={counting} variants={variants.data ?? []} isPending={countMutation.isPending} error={countMutation.isError ? actionError : ""} onClose={() => setCounting(null)} onSubmit={async (counts) => { await countMutation.mutateAsync(counts) }} />}
