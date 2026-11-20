@@ -1800,7 +1800,8 @@ function PromotionFormModal({
         }
         await onSaved(mockSaved, !isEdit)
       } else if (isEdit && initial) {
-        const { code: _unusedCode, ...patchPayload } = payload
+        const patchPayload = { ...payload }
+        delete (patchPayload as { code?: string }).code
         const updated = await updatePromotion(initial.id, patchPayload)
         await onSaved(updated, false)
       } else {
