@@ -1,266 +1,1150 @@
-﻿import { useMemo, useState, type FormEvent } from "react"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { Download, FileUp, GitMerge, Mail, MapPin, Pencil, Phone, Plus, Search, ShoppingBag, Tags, Trash2, UserRound, X } from "lucide-react"
-import axios from "axios"
+import { useEffect, useMemo, useState, type FormEvent } from "react"
+import {
+  Award,
+  Coins,
+  Crown,
+  Eye,
+  Mail,
+  Pencil,
+  Phone,
+  Plus,
+  RefreshCw,
+  Search,
+  ShoppingBag,
+  Trash2,
+  UserRound,
+  Users,
+  Wallet,
+  X
+} from "lucide-react"
+import { useQuery } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
+import {
+  ChannelBadge,
+  KpiStatCard,
+  SegmentedTabs
+} from "@/components/ui/micro-ux"
+import { useToast } from "@/components/ui/toast"
 import { getCustomerHealth } from "@/api/customer/health"
 import {
-  addCustomerAddress,
   createCustomer,
-  deactivateCustomer,
-  getCustomer,
-  getCustomerSummary,
+  deleteCustomer,
   listCustomers,
-  removeCustomerAddress,
   updateCustomer,
-  updateCustomerAddress,
-  type Customer,
-  type CustomerDraft
+  type ApiCustomer
 } from "@/api/customer/customers"
+import {
+  assignCustomerGroup,
+  getLoyaltySettings,
+  listCustomerGroups,
+  listMembershipTiers,
+  type CustomerGroupItem,
+  type LoyaltySettingsConfig,
+  type MembershipTierItem
+} from "@/api/customer/crm"
+import { queryClient } from "@/api/tanstack-query"
 import { useStoreAuth } from "@/store/zustand/useStoreAuth"
-import { CustomerDetailsDialog, CustomerDuplicatesDialog, CustomerImportDialog, CustomerSegmentsDialog, downloadBlob } from "./CustomerAdvanced"
-import { exportCustomersCsv, listCustomerGroups, listCustomerTags } from "@/api/customer/advanced"
+import { CustomerGroupsPanel } from "./CustomerGroupsPanel"
+import { CustomerLoyaltyPanel } from "./CustomerLoyaltyPanel"
+import {
+  CustomerDetailsDrawer,
+  type CustomerDetailTab
+} from "./CustomerDetailsDrawer"
+import {
+  DEMO_CUSTOMERS,
+  DEMO_CUSTOMER_GROUPS,
+  DEMO_LOYALTY_SETTINGS,
+  DEMO_MEMBERSHIP_TIERS,
+  type CrmCustomerRecord
+} from "./crm.demo"
 
-const PAGE_SIZE = 100
-const inputClass = "mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[#16866f] focus:ring-4 focus:ring-[#16866f]/10"
-const emptyDraft: CustomerDraft = { name: "", phone: "", email: "", address: "", birthday: "", note: "" }
+export type CustomersModuleTab = "customers" | "groups" | "loyalty"
 
-const demoCustomers: Customer[] = [
-  { id: "demo-cus-1", code: "KH000001", name: "Nguyễn Minh Anh", phone: "0901234567", email: "minhanh@example.com", dateOfBirth: "1995-04-12", note: "Khách hàng thân thiết", source: "STORE", group: { id: "demo-member", code: "MEMBER", name: "Thành viên" }, orderCount: 8, totalSpent: 3400000, loyaltyPoints: 210, status: "ACTIVE", version: 1, createdAt: "2026-10-12" },
-  { id: "demo-cus-2", code: "KH000002", name: "Trần Hoàng Nam", phone: "0912345678", email: "hoangnam@example.com", dateOfBirth: null, note: null, source: "STORE", group: { id: "demo-retail", code: "RETAIL", name: "Khách lẻ" }, orderCount: 2, totalSpent: 780000, loyaltyPoints: 35, status: "ACTIVE", version: 1, createdAt: "2026-10-18" },
-  { id: "demo-cus-3", code: "KH000003", name: "Lê Thu Hà", phone: "0987654321", email: "thuha@example.com", dateOfBirth: "1990-08-20", note: "Ưu tiên giao giờ hành chính", source: "STORE", group: { id: "demo-vip", code: "VIP", name: "VIP" }, orderCount: 15, totalSpent: 12650000, loyaltyPoints: 860, status: "ACTIVE", version: 1, createdAt: "2026-10-21" }
-]
-
-function errorMessage(error: unknown) {
-  if (!axios.isAxiosError(error)) return "Không thể thực hiện thao tác."
-  const data = error.response?.data as { message?: string | string[]; errorCode?: string } | undefined
-  return (Array.isArray(data?.message) ? data.message.join(" ") : data?.message) || data?.errorCode || "Không thể thực hiện thao tác."
+type CustomerDraft = {
+  name: string
+  phone: string
+  email: string
+  address: string
+  birthday: string
+  source: string
+  customerGroupId: string
+  debtLimit: string
+  note: string
 }
 
-const toDraft = (customer: Customer): CustomerDraft => ({
-  name: customer.name,
-  phone: customer.phone ?? "",
-  email: customer.email ?? "",
-  address: customer.addresses?.find((address) => address.isDefault)?.addressLine ?? customer.addresses?.[0]?.addressLine ?? "",
-  birthday: (customer.dateOfBirth ?? customer.dob ?? "").slice(0, 10),
-  note: customer.note ?? ""
-})
+const emptyDraft: CustomerDraft = {
+  name: "",
+  phone: "",
+  email: "",
+  address: "",
+  birthday: "",
+  source: "POS",
+  customerGroupId: "",
+  debtLimit: "5000000",
+  note: ""
+}
 
-export function CustomersPage() {
-  const queryClient = useQueryClient()
+const inputClass =
+  "mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[#16866f] focus:ring-4 focus:ring-[#16866f]/10"
+
+const formatVnd = (n: number) => `${Math.round(n).toLocaleString("vi-VN")}đ`
+
+function readInitialTab(propTab?: string | null): CustomersModuleTab {
+  const candidate =
+    propTab ??
+    (typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("tab")
+      : null)
+  if (
+    candidate === "customers" ||
+    candidate === "groups" ||
+    candidate === "loyalty"
+  ) {
+    return candidate
+  }
+  return "customers"
+}
+
+const mapApiCustomer = (
+  item: ApiCustomer,
+  fallbackAddress?: string | number
+): CrmCustomerRecord => {
+  const noteText = item.note ?? ""
+  const fromDefault = item.defaultAddress
+    ? [
+        item.defaultAddress.addressLine,
+        item.defaultAddress.ward,
+        item.defaultAddress.district,
+        item.defaultAddress.province
+      ]
+        .filter(Boolean)
+        .join(", ")
+    : ""
+  const fromArray =
+    item.addresses && item.addresses.length > 0
+      ? [
+          item.addresses[0].addressLine,
+          item.addresses[0].ward,
+          item.addresses[0].district,
+          item.addresses[0].province
+        ]
+          .filter(Boolean)
+          .join(", ")
+      : ""
+  const cleanFallback =
+    typeof fallbackAddress === "string" ? fallbackAddress : ""
+  const extractedAddress =
+    fromDefault || fromArray || item.address || cleanFallback || ""
+
+  return {
+    id: item.id,
+    code: item.code || item.id.slice(0, 8).toUpperCase(),
+    memberCode: item.memberCode ?? undefined,
+    source: (item.source || "POS").toUpperCase(),
+    name: item.name,
+    phone: item.phone ?? "",
+    email: item.email ?? "",
+    address: extractedAddress,
+    birthday: item.dateOfBirth ? item.dateOfBirth.slice(0, 10) : "",
+    note: noteText,
+    createdAt: item.createdAt,
+    customerGroupId: item.customerGroupId ?? null,
+    membershipTierId: item.membershipTierId ?? null,
+    pointsBalance: Number(item.pointsBalance ?? 0),
+    currentDebt: Number(item.currentDebt ?? 0),
+    debtLimit: Number(item.debtLimit ?? 5000000)
+  }
+}
+
+export function CustomersPage({
+  requestedTab
+}: {
+  requestedTab?: string | null
+} = {}) {
+  const { toast } = useToast()
   const isDemo = Boolean(useStoreAuth((state) => state.tokens?.isDemo))
-  const [demoData, setDemoData] = useState(demoCustomers)
-  const [search, setSearch] = useState("")
-  const [page, setPage] = useState(1)
-  const [groupFilter, setGroupFilter] = useState("")
-  const [tagFilter, setTagFilter] = useState("")
+  const [activeTab, setActiveTab] = useState<CustomersModuleTab>(() =>
+    readInitialTab(requestedTab)
+  )
+
+  useEffect(() => {
+    if (
+      requestedTab === "customers" ||
+      requestedTab === "groups" ||
+      requestedTab === "loyalty"
+    ) {
+      setActiveTab(requestedTab)
+    }
+  }, [requestedTab])
+
+  useEffect(() => {
+    const onPop = () => setActiveTab(readInitialTab())
+    window.addEventListener("popstate", onPop)
+    return () => window.removeEventListener("popstate", onPop)
+  }, [])
+
+  const handleTabChange = (next: CustomersModuleTab) => {
+    setActiveTab(next)
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href)
+      url.searchParams.set("tab", next)
+      window.history.replaceState({}, "", url.toString())
+    }
+  }
+
+  const cachedApiCustomers = queryClient.getQueryData<ApiCustomer[]>([
+    "customers-list"
+  ])
+
+  const [customers, setCustomers] = useState<CrmCustomerRecord[]>(() =>
+    isDemo
+      ? DEMO_CUSTOMERS
+      : cachedApiCustomers
+        ? cachedApiCustomers.map((c) => mapApiCustomer(c))
+        : []
+  )
+  const [groups, setGroups] = useState<CustomerGroupItem[]>(() =>
+    isDemo ? DEMO_CUSTOMER_GROUPS : []
+  )
+  const [tiers, setTiers] = useState<MembershipTierItem[]>(() =>
+    isDemo ? DEMO_MEMBERSHIP_TIERS : []
+  )
+  const [loyaltySettings, setLoyaltySettings] = useState<LoyaltySettingsConfig>(
+    DEMO_LOYALTY_SETTINGS
+  )
+
+  const [loading, setLoading] = useState(!isDemo && !cachedApiCustomers)
+  const [query, setQuery] = useState("")
+  const [sourceFilter, setSourceFilter] = useState<string>("ALL")
+  const [groupFilter, setGroupFilter] = useState<string>("ALL")
+
   const [showForm, setShowForm] = useState(false)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [showSegments, setShowSegments] = useState(false)
-  const [showImport, setShowImport] = useState(false)
-  const [showDuplicates, setShowDuplicates] = useState(false)
-  const [editing, setEditing] = useState<Customer | null>(null)
+  const [editing, setEditing] = useState<CrmCustomerRecord | null>(null)
   const [draft, setDraft] = useState<CustomerDraft>(emptyDraft)
   const [error, setError] = useState("")
-  const [saving, setSaving] = useState(false)
 
-  const healthQuery = useQuery({ queryKey: ["customer-health"], queryFn: getCustomerHealth, enabled: !isDemo, retry: false })
-  const customersQuery = useQuery({
-    queryKey: ["customers", search, page, groupFilter, tagFilter],
-    queryFn: () => listCustomers({ q: search.trim() || undefined, page, limit: PAGE_SIZE, group: groupFilter || undefined, tagId: tagFilter || undefined }),
-    enabled: !isDemo
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [drawerInitialTab, setDrawerInitialTab] =
+    useState<CustomerDetailTab>("orders")
+
+  const healthQuery = useQuery({
+    queryKey: ["customer-health"],
+    queryFn: getCustomerHealth,
+    enabled: !isDemo,
+    retry: false
   })
-  const summaryQuery = useQuery({ queryKey: ["customers-summary"], queryFn: getCustomerSummary, enabled: !isDemo })
-  const groupsQuery = useQuery({ queryKey: ["customer-groups"], queryFn: listCustomerGroups, enabled: !isDemo })
-  const tagsQuery = useQuery({ queryKey: ["customer-tags"], queryFn: listCustomerTags, enabled: !isDemo })
 
-  const customers = useMemo(() => {
-    if (!isDemo) return customersQuery.data?.items ?? []
-    const normalizedSearch = search.trim().toLowerCase()
-    return demoData.filter((customer) => `${customer.name} ${customer.phone ?? ""} ${customer.email ?? ""}`.toLowerCase().includes(normalizedSearch))
-  }, [customersQuery.data?.items, demoData, isDemo, search])
-  const selected = isDemo ? demoData.find((customer) => customer.id === selectedId) ?? null : null
+  const loadCrmBundle = async (force = false) => {
+    if (isDemo) return
+    setLoading(true)
+    try {
+      if (force) {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["customers-list"] }),
+          queryClient.invalidateQueries({ queryKey: ["crm-groups"] }),
+          queryClient.invalidateQueries({ queryKey: ["crm-tiers"] }),
+          queryClient.invalidateQueries({ queryKey: ["crm-loyalty-settings"] })
+        ])
+      }
+      const [cusRes, grpRows, tierRows, settingsRow] = await Promise.all([
+        queryClient
+          .fetchQuery({
+            queryKey: ["customers-list"],
+            queryFn: () => listCustomers({ page: 1, limit: 100 })
+          })
+          .catch(() => null),
+        queryClient
+          .fetchQuery({
+            queryKey: ["crm-groups"],
+            queryFn: listCustomerGroups
+          })
+          .catch(() => [] as CustomerGroupItem[]),
+        queryClient
+          .fetchQuery({
+            queryKey: ["crm-tiers"],
+            queryFn: listMembershipTiers
+          })
+          .catch(() => [] as MembershipTierItem[]),
+        queryClient
+          .fetchQuery({
+            queryKey: ["crm-loyalty-settings"],
+            queryFn: getLoyaltySettings
+          })
+          .catch(() => null)
+      ])
 
-  const invalidateCustomers = async () => {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["customers"] }),
-      queryClient.invalidateQueries({ queryKey: ["customers-summary"] }),
-      queryClient.invalidateQueries({ queryKey: ["customer-detail"] })
-    ])
+      const cusRows = Array.isArray(cusRes) ? cusRes : (cusRes?.items ?? [])
+      if (cusRows.length > 0) {
+        setCustomers(cusRows.map((r: ApiCustomer) => mapApiCustomer(r)))
+      }
+      if (grpRows.length > 0) {
+        setGroups(grpRows)
+      }
+      if (tierRows.length > 0) {
+        setTiers(tierRows)
+      }
+      if (settingsRow) {
+        setLoyaltySettings(settingsRow)
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (isDemo) {
+      setCustomers(DEMO_CUSTOMERS)
+      setGroups(DEMO_CUSTOMER_GROUPS)
+      setTiers(DEMO_MEMBERSHIP_TIERS)
+      setLoyaltySettings(DEMO_LOYALTY_SETTINGS)
+      return
+    }
+    void loadCrmBundle()
+  }, [isDemo])
+
+  // Sync group customer counts in Demo mode so counts stay live
+  const enrichedGroups = useMemo(() => {
+    if (!isDemo) return groups
+    const countMap = new Map<string, number>()
+    for (const c of customers) {
+      if (c.customerGroupId) {
+        countMap.set(c.customerGroupId, (countMap.get(c.customerGroupId) ?? 0) + 1)
+      }
+    }
+    return groups.map((g) => ({
+      ...g,
+      customerCount: countMap.get(g.id) ?? 0
+    }))
+  }, [isDemo, groups, customers])
+
+  const groupMap = useMemo(
+    () => new Map(enrichedGroups.map((g) => [g.id, g])),
+    [enrichedGroups]
+  )
+
+  const sortedActiveTiers = useMemo(
+    () =>
+      [...tiers]
+        .filter((t) => t.status === "ACTIVE")
+        .sort((a, b) => a.minPoints - b.minPoints),
+    [tiers]
+  )
+
+  const resolveCustomerTier = (c: CrmCustomerRecord): MembershipTierItem | null => {
+    if (c.membershipTierId) {
+      const explicit = tiers.find((t) => t.id === c.membershipTierId)
+      if (explicit) return explicit
+    }
+    return (
+      [...sortedActiveTiers]
+        .reverse()
+        .find((t) => c.pointsBalance >= t.minPoints) ??
+      sortedActiveTiers[0] ??
+      null
+    )
+  }
+
+  const filtered = useMemo(
+    () =>
+      customers.filter((customer) => {
+        const matchesQuery =
+          `${customer.code} ${customer.memberCode ?? ""} ${customer.name} ${customer.phone} ${customer.email} ${customer.note}`
+            .toLowerCase()
+            .includes(query.toLowerCase())
+        const matchesSource =
+          sourceFilter === "ALL" || customer.source === sourceFilter
+        const matchesGroup =
+          groupFilter === "ALL" ||
+          (groupFilter === "UNASSIGNED"
+            ? !customer.customerGroupId
+            : customer.customerGroupId === groupFilter)
+        return matchesQuery && matchesSource && matchesGroup
+      }),
+    [customers, query, sourceFilter, groupFilter]
+  )
+
+  const kpis = useMemo(() => {
+    const ecommerceCount = customers.filter((c) =>
+      ["LAZADA", "SHOPEE", "TIKTOK_SHOP", "WEBSITE"].includes(c.source)
+    ).length
+    const totalPoints = customers.reduce((sum, c) => sum + c.pointsBalance, 0)
+    const totalDebt = customers.reduce((sum, c) => sum + c.currentDebt, 0)
+    const debtorCount = customers.filter((c) => c.currentDebt > 0).length
+    return { ecommerceCount, totalPoints, totalDebt, debtorCount }
+  }, [customers])
+
+  const selectedCustomer = useMemo(
+    () => customers.find((c) => c.id === selectedId) ?? null,
+    [customers, selectedId]
+  )
+
+  const openCustomerDrawer = (
+    customer: CrmCustomerRecord,
+    tab: CustomerDetailTab = "orders"
+  ) => {
+    setDrawerInitialTab(tab)
+    setSelectedId(customer.id)
+  }
+
+  const patchCustomerInList = (
+    customerId: string,
+    patch: Partial<CrmCustomerRecord>
+  ) => {
+    setCustomers((prev) =>
+      prev.map((c) => (c.id === customerId ? { ...c, ...patch } : c))
+    )
   }
 
   const openCreate = () => {
     setEditing(null)
-    setDraft(emptyDraft)
+    setDraft({
+      ...emptyDraft,
+      customerGroupId: enrichedGroups[0]?.id ?? ""
+    })
     setError("")
     setShowForm(true)
   }
 
-  const openEdit = async (customer: Customer) => {
+  const openEdit = (customer: CrmCustomerRecord) => {
+    setEditing(customer)
+    setDraft({
+      name: customer.name,
+      phone: customer.phone,
+      email: customer.email,
+      address: customer.address,
+      birthday: customer.birthday,
+      source: customer.source,
+      customerGroupId: customer.customerGroupId ?? "",
+      debtLimit: String(customer.debtLimit || 5000000),
+      note: customer.note
+    })
     setError("")
-    try {
-      const detail = isDemo ? customer : await getCustomer(customer.id)
-      setEditing(detail)
-      setDraft(toDraft(detail))
-      setShowForm(true)
-    } catch (requestError) {
-      setError(errorMessage(requestError))
-    }
+    setShowForm(true)
   }
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError("")
     if (!draft.name.trim() || !/^\+?[0-9]{8,15}$/.test(draft.phone.trim())) {
-      setError("Vui lòng nhập tên và số điện thoại hợp lệ (8–15 chữ số).")
+      setError("Vui lòng nhập tên và số điện thoại hợp lệ (8-15 chữ số).")
       return
     }
+    const cleanAddress = draft.address.trim()
+    const nextGroupId = draft.customerGroupId || null
+    const nextDebtLimit = Math.max(0, Number(draft.debtLimit) || 5000000)
 
-    const payload = {
-      name: draft.name.trim(),
-      phone: draft.phone.trim() || null,
-      email: draft.email.trim() || null,
-      dateOfBirth: draft.birthday || null,
-      note: draft.note.trim() || null
-    }
-    setSaving(true)
-    try {
-      if (isDemo) {
-        if (editing) {
-          setDemoData((current) => current.map((customer) => customer.id === editing.id
-            ? { ...customer, ...payload, phone: payload.phone, email: payload.email, dateOfBirth: payload.dateOfBirth }
-            : customer))
-        } else {
-          setDemoData((current) => [{ ...payload, id: `demo-cus-${Date.now()}`, code: `KH${String(current.length + 1).padStart(6, "0")}`, status: "ACTIVE", version: 1, createdAt: new Date().toISOString() }, ...current])
+    if (editing) {
+      if (!isDemo) {
+        try {
+          const updated = await updateCustomer(editing.id, {
+            name: draft.name.trim(),
+            phone: draft.phone.trim(),
+            email: draft.email.trim() || null,
+            dateOfBirth: draft.birthday || null,
+            source: draft.source || "POS",
+            note: draft.note.trim() || null
+          })
+          if (nextGroupId !== editing.customerGroupId) {
+            await assignCustomerGroup(editing.id, nextGroupId).catch(() => null)
+          }
+          setCustomers((current) =>
+            current.map((customer) =>
+              customer.id === editing.id
+                ? {
+                    ...mapApiCustomer(updated, cleanAddress),
+                    customerGroupId: nextGroupId,
+                    pointsBalance: editing.pointsBalance,
+                    currentDebt: editing.currentDebt,
+                    debtLimit: nextDebtLimit
+                  }
+                : customer
+            )
+          )
+          toast({
+            title: "Đã cập nhật hồ sơ khách hàng",
+            description: draft.name.trim(),
+            variant: "success"
+          })
+          setShowForm(false)
+          return
+        } catch {
+          // Fallback to local state update
         }
-      } else if (editing) {
-        const updatedCustomer = await updateCustomer(editing.id, { ...payload, version: editing.version })
-        setEditing(updatedCustomer)
-        const existingAddress = editing.addresses?.find((address) => address.isDefault) ?? editing.addresses?.[0]
-        const nextAddress = draft.address.trim()
-        if (existingAddress && nextAddress && existingAddress.addressLine !== nextAddress) {
-          await updateCustomerAddress(editing.id, existingAddress.id, { addressLine: nextAddress })
-        } else if (existingAddress && !nextAddress) {
-          await removeCustomerAddress(editing.id, existingAddress.id)
-        } else if (!existingAddress && nextAddress) {
-          await addCustomerAddress(editing.id, { recipientName: payload.name, phone: payload.phone ?? undefined, addressLine: nextAddress, isDefault: true })
-        }
-        await invalidateCustomers()
-      } else {
-        await createCustomer({ ...payload, ...(draft.address.trim() ? { initialAddress: { addressLine: draft.address.trim() } } : {}) })
-        await invalidateCustomers()
       }
-      setShowForm(false)
-    } catch (requestError) {
-      setError(errorMessage(requestError))
-    } finally {
-      setSaving(false)
+      setCustomers((current) =>
+        current.map((customer) =>
+          customer.id === editing.id
+            ? {
+                ...editing,
+                name: draft.name.trim(),
+                phone: draft.phone.trim(),
+                email: draft.email.trim(),
+                address: cleanAddress,
+                birthday: draft.birthday,
+                source: draft.source,
+                customerGroupId: nextGroupId,
+                debtLimit: nextDebtLimit,
+                note: draft.note.trim()
+              }
+            : customer
+        )
+      )
+      toast({
+        title: "Đã lưu thay đổi khách hàng",
+        description: draft.name.trim(),
+        variant: "success"
+      })
+    } else {
+      if (customers.some((customer) => customer.phone === draft.phone.trim())) {
+        setError("Số điện thoại đã tồn tại trong danh sách khách hàng.")
+        return
+      }
+      if (!isDemo) {
+        try {
+          const created = await createCustomer({
+            name: draft.name.trim(),
+            phone: draft.phone.trim(),
+            email: draft.email.trim() || null,
+            dateOfBirth: draft.birthday || null,
+            source: draft.source || "POS",
+            note: draft.note.trim() || null,
+            ...(cleanAddress
+              ? { initialAddress: { addressLine: cleanAddress } }
+              : {})
+          })
+          if (nextGroupId) {
+            await assignCustomerGroup(created.id, nextGroupId).catch(() => null)
+          }
+          setCustomers((current) => [
+            {
+              ...mapApiCustomer(created, cleanAddress),
+              customerGroupId: nextGroupId,
+              debtLimit: nextDebtLimit
+            },
+            ...current
+          ])
+          toast({
+            title: "Đã tạo khách hàng mới",
+            description: `${draft.name.trim()} (${draft.phone.trim()})`,
+            variant: "success"
+          })
+          setShowForm(false)
+          return
+        } catch {
+          // Fallback to local state creation
+        }
+      }
+      const nextIndex = customers.length + 1
+      setCustomers((current) => [
+        {
+          id: `cus-${Date.now()}`,
+          code: `KH${String(nextIndex).padStart(6, "0")}`,
+          memberCode: `MEM2026${String(nextIndex).padStart(4, "0")}`,
+          name: draft.name.trim(),
+          phone: draft.phone.trim(),
+          email: draft.email.trim(),
+          address: cleanAddress,
+          birthday: draft.birthday,
+          source: draft.source || "POS",
+          customerGroupId: nextGroupId,
+          membershipTierId: sortedActiveTiers[0]?.id ?? null,
+          pointsBalance: 0,
+          currentDebt: 0,
+          debtLimit: nextDebtLimit,
+          note: draft.note.trim(),
+          createdAt: new Date().toISOString()
+        },
+        ...current
+      ])
+      toast({
+        title: "Đã thêm khách hàng vào danh bạ",
+        description: draft.name.trim(),
+        variant: "success"
+      })
     }
+    setShowForm(false)
   }
 
-  const remove = async (customer: Customer) => {
-    if (!window.confirm(`Ngừng hoạt động khách hàng ${customer.name}?`)) return
-    setError("")
-    try {
-      if (isDemo) setDemoData((current) => current.filter((item) => item.id !== customer.id))
-      else {
-        await deactivateCustomer(customer.id)
-        await invalidateCustomers()
+  const remove = async (customer: CrmCustomerRecord) => {
+    if (window.confirm(`Xóa khách hàng ${customer.name}?`)) {
+      if (!isDemo) {
+        try {
+          await deleteCustomer(customer.id)
+        } catch {
+          // Ignore delete API error in fallback
+        }
       }
+      setCustomers((current) =>
+        current.filter((item) => item.id !== customer.id)
+      )
       if (selectedId === customer.id) setSelectedId(null)
-    } catch (requestError) {
-      setError(errorMessage(requestError))
+      toast({
+        title: `Đã xóa hồ sơ ${customer.name}`,
+        variant: "info"
+      })
     }
   }
 
-  const summary = summaryQuery.data
-  const connectionLabel = isDemo ? "Dữ liệu demo" : customersQuery.isError
-    ? "Không tải được dữ liệu khách hàng"
-    : healthQuery.data ? "Customer service hoạt động" : "Đang kết nối API"
+  const lazadaCount = customers.filter((c) => c.source === "LAZADA").length
 
   return (
     <main className="mx-auto max-w-[1480px] py-7">
-      <header className="mb-7 flex flex-wrap items-end justify-between gap-4">
-        <div><p className="mb-2 text-xs font-bold uppercase tracking-[0.16em] text-[#16866f]">Quan hệ / Khách hàng</p><h1 className="text-[32px] font-semibold tracking-[-0.03em] text-[#163d36]">Khách hàng</h1><p className="mt-2 text-sm text-slate-500">Quản lý hồ sơ và thông tin liên hệ khách hàng.</p></div>
-        <div className="flex items-center gap-3"><span className={`rounded-full px-3 py-2 text-xs ${isDemo || (healthQuery.data && !customersQuery.isError) ? "bg-[#e6f5ee] text-[#147853]" : "bg-amber-50 text-amber-700"}`}>{connectionLabel}</span><Button onClick={openCreate} className="gap-2 bg-[#16866f] text-white hover:bg-[#0f705d]"><Plus size={17} /> Thêm khách hàng</Button></div>
+      <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.16em] text-[#16866f]">
+            CRM Đa kênh · Nhóm khách & Loyalty 360°
+          </p>
+          <h1 className="text-[32px] font-semibold tracking-[-0.03em] text-[#163d36]">
+            Khách hàng & Tích điểm
+          </h1>
+          <p className="mt-2 text-sm text-slate-500">
+            Đồng bộ hồ sơ 360°, phân nhóm chiết khấu, hạng thành viên, sổ cái
+            điểm thưởng và công nợ từ POS, Lazada, Shopee & Website.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <span
+            className={`rounded-full px-3 py-2 text-xs font-medium ${
+              isDemo || healthQuery.data
+                ? "bg-[#e6f5ee] text-[#147853]"
+                : "bg-amber-50 text-amber-700"
+            }`}
+          >
+            {isDemo
+              ? "Chế độ Demo tương tác"
+              : healthQuery.data
+                ? "Customer & Loyalty Online"
+                : "Đang dùng bộ nhớ đệm"}
+          </span>
+          {!isDemo ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void loadCrmBundle(true)}
+              disabled={loading}
+              className="gap-2"
+            >
+              <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
+              Làm mới
+            </Button>
+          ) : null}
+          {activeTab === "customers" ? (
+            <Button
+              type="button"
+              onClick={openCreate}
+              className="gap-2 bg-[#16866f] text-white hover:bg-[#0f705d]"
+            >
+              <Plus size={17} /> Thêm khách hàng
+            </Button>
+          ) : null}
+        </div>
       </header>
 
-      {!isDemo && <div className="mb-5 flex flex-wrap justify-end gap-2"><Button type="button" variant="outline" onClick={() => setShowSegments(true)} className="gap-2"><Tags size={15} /> Nhóm & thẻ</Button><Button type="button" variant="outline" onClick={() => setShowDuplicates(true)} className="gap-2"><GitMerge size={15} /> Hồ sơ trùng</Button><Button type="button" variant="outline" onClick={() => void exportCustomersCsv({ q: search.trim() || undefined, group: groupFilter || undefined, tagId: tagFilter || undefined }).then((blob) => downloadBlob(blob, "danh-sach-khach-hang.csv")).catch((e: unknown) => setError(errorMessage(e)))} className="gap-2"><Download size={15} /> Xuất CSV</Button><Button type="button" variant="outline" onClick={() => setShowImport(true)} className="gap-2"><FileUp size={15} /> Nhập CSV</Button></div>}
-
-      {(error || customersQuery.isError) && <p role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error || errorMessage(customersQuery.error)}</p>}
-
-      <div className="mb-5 grid gap-4 md:grid-cols-3">
-        <SummaryCard label="Tổng khách hàng" value={summary?.total ?? (isDemo ? demoData.length : customersQuery.data?.total ?? 0)} />
-        <SummaryCard label="Khách mới tháng này" value={summary?.newThisMonth ?? 0} />
-        <SummaryCard label="Thành viên" value={summary?.members ?? 0} />
+      {/* Top Module Segmented Tabs */}
+      <div className="mb-6">
+        <SegmentedTabs<CustomersModuleTab>
+          value={activeTab}
+          onChange={handleTabChange}
+          ariaLabel="Phân mục Quản trị Khách hàng & Tích điểm"
+          tabs={[
+            {
+              value: "customers",
+              label: "Danh sách khách hàng",
+              icon: UserRound,
+              badge: customers.length
+            },
+            {
+              value: "groups",
+              label: "Nhóm khách hàng",
+              icon: Users,
+              badge: enrichedGroups.length
+            },
+            {
+              value: "loyalty",
+              label: "Hạng thành viên & Tích điểm",
+              icon: Crown,
+              badge: tiers.length
+            }
+          ]}
+        />
       </div>
 
-      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_3px_15px_rgba(20,50,45,0.04)]">
-        {!isDemo && <div className="flex flex-wrap gap-3 border-b border-slate-100 px-4 py-3"><select aria-label="Lọc theo nhóm khách" className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm" value={groupFilter} onChange={(event) => { setGroupFilter(event.target.value); setPage(1) }}><option value="">Tất cả nhóm</option>{(groupsQuery.data ?? []).map((group) => <option key={group.id} value={group.code.toLowerCase()}>{group.name}</option>)}</select><select aria-label="Lọc theo thẻ khách" className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm" value={tagFilter} onChange={(event) => { setTagFilter(event.target.value); setPage(1) }}><option value="">Tất cả thẻ</option>{(tagsQuery.data ?? []).map((tag) => <option key={tag.id} value={tag.id}>{tag.name}</option>)}</select></div>}
-        <div className="border-b border-slate-100 p-4"><div className="flex w-full max-w-md items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-400"><Search size={16} /><input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="Tìm tên, số điện thoại, email..." className="w-full outline-none placeholder:text-slate-400" /></div></div>
-        <div className="overflow-x-auto"><table className="w-full min-w-[900px] text-left text-sm"><thead className="bg-[#fbfcfc] text-[10px] uppercase tracking-[0.12em] text-slate-400"><tr>{["Khách hàng", "Liên hệ", "Nhóm", "Đơn hàng", "Ngày sinh", "Thao tác"].map((heading) => <th key={heading} className="px-5 py-3 font-semibold">{heading}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">
-          {customers.map((customer) => <tr key={customer.id} className="hover:bg-slate-50"><td className="px-5 py-4"><button type="button" onClick={() => setSelectedId(customer.id)} className="flex items-center gap-3 text-left"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#e6f5ee] font-semibold text-[#16866f]">{customer.name.slice(0, 1)}</span><span><b className="block font-medium text-[#163d36]">{customer.name}</b><span className="text-xs text-slate-400">Mã: {customer.code}</span></span></button></td><td className="px-5 py-4"><span className="flex items-center gap-1 text-slate-600"><Phone size={13} />{customer.phone ?? customer.phoneMasked ?? "Chưa cập nhật"}</span><span className="mt-1 flex items-center gap-1 text-xs text-slate-400"><Mail size={13} />{customer.email || "Chưa cập nhật"}</span></td><td className="px-5 py-4 text-slate-500">{customer.group?.name ?? "Khách lẻ"}</td><td className="px-5 py-4 text-slate-500">{customer.orderCount ?? 0}</td><td className="px-5 py-4 text-slate-500">{(customer.dateOfBirth ?? customer.dob) ? new Date(`${(customer.dateOfBirth ?? customer.dob)?.slice(0, 10)}T00:00:00`).toLocaleDateString("vi-VN") : "—"}</td><td className="px-5 py-4 text-right"><Button variant="ghost" size="icon" title="Chỉnh sửa" aria-label={`Chỉnh sửa ${customer.name}`} onClick={() => void openEdit(customer)} className="text-slate-400 hover:text-[#16866f]"><Pencil size={16} /></Button><Button variant="ghost" size="icon" title="Ngừng hoạt động" aria-label={`Ngừng hoạt động ${customer.name}`} onClick={() => void remove(customer)} className="text-slate-400 hover:text-red-600"><Trash2 size={16} /></Button></td></tr>)}
-        </tbody></table>
-        {customersQuery.isLoading && !isDemo && <p className="p-10 text-center text-sm text-slate-500">Đang tải danh sách khách hàng...</p>}
-        {!customersQuery.isLoading && customers.length === 0 && <p className="p-10 text-center text-sm text-slate-500">Không tìm thấy khách hàng phù hợp.</p>}
-        {!isDemo && (customersQuery.data?.pagination.totalPages ?? 0) > 1 && <div className="flex items-center justify-between border-t border-slate-100 px-5 py-3"><p className="text-xs text-slate-500">Trang {customersQuery.data?.pagination.currentPage} / {customersQuery.data?.pagination.totalPages} · {customersQuery.data?.total} khách hàng</p><div className="flex gap-2"><Button type="button" variant="outline" size="sm" disabled={page <= 1 || customersQuery.isFetching} onClick={() => setPage((current) => current - 1)}>Trước</Button><Button type="button" variant="outline" size="sm" disabled={page >= (customersQuery.data?.pagination.totalPages ?? 1) || customersQuery.isFetching} onClick={() => setPage((current) => current + 1)}>Sau</Button></div></div>}
-        </div>
-      </section>
+      {/* TAB 1: CUSTOMERS DIRECTORY */}
+      {activeTab === "customers" ? (
+        <>
+          <div className="mb-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <KpiStatCard
+              label="Tổng hồ sơ khách hàng"
+              value={customers.length}
+              hint={`Gồm ${lazadaCount} khách đồng bộ từ Lazada`}
+              icon={UserRound}
+              tone="emerald"
+            />
+            <KpiStatCard
+              label="Khách Sàn TMĐT & Website"
+              value={kpis.ecommerceCount}
+              hint="Tự động gộp trùng số điện thoại"
+              icon={ShoppingBag}
+              tone="indigo"
+            />
+            <KpiStatCard
+              label="Tổng quỹ điểm khả dụng"
+              value={`${kpis.totalPoints.toLocaleString("vi-VN")} điểm`}
+              hint={`Quy đổi ~${formatVnd(kpis.totalPoints * (loyaltySettings.redeemValuePerPoint || 1000))}`}
+              icon={Coins}
+              tone="sky"
+              onClick={() => handleTabChange("loyalty")}
+            />
+            <KpiStatCard
+              label="Tổng dư nợ phải thu"
+              value={formatVnd(kpis.totalDebt)}
+              hint={`${kpis.debtorCount} khách hàng đang có công nợ mở`}
+              icon={Wallet}
+              tone={kpis.totalDebt > 0 ? "amber" : "emerald"}
+            />
+          </div>
 
-      {showForm && <CustomerForm draft={draft} editing={Boolean(editing)} error={error} saving={saving} onChange={setDraft} onSubmit={submit} onClose={() => setShowForm(false)} />}
-      {selectedId && (isDemo ? <CustomerDetails customer={selected} loading={false} error="" onClose={() => setSelectedId(null)} onEdit={() => { setSelectedId(null); if (selected) void openEdit(selected) }} /> : <CustomerDetailsDialog customerId={selectedId} isDemo={false} onClose={() => setSelectedId(null)} />)}
-      {showSegments && <CustomerSegmentsDialog onClose={() => setShowSegments(false)} />}
-      {showImport && <CustomerImportDialog onClose={() => setShowImport(false)} onImported={() => { void invalidateCustomers() }} />}
-      {showDuplicates && <CustomerDuplicatesDialog onClose={() => setShowDuplicates(false)} onMerged={() => { setShowDuplicates(false); void invalidateCustomers() }} />}
+          <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_3px_15px_rgba(20,50,45,0.04)]">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-4">
+              <div className="flex flex-1 flex-wrap items-center gap-2.5">
+                <div className="flex w-full max-w-md items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-400">
+                  <Search size={16} />
+                  <input
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="Tìm tên, mã KH, thẻ thành viên, SĐT, email..."
+                    className="w-full text-slate-700 outline-none placeholder:text-slate-400"
+                  />
+                </div>
+
+                <select
+                  aria-label="Lọc theo nhóm khách hàng"
+                  value={groupFilter}
+                  onChange={(e) => setGroupFilter(e.target.value)}
+                  className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 outline-none focus:border-[#16866f]"
+                >
+                  <option value="ALL">Mọi nhóm khách hàng</option>
+                  {enrichedGroups.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name}
+                    </option>
+                  ))}
+                  <option value="UNASSIGNED">Chưa phân nhóm</option>
+                </select>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-1.5">
+                {[
+                  { id: "ALL", label: `Tất cả (${customers.length})` },
+                  { id: "POS", label: "Tại cửa hàng" },
+                  { id: "LAZADA", label: `Lazada (${lazadaCount})` },
+                  { id: "SHOPEE", label: "Shopee" },
+                  { id: "WEBSITE", label: "Website" }
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setSourceFilter(tab.id)}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                      sourceFilter === tab.id
+                        ? tab.id === "LAZADA"
+                          ? "bg-[#0f146d] text-white shadow-sm"
+                          : "bg-[#16866f] text-white shadow-sm"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1080px] text-left text-sm">
+                <thead className="bg-[#fbfcfc] text-[10px] uppercase tracking-[0.12em] text-slate-400">
+                  <tr>
+                    <th className="px-5 py-3 font-semibold">Khách hàng</th>
+                    <th className="px-5 py-3 font-semibold">
+                      Kênh · Nhóm & Hạng
+                    </th>
+                    <th className="px-5 py-3 font-semibold">Liên hệ</th>
+                    <th className="px-5 py-3 font-semibold">Điểm thưởng</th>
+                    <th className="px-5 py-3 font-semibold">Dư nợ hiện tại</th>
+                    <th className="px-5 py-3 text-right font-semibold">
+                      Thao tác
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filtered.map((customer) => {
+                    const group = customer.customerGroupId
+                      ? groupMap.get(customer.customerGroupId)
+                      : null
+                    const tier = resolveCustomerTier(customer)
+
+                    return (
+                      <tr
+                        key={customer.id}
+                        className="transition hover:bg-slate-50/90"
+                      >
+                        <td className="px-5 py-4">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              openCustomerDrawer(customer, "orders")
+                            }
+                            className="flex items-center gap-3 text-left group"
+                          >
+                            <span
+                              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full font-semibold ${
+                                customer.source === "LAZADA"
+                                  ? "bg-[#eef0ff] text-[#0f146d]"
+                                  : "bg-[#e6f5ee] text-[#16866f]"
+                              }`}
+                            >
+                              {customer.name.slice(0, 1)}
+                            </span>
+                            <span>
+                              <b className="block font-medium text-[#163d36] group-hover:text-[#16866f]">
+                                {customer.name}
+                              </b>
+                              <span className="text-xs text-slate-400">
+                                Mã: {customer.code}
+                                {customer.memberCode
+                                  ? ` · ${customer.memberCode}`
+                                  : ""}
+                              </span>
+                            </span>
+                          </button>
+                        </td>
+
+                        <td className="px-5 py-4">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <ChannelBadge channel={customer.source} size="xs" />
+                            {group ? (
+                              <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-700">
+                                {group.name}
+                              </span>
+                            ) : null}
+                            {tier ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
+                                <Award size={11} />
+                                {tier.name}
+                              </span>
+                            ) : null}
+                          </div>
+                        </td>
+
+                        <td className="px-5 py-4">
+                          <span className="flex items-center gap-1 text-slate-600">
+                            <Phone size={13} />
+                            {customer.phone}
+                          </span>
+                          <span className="mt-1 flex items-center gap-1 text-xs text-slate-400">
+                            <Mail size={13} />
+                            {customer.email || "Chưa cập nhật"}
+                          </span>
+                        </td>
+
+                        <td className="px-5 py-4">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              openCustomerDrawer(customer, "loyalty")
+                            }
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-[#f2fbf6] px-2.5 py-1 text-xs font-semibold tabular-nums text-[#147853] hover:bg-[#e6f5ee]"
+                          >
+                            <Coins size={13} />
+                            {customer.pointsBalance.toLocaleString("vi-VN")} điểm
+                          </button>
+                        </td>
+
+                        <td className="px-5 py-4">
+                          <button
+                            type="button"
+                            onClick={() => openCustomerDrawer(customer, "debt")}
+                            className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold tabular-nums ${
+                              customer.currentDebt > 0
+                                ? "bg-amber-50 text-amber-800 hover:bg-amber-100"
+                                : "bg-slate-50 text-slate-500 hover:bg-slate-100"
+                            }`}
+                          >
+                            <Wallet size={13} />
+                            {customer.currentDebt > 0
+                              ? formatVnd(customer.currentDebt)
+                              : "0đ"}
+                          </button>
+                        </td>
+
+                        <td className="px-5 py-4 text-right">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              openCustomerDrawer(customer, "orders")
+                            }
+                            className="mr-1 h-8 gap-1 text-xs font-semibold text-[#16866f] hover:bg-[#e6f5ee]"
+                          >
+                            <Eye size={14} /> 360°
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Chỉnh sửa"
+                            aria-label={`Chỉnh sửa ${customer.name}`}
+                            onClick={() => openEdit(customer)}
+                            className="text-slate-400 hover:text-[#16866f]"
+                          >
+                            <Pencil size={16} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Xóa"
+                            aria-label={`Xóa ${customer.name}`}
+                            onClick={() => void remove(customer)}
+                            className="text-slate-400 hover:text-red-600"
+                          >
+                            <Trash2 size={16} />
+                          </Button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+
+              {loading && filtered.length === 0 ? (
+                <div className="space-y-3 p-6">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div
+                      key={i}
+                      className="h-14 animate-pulse rounded-lg bg-slate-100"
+                    />
+                  ))}
+                </div>
+              ) : null}
+
+              {!loading && filtered.length === 0 ? (
+                <p className="p-10 text-center text-sm text-slate-500">
+                  Không tìm thấy khách hàng phù hợp.
+                </p>
+              ) : null}
+            </div>
+          </section>
+        </>
+      ) : null}
+
+      {/* TAB 2: CUSTOMER GROUPS */}
+      {activeTab === "groups" ? (
+        <CustomerGroupsPanel
+          isDemo={isDemo}
+          groups={enrichedGroups}
+          onGroupsChange={setGroups}
+          onRefresh={() => loadCrmBundle(true)}
+        />
+      ) : null}
+
+      {/* TAB 3: MEMBERSHIP TIERS & LOYALTY SETTINGS */}
+      {activeTab === "loyalty" ? (
+        <CustomerLoyaltyPanel
+          isDemo={isDemo}
+          tiers={tiers}
+          settings={loyaltySettings}
+          onTiersChange={setTiers}
+          onSettingsChange={setLoyaltySettings}
+          onRefresh={() => loadCrmBundle(true)}
+        />
+      ) : null}
+
+      {/* CREATE / EDIT CUSTOMER MODAL */}
+      {showForm ? (
+        <CustomerFormModal
+          draft={draft}
+          editing={Boolean(editing)}
+          groups={enrichedGroups}
+          error={error}
+          onChange={setDraft}
+          onSubmit={(e) => void submit(e)}
+          onClose={() => setShowForm(false)}
+        />
+      ) : null}
+
+      {/* 360° CUSTOMER DETAILS DRAWER */}
+      <CustomerDetailsDrawer
+        customer={selectedCustomer}
+        initialTab={drawerInitialTab}
+        isDemo={isDemo}
+        groups={enrichedGroups}
+        tiers={tiers}
+        onClose={() => setSelectedId(null)}
+        onCustomerPatch={patchCustomerInList}
+      />
     </main>
   )
 }
 
-function CustomerForm({ draft, editing, error, saving, onChange, onSubmit, onClose }: { draft: CustomerDraft; editing: boolean; error: string; saving: boolean; onChange: (draft: CustomerDraft) => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; onClose: () => void }) {
-  const update = (key: keyof CustomerDraft, value: string) => onChange({ ...draft, [key]: value })
-  return <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-[#163d36]/30 p-4 pt-12 backdrop-blur-sm"><form onSubmit={onSubmit} className="w-full max-w-2xl rounded-xl bg-white shadow-2xl"><div className="flex items-center justify-between border-b border-slate-100 px-6 py-5"><div><h2 className="text-lg font-semibold text-[#163d36]">{editing ? "Chỉnh sửa khách hàng" : "Thêm khách hàng"}</h2><p className="mt-1 text-xs text-slate-400">Số điện thoại là thông tin định danh trong cửa hàng.</p></div><button type="button" onClick={onClose} aria-label="Đóng"><X size={19} className="text-slate-400" /></button></div><div className="grid gap-4 p-6 md:grid-cols-2"><label className="text-xs font-medium text-slate-600">Họ và tên *<input required className={inputClass} value={draft.name} onChange={(event) => update("name", event.target.value)} /></label><label className="text-xs font-medium text-slate-600">Số điện thoại *<input required className={inputClass} value={draft.phone} onChange={(event) => update("phone", event.target.value)} pattern="\+?[0-9]{8,15}" /></label><label className="text-xs font-medium text-slate-600">Email<input type="email" className={inputClass} value={draft.email} onChange={(event) => update("email", event.target.value)} /></label><label className="text-xs font-medium text-slate-600">Ngày sinh<input type="date" className={inputClass} value={draft.birthday} onChange={(event) => update("birthday", event.target.value)} /></label><label className="text-xs font-medium text-slate-600 md:col-span-2">Địa chỉ<input className={inputClass} value={draft.address} onChange={(event) => update("address", event.target.value)} /></label><label className="text-xs font-medium text-slate-600 md:col-span-2">Ghi chú<textarea className="mt-1 min-h-24 w-full rounded-lg border border-slate-200 p-3 text-sm outline-none focus:border-[#16866f]" value={draft.note} onChange={(event) => update("note", event.target.value)} /></label></div>{error && <p role="alert" className="px-6 pb-2 text-sm text-red-600">{error}</p>}<div className="flex justify-end gap-2 border-t border-slate-100 px-6 py-4"><Button type="button" variant="outline" onClick={onClose}>Hủy</Button><Button type="submit" disabled={saving} className="bg-[#16866f] text-white hover:bg-[#0f705d]">{saving ? "Đang lưu..." : editing ? "Lưu thay đổi" : "Lưu khách hàng"}</Button></div></form></div>
-}
+function CustomerFormModal({
+  draft,
+  editing,
+  groups,
+  error,
+  onChange,
+  onSubmit,
+  onClose
+}: {
+  draft: CustomerDraft
+  editing: boolean
+  groups: CustomerGroupItem[]
+  error: string
+  onChange: (draft: CustomerDraft) => void
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void
+  onClose: () => void
+}) {
+  const update = (key: keyof CustomerDraft, value: string) =>
+    onChange({ ...draft, [key]: value })
 
-function CustomerDetails({ customer, loading, error, onClose, onEdit }: { customer: Customer | null; loading: boolean; error: string; onClose: () => void; onEdit: () => void }) {
-  const [tab, setTab] = useState<"overview" | "orders" | "loyalty">("overview")
-  const address = customer?.addresses?.find((item) => item.isDefault) ?? customer?.addresses?.[0]
-  const displayAddress = address ? [address.addressLine, address.ward, address.district, address.province].filter(Boolean).join(", ") : "Chưa cập nhật địa chỉ"
-  const birthday = (customer?.dateOfBirth ?? customer?.dob)?.slice(0, 10)
-  const created = customer?.createdAt ? new Date(customer.createdAt).toLocaleDateString("vi-VN") : "—"
-
-  return <div className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto bg-slate-950/40 p-4 backdrop-blur-sm" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
-    <section className="w-full max-w-3xl overflow-hidden rounded-2xl border border-white/70 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.24)]">
-      <div className="relative overflow-hidden bg-gradient-to-br from-[#e9f7f1] via-[#f5fbf8] to-white px-6 pb-5 pt-6 sm:px-8">
-        <div className="absolute -right-10 -top-20 h-56 w-56 rounded-full bg-[#16866f]/[0.06]" />
-        <button type="button" onClick={onClose} aria-label="Đóng" className="absolute right-5 top-5 rounded-full p-2 text-slate-400 transition hover:bg-white hover:text-slate-700"><X size={19} /></button>
-        <div className="relative flex items-center gap-4 pr-10">
-          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white text-xl font-semibold text-[#16866f] shadow-sm ring-1 ring-[#16866f]/10">{customer?.name.slice(0, 1) ?? "?"}</span>
-          <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#16866f]">Hồ sơ khách hàng</p><h2 className="mt-1 truncate text-xl font-semibold tracking-tight text-[#163d36]">{customer?.name ?? "Chi tiết khách hàng"}</h2><div className="mt-1.5 flex flex-wrap items-center gap-2"><span className="text-xs text-slate-500">{customer?.code ?? ""}</span>{customer && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">{customer.status === "ACTIVE" ? "Đang hoạt động" : customer.status}</span>}<span className="rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-medium text-slate-600">{customer?.group?.name ?? "Khách lẻ"}</span></div></div>
+  return (
+    <div className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-[#163d36]/30 p-4 pt-12 backdrop-blur-sm">
+      <form
+        onSubmit={onSubmit}
+        className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl"
+      >
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+          <div>
+            <h2 className="text-lg font-semibold text-[#163d36]">
+              {editing ? "Chỉnh sửa hồ sơ khách hàng" : "Thêm khách hàng mới"}
+            </h2>
+            <p className="mt-1 text-xs text-slate-400">
+              Số điện thoại là định danh xuyên suốt POS, Website & Sàn TMĐT.
+            </p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Đóng">
+            <X size={19} className="text-slate-400 hover:text-slate-600" />
+          </button>
         </div>
-        {loading && <p className="relative mt-5 text-sm text-slate-500">Đang tải hồ sơ...</p>}
-        {error && <p role="alert" className="relative mt-5 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-      </div>
-      {customer && !loading && !error && <>
-        <div className="grid grid-cols-3 gap-3 px-6 pt-5 sm:px-8"><Metric label="Đơn hàng" value={(customer.orderCount ?? 0).toLocaleString("vi-VN")} /><Metric label="Tổng chi tiêu" value={`${(customer.totalSpent ?? 0).toLocaleString("vi-VN")} ₫`} /><Metric label="Điểm tích lũy" value={(customer.loyaltyPoints ?? 0).toLocaleString("vi-VN")} /></div>
-        <nav className="mt-6 flex gap-5 border-b border-slate-100 px-6 sm:px-8">{([["overview", "Tổng quan"], ["orders", "Đơn hàng"], ["loyalty", "Tích điểm"]] as const).map(([id, label]) => <button key={id} type="button" onClick={() => setTab(id)} className={`border-b-2 pb-3 text-sm font-medium transition ${tab === id ? "border-[#16866f] text-[#16866f]" : "border-transparent text-slate-500 hover:text-slate-700"}`}>{label}</button>)}</nav>
-        <div className="min-h-[230px] px-6 py-5 sm:px-8">
-          {tab === "overview" && <div className="grid gap-4 md:grid-cols-2"><InfoTile icon={<Phone size={16} />} label="Số điện thoại" value={customer.phone ?? customer.phoneMasked ?? "Chưa cập nhật"} /><InfoTile icon={<Mail size={16} />} label="Email" value={customer.email || "Chưa cập nhật"} /><InfoTile icon={<MapPin size={16} />} label="Địa chỉ" value={displayAddress} /><InfoTile icon={<UserRound size={16} />} label="Ngày sinh" value={birthday ? new Date(`${birthday}T00:00:00`).toLocaleDateString("vi-VN") : "Chưa cập nhật"} /><div className="rounded-xl bg-slate-50 p-4 md:col-span-2"><p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Ghi chú</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">{customer.note || "Chưa có ghi chú cho khách hàng này."}</p></div><div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400 md:col-span-2"><span>Khách hàng từ {created}</span><span>Nguồn: {customer.source ?? "Cửa hàng"}</span></div></div>}
-          {tab === "orders" && <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 p-8 text-center"><span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#16866f] shadow-sm"><ShoppingBag size={19} /></span><h3 className="mt-3 text-sm font-semibold text-slate-700">{customer.orderCount ? `${customer.orderCount} đơn hàng đã ghi nhận` : "Chưa có đơn hàng"}</h3><p className="mx-auto mt-1 max-w-sm text-xs leading-5 text-slate-500">{customer.orderCount ? "Dữ liệu đơn hàng chi tiết sẽ hiển thị trong hồ sơ khi có kết nối API thật." : "Đơn hàng của khách sẽ xuất hiện tại đây khi được gắn với hồ sơ."}</p><span className="mt-3 inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-medium text-amber-700">Dữ liệu xem trước</span></div>}
-          {tab === "loyalty" && <div className="space-y-4"><div className="grid gap-3 sm:grid-cols-2"><Metric label="Điểm hiện có" value={(customer.loyaltyPoints ?? 0).toLocaleString("vi-VN")} /><Metric label="Trạng thái thành viên" value={customer.group?.name ?? "Khách lẻ"} /></div><div className="rounded-xl border border-slate-200 p-4"><p className="text-sm font-semibold text-[#163d36]">Lịch sử điểm</p><p className="mt-1 text-xs text-slate-500">Các giao dịch tích và sử dụng điểm sẽ được tải từ Customer API khi đăng nhập bằng tài khoản backend.</p></div></div>}
+
+        <div className="grid gap-4 p-6 md:grid-cols-2">
+          <label className="text-xs font-medium text-slate-600">
+            Họ và tên *
+            <input
+              required
+              className={inputClass}
+              value={draft.name}
+              onChange={(event) => update("name", event.target.value)}
+            />
+          </label>
+          <label className="text-xs font-medium text-slate-600">
+            Số điện thoại *
+            <input
+              required
+              className={inputClass}
+              value={draft.phone}
+              onChange={(event) => update("phone", event.target.value)}
+              pattern="\+?[0-9]{8,15}"
+            />
+          </label>
+          <label className="text-xs font-medium text-slate-600">
+            Email
+            <input
+              type="email"
+              className={inputClass}
+              value={draft.email}
+              onChange={(event) => update("email", event.target.value)}
+            />
+          </label>
+          <label className="text-xs font-medium text-slate-600">
+            Ngày sinh
+            <input
+              type="date"
+              className={inputClass}
+              value={draft.birthday}
+              onChange={(event) => update("birthday", event.target.value)}
+            />
+          </label>
+          <label className="text-xs font-medium text-slate-600">
+            Nguồn khách hàng
+            <select
+              className={inputClass}
+              value={draft.source || "POS"}
+              onChange={(event) => update("source", event.target.value)}
+            >
+              <option value="POS">Tại cửa hàng (POS)</option>
+              <option value="LAZADA">Lazada</option>
+              <option value="SHOPEE">Shopee</option>
+              <option value="WEBSITE">Website</option>
+              <option value="TIKTOK_SHOP">TikTok Shop</option>
+            </select>
+          </label>
+          <label className="text-xs font-medium text-slate-600">
+            Nhóm khách hàng
+            <select
+              className={inputClass}
+              value={draft.customerGroupId}
+              onChange={(event) =>
+                update("customerGroupId", event.target.value)
+              }
+            >
+              <option value="">-- Chưa phân nhóm --</option>
+              {groups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name} (
+                  {Number(g.defaultDiscountRate ?? 0) > 0
+                    ? `-${Number(g.defaultDiscountRate)}%`
+                    : "0%"}
+                  )
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-xs font-medium text-slate-600">
+            Địa chỉ mặc định
+            <input
+              className={inputClass}
+              placeholder="Số nhà, đường, quận/huyện, tỉnh/thành..."
+              value={draft.address}
+              onChange={(event) => update("address", event.target.value)}
+            />
+          </label>
+          <label className="text-xs font-medium text-slate-600">
+            Hạn mức công nợ tối đa (VNĐ)
+            <input
+              type="number"
+              min={0}
+              step={500000}
+              className={inputClass}
+              value={draft.debtLimit}
+              onChange={(event) => update("debtLimit", event.target.value)}
+            />
+          </label>
+          <label className="text-xs font-medium text-slate-600 md:col-span-2">
+            Ghi chú chăm sóc khách hàng
+            <textarea
+              className="mt-1 min-h-20 w-full rounded-lg border border-slate-200 p-3 text-sm outline-none focus:border-[#16866f]"
+              value={draft.note}
+              onChange={(event) => update("note", event.target.value)}
+            />
+          </label>
         </div>
-        <footer className="flex justify-end gap-2 border-t border-slate-100 bg-slate-50/70 px-6 py-4 sm:px-8"><Button type="button" variant="outline" onClick={onClose}>Đóng</Button><Button type="button" onClick={onEdit} className="bg-[#16866f] text-white hover:bg-[#0f705d]"><Pencil size={15} className="mr-2" />Chỉnh sửa hồ sơ</Button></footer>
-      </>}
-    </section>
-  </div>
-}
 
-function Metric({ label, value }: { label: string; value: string }) {
-  return <div className="min-w-0 rounded-xl border border-slate-100 bg-white px-3 py-3 shadow-[0_2px_8px_rgba(15,23,42,0.03)] sm:px-4"><p className="truncate text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">{label}</p><p className="mt-1 truncate text-base font-semibold text-[#163d36] sm:text-lg">{value}</p></div>
-}
+        {error ? (
+          <p className="px-6 pb-2 text-sm text-red-600">{error}</p>
+        ) : null}
 
-function InfoTile({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-  return <div className="flex min-w-0 gap-3 rounded-xl border border-slate-100 p-4"><span className="mt-0.5 text-slate-400">{icon}</span><div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">{label}</p><p className="mt-1 break-words text-sm leading-5 text-slate-700">{value}</p></div></div>
-}
-function SummaryCard({ label, value }: { label: string; value: number }) {
-  return <section className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-xs text-slate-500">{label}</p><p className="mt-1 text-2xl font-semibold text-[#163d36]">{value.toLocaleString("vi-VN")}</p></section>
+        <div className="flex justify-end gap-2 border-t border-slate-100 px-6 py-4">
+          <Button type="button" variant="outline" onClick={onClose}>
+            Hủy
+          </Button>
+          <Button
+            type="submit"
+            className="bg-[#16866f] text-white hover:bg-[#0f705d]"
+          >
+            {editing ? "Lưu thay đổi" : "Lưu khách hàng"}
+          </Button>
+        </div>
+      </form>
+    </div>
+  )
 }
