@@ -1,5 +1,6 @@
 import { useMemo, useState, type FormEvent } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useNavigate, useRouterState } from "@tanstack/react-router"
 import { LockKeyhole, Mail, Plus, Search, ShieldCheck, Unlock, UserRound, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { listBranches } from "@/api/platform/branches"
@@ -15,6 +16,7 @@ import {
   type MemberStatus
 } from "@/api/platform/members"
 import { listRoles, type Role } from "@/api/platform/roles"
+import { RolesPanel } from "./RolesPanel"
 
 const inputClass =
   "h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[#16866f] focus:ring-4 focus:ring-[#16866f]/10"
@@ -27,7 +29,41 @@ const roleLabels: Record<string, string> = {
   accountant: "Kế toán"
 }
 
+type StaffTab = "members" | "roles"
+
+const staffTabs: Array<{ id: StaffTab; label: string }> = [
+  { id: "members", label: "Nhân viên" },
+  { id: "roles", label: "Vai trò & phân quyền" }
+]
+
 export function StaffPage() {
+  const requestedTab = useRouterState({ select: (state) => new URLSearchParams(state.location.searchStr).get("tab") })
+  const navigate = useNavigate()
+  const tab: StaffTab = requestedTab === "roles" ? "roles" : "members"
+  return (
+    <main className="mx-auto max-w-[1480px] py-7">
+      <div role="tablist" aria-label="Nhân viên và quyền" className="mb-6 flex gap-1 border-b border-slate-200">
+        {staffTabs.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            role="tab"
+            aria-selected={tab === item.id}
+            onClick={() => void navigate({ to: "/staff", search: { tab: item.id } as never })}
+            className={`-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition ${
+              tab === item.id ? "border-[#16866f] text-[#16866f]" : "border-transparent text-slate-500 hover:text-[#163d36]"
+            }`}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+      {tab === "roles" ? <RolesPanel /> : <MembersPanel />}
+    </main>
+  )
+}
+
+function MembersPanel() {
   const queryClient = useQueryClient()
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<MemberStatus | "all">("all")
@@ -141,7 +177,7 @@ export function StaffPage() {
   const isSaving = addMutation.isPending || editMutation.isPending
 
   return (
-    <main className="mx-auto max-w-[1480px] py-7">
+    <div>
       <header className="mb-7 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="mb-2 text-xs font-bold uppercase tracking-[0.16em] text-[#16866f]">Quản trị / Nhân sự</p>
@@ -221,7 +257,7 @@ export function StaffPage() {
           </form>
         </div>
       )}
-    </main>
+    </div>
   )
 }
 
