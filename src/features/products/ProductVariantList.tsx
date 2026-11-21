@@ -130,9 +130,18 @@ export function ProductVariantList({
               {variants.map((variant) => (
                 <div key={variant.id} className="px-4 py-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="font-medium text-[#163d36]">{displayVariantName(variant)}</p>
-                      <p className="mt-1 text-xs text-slate-500">SKU: {variant.skuCode} · {variant.basePrice.toLocaleString("vi-VN")} ₫</p>
+                    <div className="flex min-w-0 items-center gap-3">
+                      {(variant.imageUrl || product.imageUrls?.[0]) && (
+                        <img
+                          src={variant.imageUrl || product.imageUrls?.[0]}
+                          alt={displayVariantName(variant)}
+                          className="h-11 w-11 shrink-0 rounded-lg border border-slate-200 object-cover"
+                        />
+                      )}
+                      <div className="min-w-0">
+                        <p className="font-medium text-[#163d36]">{displayVariantName(variant)}</p>
+                        <p className="mt-1 text-xs text-slate-500">SKU: {variant.skuCode} · {variant.basePrice.toLocaleString("vi-VN")} ₫</p>
+                      </div>
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-2">
                       <div className="flex flex-wrap justify-end gap-2 text-xs">

@@ -1,12 +1,17 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { Boxes, Layers, Package, Tag } from "lucide-react"
 import { DashboardHeader } from "@/shared/dashboard/DashboardHeader"
+import { products as demoDefaultProducts } from "@/shared/dashboard/dashboard.mock"
 import { ProductsTable } from "./ProductsTable"
 import { ProductCreateForm } from "./ProductCreateForm"
 import { ProductCatalogManagement } from "./ProductCatalogManagement"
 import { ProductEditForm } from "./ProductEditForm"
 import { ProductVariantCreateForm } from "./ProductVariantCreateForm"
 import { ProductVariantList } from "./ProductVariantList"
+import { PriceListsPanel } from "./PriceListsPanel"
+import { ProductCombosPanel } from "./ProductCombosPanel"
 import { Button } from "@/components/ui/button"
+import { KpiStatCard, SegmentedTabs } from "@/components/ui/micro-ux"
 import type { Product } from "@/shared/dashboard/dashboard.types"
 import {
   createCatalogProduct,
@@ -40,6 +45,12 @@ import {
   type CreateCatalogCategoryInput,
   type CreateCatalogProductInput
 } from "@/api/catalog/products"
+import { listActiveVariants } from "@/api/catalog/variants"
+import { listSkuMappings } from "@/api/integration"
+import { queryClient } from "@/api/tanstack-query"
+import { useStoreAuth } from "@/store/zustand/useStoreAuth"
+
+type ProductsTab = "catalog" | "price-lists" | "combos"
 
 const normalizeWeight = (weight: string) => {
   const trimmedWeight = weight.trim()
@@ -61,41 +72,143 @@ const catalogErrorMessage = (error: unknown): string | null => {
   return Array.isArray(message) ? message.filter((item): item is string => typeof item === "string").join(" ") || null : null
 }
 
-export function ProductsPage() {
-  const [showCreate, setShowCreate] = useState(false)
-  const [showCatalogManagement, setShowCatalogManagement] = useState(false)
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null)
-  const [variantProduct, setVariantProduct] = useState<Product | null>(null)
-  const [viewingVariants, setViewingVariants] = useState<{ product: Product; variants: CatalogVariant[] | null } | null>(null)
-  const variantListRequestId = useRef(0)
-  const [products, setProducts] = useState<Product[]>([])
-  const [categories, setCategories] = useState<CatalogCategory[]>([])
-  const [brands, setBrands] = useState<CatalogBrand[]>([])
-  const [attributes, setAttributes] = useState<CatalogProductAttribute[]>([])
-  const [error, setError] = useState("")
+type ProductsBundle = {
+  categories: CatalogCategory[]
+  brands: CatalogBrand[]
+  products: Product[]
+}
 
-  const loadProducts = async (loadedCategories = categories, loadedBrands = brands) => {
-    const response = await listCatalogProducts({ limit: 100 })
-    const categoryNames = new Map(loadedCategories.map((item) => [item.id, item.name]))
-    const brandNames = new Map(loadedBrands.map((item) => [item.id, item.name]))
-    setProducts(response.items.map((row) => ({
+export const fetchProductsBundle = async (): Promise<ProductsBundle> => {
+  const [loadedCategories, loadedBrands, response, activeVariants, skuMappings] = await Promise.all([
+    listCategories().catch(() => [] as CatalogCategory[]),
+    listBrands().catch(() => [] as CatalogBrand[]),
+    listCatalogProducts({ limit: 100 }),
+    queryClient.fetchQuery({ queryKey: ["catalog-variants"], queryFn: listActiveVariants }).catch(() => []),
+    queryClient.fetchQuery({ queryKey: ["integration-sku-mappings", ""], queryFn: () => listSkuMappings() }).catch(() => [])
+  ])
+
+  const categoryNames = new Map(loadedCategories.map((item) => [item.id, item.name]))
+  const brandNames = new Map(loadedBrands.map((item) => [item.id, item.name]))
+
+  const variantsByProduct = new Map<string, typeof activeVariants>()
+  for (const v of activeVariants) {
+    const list = variantsByProduct.get(v.productId) ?? []
+    list.push(v)
+    variantsByProduct.set(v.productId, list)
+  }
+
+  const lazadaByProduct = new Map<string, number>()
+  const shopeeByProduct = new Map<string, number>()
+  for (const m of skuMappings) {
+    if (!m.internalProductId) continue
+    if (m.provider === "LAZADA") {
+      lazadaByProduct.set(m.internalProductId, (lazadaByProduct.get(m.internalProductId) ?? 0) + 1)
+    } else if (m.provider === "SHOPEE") {
+      shopeeByProduct.set(m.internalProductId, (shopeeByProduct.get(m.internalProductId) ?? 0) + 1)
+    }
+  }
+
+  const mappedProducts: Product[] = response.items.map((row) => {
+    const pVariants = variantsByProduct.get(row.id) ?? []
+    const primaryVariant = pVariants[0]
+    const imageUrls = row.images.length > 0
+      ? row.images.map((image) => image.url)
+      : primaryVariant?.imageUrl
+        ? [primaryVariant.imageUrl]
+        : []
+    const retailPrice = primaryVariant?.price
+    return {
       id: row.id,
       name: row.name,
-      sku: "",
+      sku: primaryVariant?.skuCode ?? "",
       category: row.categoryId ? categoryNames.get(row.categoryId) ?? "Chưa phân loại" : "Chưa phân loại",
       categoryId: row.categoryId ?? undefined,
       brand: row.brandId ? brandNames.get(row.brandId) : undefined,
       brandId: row.brandId ?? undefined,
       description: row.description ?? undefined,
       version: row.version,
+      isCombo: Boolean(row.isCombo),
       catalogStatus: row.status,
       unit: row.baseUnit,
       images: row.images,
-      imageUrls: row.images.map((image) => image.url),
+      imageUrls,
+      variantCount: pVariants.length,
+      lazadaSkuCount: lazadaByProduct.get(row.id) ?? 0,
+      shopeeSkuCount: shopeeByProduct.get(row.id) ?? 0,
+      retailPrice,
       stock: 0,
-      price: "—",
+      price: retailPrice !== undefined ? `${retailPrice.toLocaleString("vi-VN")} ₫` : "—",
       state: row.status === "ACTIVE" ? "Đang bán" : row.status === "DRAFT" ? "Lưu nháp" : row.status === "INACTIVE" ? "Ngừng kinh doanh" : "Đã lưu trữ"
-    })))
+    }
+  })
+
+  return {
+    categories: loadedCategories,
+    brands: loadedBrands,
+    products: mappedProducts
+  }
+}
+
+export function ProductsPage({
+  requestedTab
+}: {
+  requestedTab?: string | null
+} = {}) {
+  const isDemo = useStoreAuth((s) => Boolean(s.tokens?.isDemo))
+  const [tab, setTab] = useState<ProductsTab>(() => {
+    const raw =
+      requestedTab ??
+      (typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("tab")
+        : null)
+    return raw === "catalog" || raw === "price-lists" || raw === "combos"
+      ? raw
+      : "catalog"
+  })
+  useEffect(() => {
+    if (
+      requestedTab === "catalog" ||
+      requestedTab === "price-lists" ||
+      requestedTab === "combos"
+    ) {
+      setTab(requestedTab)
+    }
+  }, [requestedTab])
+
+  const handleChangeTab = (next: ProductsTab) => {
+    setTab(next)
+    const url = new URL(window.location.href)
+    url.searchParams.set("tab", next)
+    window.history.replaceState({}, "", url.toString())
+  }
+
+  const cachedBundle = queryClient.getQueryData<ProductsBundle>(["catalog-products-bundle"])
+  const [showCreate, setShowCreate] = useState(false)
+  const [showCatalogManagement, setShowCatalogManagement] = useState(false)
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+  const [variantProduct, setVariantProduct] = useState<Product | null>(null)
+  const [viewingVariants, setViewingVariants] = useState<{ product: Product; variants: CatalogVariant[] | null } | null>(null)
+  const variantListRequestId = useRef(0)
+  const [products, setProducts] = useState<Product[]>(
+    cachedBundle?.products ?? (isDemo ? demoDefaultProducts : [])
+  )
+  const [categories, setCategories] = useState<CatalogCategory[]>(cachedBundle?.categories ?? [])
+  const [brands, setBrands] = useState<CatalogBrand[]>(cachedBundle?.brands ?? [])
+  const [attributes, setAttributes] = useState<CatalogProductAttribute[]>([])
+  const [loading, setLoading] = useState(!cachedBundle && !isDemo)
+  const [error, setError] = useState("")
+
+  const loadProducts = async (forceRefresh = false) => {
+    if (forceRefresh) {
+      await queryClient.invalidateQueries({ queryKey: ["catalog-products-bundle"] })
+    }
+    const bundle = await queryClient.fetchQuery({
+      queryKey: ["catalog-products-bundle"],
+      queryFn: fetchProductsBundle
+    })
+    setCategories(bundle.categories)
+    setBrands(bundle.brands)
+    setProducts(bundle.products)
   }
 
   const handleUpdated = async (id: string, input: Parameters<typeof updateCatalogProduct>[1], status: Product["catalogStatus"]): Promise<void> => {
@@ -103,20 +216,29 @@ export function ProductsPage() {
     const result = status && status !== updated.status
       ? await updateCatalogProductStatus(id, status, updated.version)
       : updated
-    await loadProducts()
+    await loadProducts(true)
     setEditingProduct(null)
     void result
   }
 
   useEffect(() => {
-    Promise.all([listCategories(), listBrands()])
-      .then(async ([loadedCategories, loadedBrands]) => {
-        setCategories(loadedCategories)
-        setBrands(loadedBrands)
-        await loadProducts(loadedCategories, loadedBrands)
+    if (isDemo) {
+      setLoading(false)
+      return
+    }
+    let active = true
+    if (!cachedBundle) setLoading(true)
+    loadProducts()
+      .catch(() => {
+        if (active) setError("Không thể tải dữ liệu sản phẩm.")
       })
-      .catch(() => setError("Không thể tải dữ liệu sản phẩm."))
-  }, [])
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [isDemo])
 
   const handleCreated = async (input: CreateCatalogProductInput) => {
     try {
@@ -295,19 +417,180 @@ export function ProductsPage() {
     setBrands((current) => current.filter((item) => item.id !== id))
   }
 
+  const stats = useMemo(() => {
+    const activeCount = products.filter((p) => p.state === "Đang bán").length
+    const comboCount = products.filter((p) => Boolean(p.isCombo)).length
+    const mappedCount = products.filter(
+      (p) => (p.lazadaSkuCount ?? 0) > 0 || (p.shopeeSkuCount ?? 0) > 0
+    ).length
+    return { activeCount, comboCount, mappedCount }
+  }, [products])
+
   return (
     <main className="mx-auto max-w-[1520px] py-7">
-      <DashboardHeader section="products" onCreate={() => setShowCreate(true)} />
-      <div className="mb-5 flex justify-end">
-        <Button type="button" variant="outline" onClick={() => setShowCatalogManagement(true)}>Quản lý danh mục & thương hiệu</Button>
+      <DashboardHeader
+        section="products"
+        onCreate={tab === "catalog" ? () => setShowCreate(true) : undefined}
+      />
+
+      <section className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <KpiStatCard
+          label="Tổng sản phẩm danh mục"
+          value={products.length}
+          hint={`${stats.activeCount} sản phẩm đang mở bán`}
+          icon={Package}
+          tone="emerald"
+          onClick={() => handleChangeTab("catalog")}
+        />
+        <KpiStatCard
+          label="Đã đồng bộ Sàn TMĐT"
+          value={stats.mappedCount}
+          hint="Sản phẩm đã liên kết SKU Lazada / Shopee"
+          icon={Layers}
+          tone="sky"
+          onClick={() => handleChangeTab("catalog")}
+        />
+        <KpiStatCard
+          label="Bảng giá Đa kênh"
+          value="POS · Sàn · Web"
+          hint="Tách giá bán lẻ & giá bù chiết khấu sàn"
+          icon={Tag}
+          tone="amber"
+          onClick={() => handleChangeTab("price-lists")}
+        />
+        <KpiStatCard
+          label="Gói sản phẩm Combo"
+          value={isDemo ? 2 : stats.comboCount}
+          hint="Bán theo bộ giúp tăng giá trị giỏ hàng"
+          icon={Boxes}
+          tone="indigo"
+          onClick={() => handleChangeTab("combos")}
+        />
+      </section>
+
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <SegmentedTabs<ProductsTab>
+          value={tab}
+          onChange={handleChangeTab}
+          ariaLabel="Phân mục quản lý Sản phẩm"
+          tabs={[
+            {
+              value: "catalog",
+              label: "Danh mục Sản phẩm",
+              icon: Package,
+              badge: products.length
+            },
+            {
+              value: "price-lists",
+              label: "Bảng giá theo Kênh bán",
+              icon: Tag
+            },
+            {
+              value: "combos",
+              label: "Sản phẩm Combo (Bundle)",
+              icon: Boxes,
+              badge: isDemo ? 2 : stats.comboCount
+            }
+          ]}
+        />
+
+        {tab === "catalog" && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setShowCatalogManagement(true)}
+            className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+          >
+            Quản lý danh mục &amp; thương hiệu
+          </Button>
+        )}
       </div>
-      {error && <p className="mb-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{error}</p>}
-      <ProductsTable section="products" products={products} onEdit={setEditingProduct} onViewVariants={(product) => void handleViewVariants(product)} onDelete={handleProductDeleted} />
-      {showCreate && <ProductCreateForm categories={categories} brands={brands} onClose={() => setShowCreate(false)} onCreated={handleCreated} />}
-      {editingProduct && <ProductEditForm product={editingProduct} categories={categories} brands={brands} onClose={() => setEditingProduct(null)} onUpdated={handleUpdated} />}
-      {viewingVariants && <ProductVariantList product={viewingVariants.product} variants={viewingVariants.variants} attributes={attributes} onAddVariant={() => void handleOpenVariantForm(viewingVariants.product)} onUpdateVariant={handleVariantUpdated} onDeleteVariant={handleVariantDeleted} onClose={() => { variantListRequestId.current += 1; setViewingVariants(null) }} />}
-      {variantProduct && <ProductVariantCreateForm product={variantProduct} attributes={attributes} onCreateAttribute={handleCreateAttribute} onCreateAttributeValue={handleCreateAttributeValue} onClose={() => setVariantProduct(null)} onCreated={handleVariantCreated} />}
-      {showCatalogManagement && <ProductCatalogManagement categories={categories} brands={brands} onClose={() => setShowCatalogManagement(false)} onCreateCategory={handleCreateCategory} onCreateBrand={handleCreateBrand} onUpdateCategory={handleUpdateCategory} onDeleteCategory={handleDeleteCategory} onUpdateBrand={handleUpdateBrand} onDeleteBrand={handleDeleteBrand} />}
+
+      {error && tab === "catalog" && (
+        <p
+          className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+          role="alert"
+        >
+          {error}
+        </p>
+      )}
+
+      {tab === "catalog" && (
+        <ProductsTable
+          section="products"
+          products={products}
+          loading={loading}
+          onEdit={setEditingProduct}
+          onViewVariants={(product) => void handleViewVariants(product)}
+          onDelete={handleProductDeleted}
+        />
+      )}
+
+      {tab === "price-lists" && <PriceListsPanel />}
+
+      {tab === "combos" && (
+        <ProductCombosPanel
+          products={products}
+          categories={categories}
+          brands={brands}
+          onReloadProducts={() => loadProducts(true)}
+        />
+      )}
+
+      {showCreate && (
+        <ProductCreateForm
+          categories={categories}
+          brands={brands}
+          onClose={() => setShowCreate(false)}
+          onCreated={handleCreated}
+        />
+      )}
+      {editingProduct && (
+        <ProductEditForm
+          product={editingProduct}
+          categories={categories}
+          brands={brands}
+          onClose={() => setEditingProduct(null)}
+          onUpdated={handleUpdated}
+        />
+      )}
+      {viewingVariants && (
+        <ProductVariantList
+          product={viewingVariants.product}
+          variants={viewingVariants.variants}
+          attributes={attributes}
+          onAddVariant={() => void handleOpenVariantForm(viewingVariants.product)}
+          onUpdateVariant={handleVariantUpdated}
+          onDeleteVariant={handleVariantDeleted}
+          onClose={() => {
+            variantListRequestId.current += 1
+            setViewingVariants(null)
+          }}
+        />
+      )}
+      {variantProduct && (
+        <ProductVariantCreateForm
+          product={variantProduct}
+          attributes={attributes}
+          onCreateAttribute={handleCreateAttribute}
+          onCreateAttributeValue={handleCreateAttributeValue}
+          onClose={() => setVariantProduct(null)}
+          onCreated={handleVariantCreated}
+        />
+      )}
+      {showCatalogManagement && (
+        <ProductCatalogManagement
+          categories={categories}
+          brands={brands}
+          onClose={() => setShowCatalogManagement(false)}
+          onCreateCategory={handleCreateCategory}
+          onCreateBrand={handleCreateBrand}
+          onUpdateCategory={handleUpdateCategory}
+          onDeleteCategory={handleDeleteCategory}
+          onUpdateBrand={handleUpdateBrand}
+          onDeleteBrand={handleDeleteBrand}
+        />
+      )}
     </main>
   )
 }

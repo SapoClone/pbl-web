@@ -2,6 +2,20 @@ import { gatewayClient } from "@/api/axios"
 
 export type CatalogStatus = "DRAFT" | "ACTIVE" | "INACTIVE" | "ARCHIVED"
 
+export type CatalogComboItem = {
+  id: string
+  comboProductId: string
+  childVariantId: string
+  childProductId: string
+  skuCode: string
+  variantName: string
+  basePrice: number
+  imageUrl: string | null
+  quantity: number
+  lineTotal: number
+  sortOrder: number
+}
+
 export type CatalogProduct = {
   id: string
   categoryId: string | null
@@ -9,6 +23,9 @@ export type CatalogProduct = {
   name: string
   description: string | null
   baseUnit: string
+  isCombo?: boolean
+  comboItems?: CatalogComboItem[]
+  variants?: CatalogVariant[]
   status: CatalogStatus
   images: Array<{ key: string; url: string; altText?: string | null; sortOrder: number }>
   version: number
@@ -202,6 +219,12 @@ export type CreateCatalogProductInput = {
   categoryId?: string
   brandId?: string
   baseUnit?: string
+  isCombo?: boolean
+  comboItems?: Array<{ childVariantId: string; quantity: number }>
+  createDefaultVariant?: boolean
+  defaultSkuCode?: string
+  defaultBarcode?: string
+  defaultBasePrice?: number
   status?: Exclude<CatalogStatus, "ARCHIVED">
   imageIds?: string[]
 }
@@ -376,4 +399,22 @@ export const updateCatalogVariantStatus = async (variantId: string, status: Cata
 
 export const deleteCatalogVariant = async (variantId: string) => {
   await gatewayClient.delete(`/catalog/api/v1/variants/${variantId}`)
+}
+
+export const listComboItems = async (productId: string) => {
+  const { data } = await gatewayClient.get<CatalogComboItem[]>(
+    `/catalog/api/v1/products/${productId}/combo-items`
+  )
+  return Array.isArray(data) ? data : []
+}
+
+export const upsertComboItems = async (
+  productId: string,
+  items: Array<{ childVariantId: string; quantity: number }>
+) => {
+  const { data } = await gatewayClient.put<CatalogComboItem[]>(
+    `/catalog/api/v1/products/${productId}/combo-items`,
+    { items }
+  )
+  return Array.isArray(data) ? data : []
 }
