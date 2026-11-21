@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from "react"
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react"
 import {
   Barcode,
   CheckCircle2,
@@ -164,6 +164,29 @@ export function PosPage() {
   const [receipt, setReceipt] = useState<CompletedReceipt | null>(null)
   const [shiftModalOpen, setShiftModalOpen] = useState(false)
   const [localShift, setLocalShift] = useState<PosShiftApi | null>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return
+
+      if (e.key === "F2") {
+        e.preventDefault()
+        searchInputRef.current?.focus()
+        searchInputRef.current?.select()
+      } else if (e.key === "F4") {
+        e.preventDefault()
+        if (tabs.length < 5) {
+          const nextIndex = tabs.length + 1
+          const newTab = createEmptyTab(nextIndex)
+          setTabs((prev) => [...prev, newTab])
+          setActiveTabId(newTab.id)
+        }
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [tabs.length])
 
   const currentTab = useMemo(
     () => tabs.find((t) => t.id === activeTabId) ?? tabs[0],
@@ -633,9 +656,19 @@ export function PosPage() {
           </button>
         </div>
 
-        <span className="text-[11px] text-slate-400">
-          Mẹo: Tối đa 5 đơn lưu tạm để phục vụ nhiều khách cùng lúc
-        </span>
+        <div className="hidden sm:flex items-center gap-2 text-[11px] text-slate-400">
+          <span className="flex items-center gap-1 font-mono">
+            <kbd className="rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">F2</kbd>
+            <span>Tìm SP</span>
+          </span>
+          <span className="text-slate-300">·</span>
+          <span className="flex items-center gap-1 font-mono">
+            <kbd className="rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">F4</kbd>
+            <span>Thêm đơn</span>
+          </span>
+          <span className="text-slate-300">·</span>
+          <span>Tối đa 5 đơn lưu tạm</span>
+        </div>
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[1fr_430px]">
@@ -645,6 +678,7 @@ export function PosPage() {
             <div className="flex flex-1 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-sm text-slate-500 focus-within:border-[#16866f] focus-within:bg-white">
               <Search size={16} className="text-slate-400" />
               <input
+                ref={searchInputRef}
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 onKeyDown={(event) => {
@@ -654,7 +688,7 @@ export function PosPage() {
                     setQuery("")
                   }
                 }}
-                placeholder="Tìm tên sản phẩm, mã SKU hoặc quét mã vạch (Enter để thêm nhanh)..."
+                placeholder="Tìm tên sản phẩm, mã SKU hoặc quét mã vạch (F2 để tìm, Enter thêm nhanh)..."
                 className="w-full bg-transparent text-slate-800 outline-none placeholder:text-slate-400"
               />
               {query && (

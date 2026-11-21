@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react"
 import { ImageOff, Link2, List, Pencil, Search, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { CopyCodeBadge } from "@/components/ui/micro-ux"
 import { products as defaultProducts } from "@/shared/dashboard/dashboard.mock"
 import type { Product } from "@/shared/dashboard/dashboard.types"
 
@@ -235,9 +236,11 @@ export function ProductsTable({
                   </div>
                 </td>
                 <td className="px-5 py-4">
-                  <span className="font-mono text-xs font-semibold text-slate-700">
-                    {product.sku || "—"}
-                  </span>
+                  {product.sku ? (
+                    <CopyCodeBadge code={product.sku} variant="mono" />
+                  ) : (
+                    <span className="font-mono text-xs font-semibold text-slate-400">—</span>
+                  )}
                   <span className="mt-0.5 block text-xs text-slate-400">
                     {product.variantCount
                       ? `${product.variantCount} biến thể · ${product.unit || "Cái"}`
