@@ -136,4 +136,9 @@
   .glow-emerald {
     box-shadow: 0 4px 24px -2px rgba(22, 134, 111, 0.3);
   }
+
+  .focus-ring-emerald {
+    outline: none;
+    box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px rgba(22, 134, 111, 0.4);
+  }
 }
