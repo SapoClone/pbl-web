@@ -1,4 +1,5 @@
 import { axiosClient } from "@/api/axios"
+import { apiErrorCode } from "@/api/error-code"
 
 export type Role = {
   id: string
@@ -70,7 +71,4 @@ export const deleteRole = async (id: string) => {
 }
 
 /** The backend's error code of a failed call: `R001` name taken, `R002` owner role, `R003` unknown permission, `R004` default role, `R005` role in use, `R006` not found */
-export const roleErrorCode = (error: unknown): string | null => {
-  const data = (error as { response?: { data?: { errorCode?: unknown } } })?.response?.data
-  return typeof data?.errorCode === "string" ? data.errorCode : null
-}
+export const roleErrorCode = apiErrorCode

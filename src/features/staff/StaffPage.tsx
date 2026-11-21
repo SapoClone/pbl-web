@@ -17,6 +17,7 @@ import {
 } from "@/api/platform/members"
 import { listRoles, type Role } from "@/api/platform/roles"
 import { RolesPanel } from "./RolesPanel"
+import { ShiftsPanel } from "./ShiftsPanel"
 
 const inputClass =
   "h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[#16866f] focus:ring-4 focus:ring-[#16866f]/10"
@@ -29,17 +30,18 @@ const roleLabels: Record<string, string> = {
   accountant: "Kế toán"
 }
 
-type StaffTab = "members" | "roles"
+type StaffTab = "members" | "roles" | "shifts"
 
 const staffTabs: Array<{ id: StaffTab; label: string }> = [
   { id: "members", label: "Nhân viên" },
-  { id: "roles", label: "Vai trò & phân quyền" }
+  { id: "roles", label: "Vai trò & phân quyền" },
+  { id: "shifts", label: "Ca làm việc" }
 ]
 
 export function StaffPage() {
   const requestedTab = useRouterState({ select: (state) => new URLSearchParams(state.location.searchStr).get("tab") })
   const navigate = useNavigate()
-  const tab: StaffTab = requestedTab === "roles" ? "roles" : "members"
+  const tab: StaffTab = requestedTab === "roles" || requestedTab === "shifts" ? requestedTab : "members"
   return (
     <main className="mx-auto max-w-[1480px] py-7">
       <div role="tablist" aria-label="Nhân viên và quyền" className="mb-6 flex gap-1 border-b border-slate-200">
@@ -58,7 +60,7 @@ export function StaffPage() {
           </button>
         ))}
       </div>
-      {tab === "roles" ? <RolesPanel /> : <MembersPanel />}
+      {tab === "roles" ? <RolesPanel /> : tab === "shifts" ? <ShiftsPanel /> : <MembersPanel />}
     </main>
   )
 }
