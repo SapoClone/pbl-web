@@ -163,7 +163,7 @@ export function SegmentedTabs<T extends string>({
       aria-label={ariaLabel}
       onKeyDown={handleKeyDown}
       className={cn(
-        "inline-flex flex-wrap gap-1.5 rounded-xl border border-slate-200 bg-white p-1.5 shadow-[0_2px_10px_rgba(20,50,45,0.03)]",
+        "flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth rounded-2xl border border-slate-200/80 bg-white/90 p-1.5 shadow-[0_2px_12px_rgba(20,50,45,0.04)] backdrop-blur-md",
         className
       )}
     >
@@ -178,10 +178,10 @@ export function SegmentedTabs<T extends string>({
             aria-selected={active}
             onClick={() => onChange(tab.value)}
             className={cn(
-              "inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#16866f]",
+              "inline-flex shrink-0 items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold whitespace-nowrap transition-all duration-200 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#16866f]",
               active
-                ? "bg-[#16866f] text-white shadow-sm"
-                : "text-slate-600 hover:bg-slate-50 hover:text-[#163d36]"
+                ? "bg-gradient-to-r from-[#16866f] to-[#126b58] text-white shadow-[0_2px_10px_rgba(22,134,111,0.25)]"
+                : "text-slate-600 hover:bg-slate-100/70 hover:text-slate-900"
             )}
           >
             {Icon ? <Icon size={15} /> : null}
@@ -191,7 +191,7 @@ export function SegmentedTabs<T extends string>({
                 className={cn(
                   "rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none tabular-nums",
                   active
-                    ? "bg-white/20 text-white"
+                    ? "bg-white/25 text-white"
                     : tab.badgeTone === "danger"
                       ? "bg-red-100 text-red-700"
                       : tab.badgeTone === "warning"
@@ -323,30 +323,31 @@ export function KpiStatCard({
   onClick?: () => void
 }) {
   const toneMap = {
-    emerald: "bg-[#e6f5ee] text-[#16866f]",
-    amber: "bg-amber-50 text-amber-600",
-    rose: "bg-rose-50 text-rose-600",
-    sky: "bg-sky-50 text-sky-600",
-    indigo: "bg-indigo-50 text-indigo-600"
+    emerald: "bg-[#e6f5ee] text-[#16866f] border border-[#16866f]/20",
+    amber: "bg-amber-50 text-amber-600 border border-amber-200/50",
+    rose: "bg-rose-50 text-rose-600 border border-rose-200/50",
+    sky: "bg-sky-50 text-sky-600 border border-sky-200/50",
+    indigo: "bg-indigo-50 text-indigo-600 border border-indigo-200/50"
   }
   const Wrapper = onClick ? "button" : "div"
   return (
     <Wrapper
       {...(onClick ? { type: "button", onClick } : {})}
       className={cn(
-        "w-full rounded-xl border border-slate-200 bg-white p-5 text-left shadow-[0_3px_15px_rgba(20,50,45,0.04)] transition",
-        onClick &&
-          "cursor-pointer hover:-translate-y-0.5 hover:border-[#16866f]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#16866f]"
+        "group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 p-5 text-left shadow-[0_4px_20px_-4px_rgba(20,50,45,0.04),0_12px_28px_-8px_rgba(20,50,45,0.05)] backdrop-blur-sm transition-all duration-300",
+        onClick
+          ? "cursor-pointer hover:-translate-y-1 hover:border-[#16866f]/40 hover:shadow-[0_8px_30px_-4px_rgba(20,50,45,0.09)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#16866f]"
+          : "hover:border-slate-300/80"
       )}
     >
       <div className="flex items-start justify-between gap-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-400">
+        <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
           {label}
         </p>
         {Icon ? (
           <span
             className={cn(
-              "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
+              "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-2xs transition-transform duration-300 group-hover:scale-105",
               toneMap[tone]
             )}
           >
@@ -354,7 +355,7 @@ export function KpiStatCard({
           </span>
         ) : null}
       </div>
-      <div className="mt-2.5 text-2xl font-semibold tabular-nums tracking-[-0.02em] text-[#163d36]">
+      <div className="mt-3 text-2xl font-bold tabular-nums tracking-tight text-[#163d36] sm:text-3xl">
         {value}
       </div>
       {hint ? (

@@ -18,6 +18,7 @@ import {
 } from "@/api/inventory/stock"
 import { useStoreAuth } from "@/store/zustand/useStoreAuth"
 import { DashboardHeader } from "@/shared/dashboard/DashboardHeader"
+import { SegmentedTabs } from "@/components/ui/micro-ux"
 import { InventoryForm, StocktakeCountForm, type InventoryFormMode, type InventorySubmitValue } from "./InventoryForms"
 import { DocumentTable, StockTable, WarehouseTable, tabs, type InventoryTab } from "./InventoryTables"
 import { BalanceTable, MovementTable, ReconciliationPanel, SkuStockModal, ThresholdForm, ThresholdTable, TransferReceiveForm } from "./InventoryAdvanced"
@@ -276,15 +277,90 @@ export function InventoryPage() {
       </div>
     )}
 
-    <div className="mb-5 flex flex-wrap items-end justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4">
-      <div className="flex flex-wrap gap-4">
-        <label className="text-xs font-semibold text-slate-500">Chi nhánh<select value={selectedBranch} onChange={(event) => setBranchId(event.target.value)} className="mt-1 block min-w-52 bg-transparent text-sm font-medium text-[#163d36] outline-none"><option value="">Chọn chi nhánh</option>{branchList.map((item) => <option key={item.id} value={item.id}>{item.name} ({item.code})</option>)}</select></label>
-        <label className="text-xs font-semibold text-slate-500">Kho thao tác<select value={selectedWarehouse} onChange={(event) => setWarehouseId(event.target.value)} className="mt-1 block min-w-52 bg-transparent text-sm font-medium text-[#163d36] outline-none"><option value="">Chọn kho</option>{warehouseList.filter((item) => item.status === "ACTIVE").map((item) => <option key={item.id} value={item.id}>{item.name} ({item.code})</option>)}</select></label>
-      </div>
-      <div className="flex gap-2">{tab === "stock" && <Button variant="outline" onClick={downloadStock} disabled={isDemo || !selectedBranch} className="gap-2"><Download size={16} />Xuất tồn kho</Button>}{tab !== "stock" && createLabels[tab] && <Button onClick={() => { setFormMode(modeForTab[tab]!); setActionError(""); createMutation.reset() }} disabled={isDemo} className="gap-2 bg-[#16866f] text-white hover:bg-[#0f705d]"><Plus size={16} />{createLabels[tab]}</Button>}</div>
+    {/* In-page Horizontal Scrollable SegmentedTabs */}
+    <div className="mb-5">
+      <SegmentedTabs
+        tabs={tabs.map((t) => ({ value: t.id, label: t.label }))}
+        value={tab}
+        onChange={(next) => setTab(next)}
+        ariaLabel="Phân hệ quản lý kho"
+      />
     </div>
 
-    <div className="mb-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"><Metric label="Tồn thực tế" value={metrics.onHand} icon={Boxes} /><Metric label="Đang giữ cho đơn" value={metrics.reserved} icon={PackageCheck} /><Metric label="Tồn khả dụng" value={metrics.available} icon={ArrowDownToLine} /><Metric label="Sản phẩm cần chú ý" value={metrics.belowMinCount + metrics.outOfStockCount} icon={AlertTriangle} warning /></div>
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-[0_4px_20px_-4px_rgba(20,50,45,0.04)] backdrop-blur-sm">
+      <div className="flex flex-wrap items-center gap-4">
+        <label className="text-xs font-semibold text-slate-500">
+          Chi nhánh
+          <div className="mt-1 flex items-center rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-1.5 focus-within:border-[#16866f] focus-within:bg-white">
+            <select
+              value={selectedBranch}
+              onChange={(event) => setBranchId(event.target.value)}
+              className="min-w-48 bg-transparent text-xs font-semibold text-[#163d36] outline-none"
+            >
+              <option value="">Chọn chi nhánh</option>
+              {branchList.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name} ({item.code})
+                </option>
+              ))}
+            </select>
+          </div>
+        </label>
+        <label className="text-xs font-semibold text-slate-500">
+          Kho thao tác
+          <div className="mt-1 flex items-center rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-1.5 focus-within:border-[#16866f] focus-within:bg-white">
+            <select
+              value={selectedWarehouse}
+              onChange={(event) => setWarehouseId(event.target.value)}
+              className="min-w-48 bg-transparent text-xs font-semibold text-[#163d36] outline-none"
+            >
+              <option value="">Chọn kho</option>
+              {warehouseList
+                .filter((item) => item.status === "ACTIVE")
+                .map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name} ({item.code})
+                  </option>
+                ))}
+            </select>
+          </div>
+        </label>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {tab === "stock" && (
+          <Button
+            variant="outline"
+            onClick={downloadStock}
+            disabled={isDemo || !selectedBranch}
+            className="gap-2 rounded-xl border-slate-200/90 text-xs shadow-2xs hover:bg-slate-50"
+          >
+            <Download size={15} /> Xuất tồn kho
+          </Button>
+        )}
+        {tab !== "stock" && createLabels[tab] && (
+          <button
+            type="button"
+            onClick={() => {
+              setFormMode(modeForTab[tab]!)
+              setActionError("")
+              createMutation.reset()
+            }}
+            disabled={isDemo}
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#16866f] to-[#126b58] px-3.5 py-2 text-xs font-semibold text-white shadow-[0_2px_10px_rgba(22,134,111,0.25)] hover:shadow-[0_4px_16px_rgba(22,134,111,0.35)] hover:-translate-y-0.5 active:scale-[0.98] transition-all disabled:opacity-50"
+          >
+            <Plus size={15} strokeWidth={2.5} />
+            {createLabels[tab]}
+          </button>
+        )}
+      </div>
+    </div>
+
+    <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <Metric label="Tồn thực tế" value={metrics.onHand} icon={Boxes} />
+      <Metric label="Đang giữ cho đơn" value={metrics.reserved} icon={PackageCheck} />
+      <Metric label="Tồn khả dụng" value={metrics.available} icon={ArrowDownToLine} />
+      <Metric label="Sản phẩm cần chú ý" value={metrics.belowMinCount + metrics.outOfStockCount} icon={AlertTriangle} warning />
+    </div>
 
     {loadingError && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">Không thể tải đầy đủ dữ liệu từ KrakenD.</p>}
     {actionError && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">{actionError}</p>}
@@ -309,8 +385,38 @@ export function InventoryPage() {
   </main>
 }
 
-function Metric({ label, value, icon: Icon, warning = false }: { label: string; value: number; icon: typeof Boxes; warning?: boolean }) {
-  return <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_3px_15px_rgba(20,50,45,0.04)]"><div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-lg ${warning ? "bg-amber-50 text-amber-600" : "bg-[#e6f5ee] text-[#16866f]"}`}><Icon size={18} /></div><p className="text-xs text-slate-500">{label}</p><p className="mt-1 text-2xl font-semibold text-[#163d36]">{value.toLocaleString("vi-VN", { maximumFractionDigits: 3 })}</p></section>
+function Metric({
+  label,
+  value,
+  icon: Icon,
+  warning = false
+}: {
+  label: string
+  value: number
+  icon: typeof Boxes
+  warning?: boolean
+}) {
+  return (
+    <section className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 p-5 shadow-[0_4px_20px_-4px_rgba(20,50,45,0.04),0_12px_28px_-8px_rgba(20,50,45,0.05)] backdrop-blur-sm transition-all duration-300 hover:border-[#16866f]/30 hover:shadow-[0_8px_30px_-4px_rgba(20,50,45,0.08)]">
+      <div className="flex items-start justify-between">
+        <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+          {label}
+        </p>
+        <div
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-2xs ${
+            warning
+              ? "border border-amber-200/50 bg-amber-50 text-amber-600"
+              : "border border-[#16866f]/20 bg-[#e6f5ee] text-[#16866f]"
+          }`}
+        >
+          <Icon size={18} />
+        </div>
+      </div>
+      <p className="mt-3 text-2xl font-bold tabular-nums tracking-tight text-[#163d36] sm:text-3xl">
+        {value.toLocaleString("vi-VN", { maximumFractionDigits: 3 })}
+      </p>
+    </section>
+  )
 }
 
 function apiError(error: unknown) {

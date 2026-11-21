@@ -1274,24 +1274,24 @@ export function ChannelsPage() {
       </section>
 
       {/* Navigation Tabs */}
-      <div className="mb-6 flex flex-wrap gap-1.5 rounded-xl border border-slate-200 bg-white p-1.5">
+      <div className="mb-6 flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth rounded-2xl border border-slate-200/80 bg-white/90 p-1.5 shadow-[0_2px_12px_rgba(20,50,45,0.04)] backdrop-blur-md">
         {CHANNEL_TABS.map((item) => (
           <button
             key={item.id}
             type="button"
             onClick={() => setTab(item.id)}
-            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition ${
+            className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold whitespace-nowrap transition-all duration-200 active:scale-[0.98] ${
               tab === item.id
-                ? "bg-[#16866f] text-white shadow-sm"
-                : "text-slate-600 hover:bg-slate-50 hover:text-[#163d36]"
+                ? "bg-gradient-to-r from-[#16866f] to-[#126b58] text-white shadow-[0_2px_10px_rgba(22,134,111,0.25)]"
+                : "text-slate-600 hover:bg-slate-100/70 hover:text-slate-900"
             }`}
           >
             <span>{item.label}</span>
             {item.id === "conflicts" && openConflictCount > 0 && (
               <span
-                className={`rounded-full px-1.5 py-0.5 text-[10px] ${
+                className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
                   tab === item.id
-                    ? "bg-white text-[#16866f]"
+                    ? "bg-white/25 text-white"
                     : "bg-red-100 text-red-600"
                 }`}
               >
@@ -1936,26 +1936,36 @@ function MetricCard({
   return (
     <section
       onClick={onClick}
-      className={`rounded-xl border bg-white p-4 shadow-[0_3px_15px_rgba(20,50,45,0.04)] ${
-        warning ? "border-amber-300" : "border-slate-200"
-      } ${onClick ? "cursor-pointer transition hover:border-[#16866f]" : ""}`}
+      className={`group relative overflow-hidden rounded-2xl border p-5 shadow-[0_4px_20px_-4px_rgba(20,50,45,0.04),0_12px_28px_-8px_rgba(20,50,45,0.05)] backdrop-blur-sm transition-all duration-300 ${
+        warning
+          ? "border-amber-300/80 bg-gradient-to-br from-white via-white to-amber-50/40"
+          : "border-slate-200/80 bg-white/95"
+      } ${
+        onClick
+          ? "cursor-pointer hover:-translate-y-1 hover:border-[#16866f]/40 hover:shadow-[0_8px_30px_-4px_rgba(20,50,45,0.09)] active:scale-[0.98]"
+          : "hover:border-slate-300/80"
+      }`}
     >
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-slate-500">{label}</span>
+      <div className="flex items-start justify-between">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+          {label}
+        </span>
         <span
-          className={`flex h-8 w-8 items-center justify-center rounded-lg ${
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-2xs transition-transform duration-300 group-hover:scale-105 ${
             warning
-              ? "bg-amber-50 text-amber-600"
-              : "bg-[#e6f5ee] text-[#16866f]"
+              ? "border border-amber-200/60 bg-amber-50 text-amber-600"
+              : "border border-[#16866f]/20 bg-[#e6f5ee] text-[#16866f]"
           }`}
         >
-          <Icon size={16} />
+          <Icon size={17} />
         </span>
       </div>
-      <p className="mt-2 text-2xl font-semibold text-[#163d36]">{value}</p>
+      <p className="mt-3 text-2xl font-bold tabular-nums tracking-tight text-[#163d36] sm:text-3xl">
+        {value}
+      </p>
       <p
-        className={`mt-1 text-[11px] ${
-          warning ? "font-medium text-amber-700" : "text-slate-400"
+        className={`mt-1 text-xs ${
+          warning ? "font-semibold text-amber-700" : "text-slate-500"
         }`}
       >
         {sub}

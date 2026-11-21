@@ -468,7 +468,7 @@ export function ProductsPage({
         />
       </section>
 
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <SegmentedTabs<ProductsTab>
           value={tab}
           onChange={handleChangeTab}
@@ -499,7 +499,7 @@ export function ProductsPage({
             type="button"
             variant="outline"
             onClick={() => setShowCatalogManagement(true)}
-            className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            className="rounded-xl border-slate-200 bg-white text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition-all active:scale-[0.98]"
           >
             Quản lý danh mục &amp; thương hiệu
           </Button>

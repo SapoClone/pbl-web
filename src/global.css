@@ -98,5 +98,42 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .soft-card {
+    background: linear-gradient(145deg, #ffffff 0%, #fbfdfc 100%);
+    border: 1px solid rgba(226, 232, 240, 0.85);
+    box-shadow: 0 4px 20px -4px rgba(20, 50, 45, 0.04), 0 16px 40px -12px rgba(20, 50, 45, 0.06);
+  }
+
+  .soft-card-hover {
+    transition: all 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  .soft-card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px -4px rgba(20, 50, 45, 0.08), 0 20px 48px -12px rgba(20, 50, 45, 0.1);
+    border-color: rgba(22, 134, 111, 0.35);
+  }
+
+  .glass-card {
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 8px 32px -4px rgba(20, 50, 45, 0.05), inset 0 1px 1px rgba(255, 255, 255, 0.9);
+  }
+
+  .glow-emerald {
+    box-shadow: 0 4px 24px -2px rgba(22, 134, 111, 0.3);
   }
 }
