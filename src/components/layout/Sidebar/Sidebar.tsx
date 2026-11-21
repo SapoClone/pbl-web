@@ -357,7 +357,7 @@ export function Sidebar({ collapsed = false }: { collapsed?: boolean }) {
 
   const pendingOrdersCount = isDemo
     ? 3
-    : (ordersSummaryQuery.data?.needsAction.total ?? 0) +
+    : (ordersSummaryQuery.data?.needsAction?.total ?? 0) +
       (ordersSummaryQuery.data?.awaitingConfirmation ?? 0)
   const ordersBadge =
     pendingOrdersCount > 0 ? String(pendingOrdersCount) : undefined

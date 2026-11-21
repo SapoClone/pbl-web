@@ -1,9 +1,10 @@
-import { API_URL } from "@/config/env-config"
+import { API_URL, GATEWAY_URL } from "@/config/env-config"
+import { htmlResponseError, isHtmlResponse } from "./guards"
 import { useStoreAuth } from "@/store/zustand/useStoreAuth"
 import Axios, { type AxiosInstance, type InternalAxiosRequestConfig } from "axios"
 
 export const axiosClient = Axios.create({ baseURL: API_URL })
-export const gatewayClient = Axios.create({ baseURL: "/" })
+export const gatewayClient = Axios.create({ baseURL: GATEWAY_URL })
 const refreshClient = Axios.create({ baseURL: API_URL })
 
 type RetryableRequestConfig = InternalAxiosRequestConfig & {
@@ -24,7 +25,7 @@ const attachAuthInterceptors = (client: AxiosInstance) => {
   })
 
   client.interceptors.response.use(
-    (response) => response,
+    (response) => (isHtmlResponse(response) ? Promise.reject(htmlResponseError(response.config.url)) : response),
     async (error) => {
       const config = error.config as RetryableRequestConfig | undefined
       const tokens = useStoreAuth.getState().tokens
