@@ -103,7 +103,8 @@ export const navigation: NavigationItem[] = [
     to: "/staff",
     children: [
       { label: "Nhân viên", tab: "members" },
-      { label: "Vai trò & phân quyền", tab: "roles" }
+      { label: "Vai trò & phân quyền", tab: "roles" },
+      { label: "Ca làm việc", tab: "shifts" }
     ]
   }
 ]
