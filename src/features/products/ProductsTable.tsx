@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react"
-import { ImageOff, Link2, List, Pencil, Search, Trash2 } from "lucide-react"
+import { ImageOff, Link2, List, Package, PackageX, Pencil, Search, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { CopyCodeBadge } from "@/components/ui/micro-ux"
+import { EmptyState } from "@/components/ui/empty-state"
+import { TableSkeleton } from "@/components/ui/table-skeleton"
 import { products as defaultProducts } from "@/shared/dashboard/dashboard.mock"
 import type { Product } from "@/shared/dashboard/dashboard.types"
 
@@ -107,15 +109,15 @@ export function ProductsTable({
   }
 
   return (
-    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_3px_15px_rgba(20,50,45,0.04)]">
+    <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 shadow-[0_4px_20px_-4px_rgba(20,50,45,0.04)] backdrop-blur-sm">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-4">
-        <div className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-400">
-          <Search size={16} />
+        <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2 text-xs text-slate-500 focus-within:border-[#16866f] focus-within:bg-white transition">
+          <Search size={15} className="text-slate-400" />
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Tìm tên sản phẩm, mã SKU..."
-            className="w-60 text-slate-700 outline-none placeholder:text-slate-400"
+            className="w-60 bg-transparent text-slate-800 outline-none placeholder:text-slate-400 text-xs"
           />
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -341,20 +343,32 @@ export function ProductsTable({
             ))}
           </tbody>
         </table>
-        {loading && filtered.length === 0 && (
-          <div className="space-y-3 p-6">
-            {[1, 2, 3, 4].map((i) => (
-              <div
-                key={i}
-                className="h-14 animate-pulse rounded-lg bg-slate-100"
-              />
-            ))}
+        {loading && (
+          <div className="p-6">
+            <TableSkeleton rows={5} cols={6} />
           </div>
         )}
         {!loading && filtered.length === 0 && (
-          <p className="p-10 text-center text-sm text-slate-500">
-            Không tìm thấy sản phẩm phù hợp.
-          </p>
+          <EmptyState
+            icon={PackageX}
+            title="Không tìm thấy sản phẩm"
+            description="Không có sản phẩm nào khớp với bộ lọc hiện tại. Thử đổi từ khóa hoặc xóa bộ lọc."
+            actionLabel={
+              query || statusFilter !== "all" || comboFilter !== "all" || channelFilter !== "all"
+                ? "Xóa tất cả bộ lọc"
+                : undefined
+            }
+            onAction={
+              query || statusFilter !== "all" || comboFilter !== "all" || channelFilter !== "all"
+                ? () => {
+                    setQuery("")
+                    setStatusFilter("all")
+                    setComboFilter("all")
+                    setChannelFilter("all")
+                  }
+                : undefined
+            }
+          />
         )}
       </div>
     </section>
