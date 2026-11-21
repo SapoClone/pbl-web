@@ -271,13 +271,8 @@ export function StaffPage() {
   }, [rawMembers, statusFilter])
 
   const roles = isDemo || rolesQuery.isError ? DEMO_ROLES : (rolesQuery.data ?? []).filter((role) => !role.isOwner)
-  const branches = isDemo || branchesQuery.isError ? (DEMO_STAFF_BRANCHES as any) : branchesQuery.data?.data ?? []
-  const summary = isDemo || summaryQuery.isError ? {
-    total: demoMembers.length,
-    active: demoMembers.filter((m) => m.status === "active").length,
-    locked: demoMembers.filter((m) => m.status === "locked").length,
-    onShift: demoMembers.filter((m) => m.isOnShift).length
-  } : summaryQuery.data
+  const branches: Array<{ id: string; name: string }> = isDemo || branchesQuery.isError ? DEMO_STAFF_BRANCHES : (branchesQuery.data?.data ?? [])
+  const summary = isDemo || summaryQuery.isError ? DEMO_SUMMARY : summaryQuery.data
   const filteredMembers = useMemo(
     () => members.filter((member) =>
       `${member.name} ${member.email} ${member.code} ${member.roleName}`.toLowerCase().includes(search.toLowerCase())

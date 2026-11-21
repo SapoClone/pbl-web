@@ -168,7 +168,7 @@ export function InventoryPage() {
   }, [requestedTab])
 
   const branches = useQuery({ queryKey: ["branches"], queryFn: listBranches, enabled: !isDemo })
-  const branchList = isDemo ? (DEMO_BRANCH_LIST as any) : branches.data?.data ?? []
+  const branchList: Array<{ id: string; name: string; code: string }> = isDemo ? DEMO_BRANCH_LIST : (branches.data?.data ?? [])
   const selectedBranch = branchId || branchList[0]?.id || ""
   
   const warehouses = useQuery({ queryKey: ["inventory-warehouses"], queryFn: () => listWarehouses(), enabled: !isDemo })
@@ -278,8 +278,8 @@ export function InventoryPage() {
 
     <div className="mb-5 flex flex-wrap items-end justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4">
       <div className="flex flex-wrap gap-4">
-        <label className="text-xs font-semibold text-slate-500">Chi nhánh<select value={selectedBranch} onChange={(event) => setBranchId(event.target.value)} className="mt-1 block min-w-52 bg-transparent text-sm font-medium text-[#163d36] outline-none"><option value="">Chọn chi nhánh</option>{branchList.map((item: any) => <option key={item.id} value={item.id}>{item.name} ({item.code})</option>)}</select></label>
-        <label className="text-xs font-semibold text-slate-500">Kho thao tác<select value={selectedWarehouse} onChange={(event) => setWarehouseId(event.target.value)} className="mt-1 block min-w-52 bg-transparent text-sm font-medium text-[#163d36] outline-none"><option value="">Chọn kho</option>{warehouseList.filter((item: any) => item.status === "ACTIVE").map((item: any) => <option key={item.id} value={item.id}>{item.name} ({item.code})</option>)}</select></label>
+        <label className="text-xs font-semibold text-slate-500">Chi nhánh<select value={selectedBranch} onChange={(event) => setBranchId(event.target.value)} className="mt-1 block min-w-52 bg-transparent text-sm font-medium text-[#163d36] outline-none"><option value="">Chọn chi nhánh</option>{branchList.map((item) => <option key={item.id} value={item.id}>{item.name} ({item.code})</option>)}</select></label>
+        <label className="text-xs font-semibold text-slate-500">Kho thao tác<select value={selectedWarehouse} onChange={(event) => setWarehouseId(event.target.value)} className="mt-1 block min-w-52 bg-transparent text-sm font-medium text-[#163d36] outline-none"><option value="">Chọn kho</option>{warehouseList.filter((item) => item.status === "ACTIVE").map((item) => <option key={item.id} value={item.id}>{item.name} ({item.code})</option>)}</select></label>
       </div>
       <div className="flex gap-2">{tab === "stock" && <Button variant="outline" onClick={downloadStock} disabled={isDemo || !selectedBranch} className="gap-2"><Download size={16} />Xuất tồn kho</Button>}{tab !== "stock" && createLabels[tab] && <Button onClick={() => { setFormMode(modeForTab[tab]!); setActionError(""); createMutation.reset() }} disabled={isDemo} className="gap-2 bg-[#16866f] text-white hover:bg-[#0f705d]"><Plus size={16} />{createLabels[tab]}</Button>}</div>
     </div>
@@ -291,7 +291,7 @@ export function InventoryPage() {
 
     {tab === "stock" && <><StockLookupBar branchId={selectedBranch} pending={lookupMutation.isPending} result={lookupResult} error={lookupMutation.isError ? actionError : ""} onLookup={(code) => lookupMutation.mutate(code)} /><StockTable rows={isDemo ? DEMO_STOCK_LEVELS : stock.data?.data ?? []} loading={stock.isLoading} /></>}
     {tab === "balances" && <BalanceTable rows={balances.data?.data ?? []} variants={variants.data ?? []} onSelect={setSelectedSku} />}
-    {tab === "ledger" && <LedgerTable rows={ledger.data?.data ?? []} variants={variants.data ?? []} branches={branchList} />}
+    {tab === "ledger" && <LedgerTable rows={ledger.data?.data ?? []} variants={variants.data ?? []} branches={branches.data?.data ?? []} />}
     {tab === "movements" && <MovementTable rows={movements.data?.data ?? []} variants={variants.data ?? []} warehouses={warehouseList} />}
     {tab === "thresholds" && <><div className="mb-3 flex justify-end gap-2"><Button variant="outline" onClick={() => setBranchThresholdOpen(true)} disabled={isDemo} className="gap-2"><Plus size={16} />Theo chi nhánh</Button><Button onClick={() => setThresholdForm("new")} disabled={isDemo} className="gap-2 bg-[#16866f] text-white"><Plus size={16} />Theo kho</Button></div><ThresholdTable rows={thresholds.data ?? []} variants={variants.data ?? []} warehouses={warehouseList} onEdit={setThresholdForm} /></>}
     {tab === "reconcile" && <ReconciliationPanel report={reconciliation} pending={reconcileMutation.isPending} onRun={() => reconcileMutation.mutate()} />}
