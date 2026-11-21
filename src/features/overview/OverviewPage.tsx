@@ -110,7 +110,7 @@ export function OverviewPage() {
 
   const needsActionOrders = isDemo
     ? 1
-    : (ordersSummaryQuery.data?.needsAction.total ?? 0)
+    : (ordersSummaryQuery.data?.needsAction?.total ?? 0)
 
   const chartRows = isDemo ? createDemoRows() : (salesQuery.data?.data ?? [])
   const maxRevenue = Math.max(...chartRows.map((row) => row.revenue), 1)
