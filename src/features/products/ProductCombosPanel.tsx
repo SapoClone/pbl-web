@@ -490,8 +490,8 @@ function ComboBuilderModal({
       `CB-${Math.random().toString(36).slice(2, 7).toUpperCase()}`
   )
   const [description, setDescription] = useState(initial?.description ?? "")
-  const [categoryId, setCategoryId] = useState(categories[0]?.id ?? "")
-  const [brandId, setBrandId] = useState(brands[0]?.id ?? "")
+  const categoryId = categories[0]?.id ?? ""
+  const brandId = brands[0]?.id ?? ""
   const [comboPrice, setComboPrice] = useState(
     String(initial?.comboPrice ?? 0)
   )

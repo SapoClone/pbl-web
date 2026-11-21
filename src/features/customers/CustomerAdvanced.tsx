@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { X } from "lucide-react"
 import axios from "axios"
 import { Button } from "@/components/ui/button"
-import { getCustomer, updateCustomer, type Customer } from "@/api/customer/customers"
+import { getCustomer, updateCustomer } from "@/api/customer/customers"
 import {
   adjustCustomerLoyalty,
   assignCustomerGroup,
@@ -218,7 +218,7 @@ function apiError(error: unknown) {
   return (Array.isArray(data?.message) ? data.message.join(" ") : data?.message) || data?.errorCode || "Không thể thực hiện thao tác."
 }
 
-function Overlay({ children, onClose, wide = false }: { children: React.ReactNode; onClose: () => void; wide?: boolean }) {
+function Overlay({ children, onClose }: { children: React.ReactNode; onClose: () => void; wide?: boolean }) {
   return <div className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-[#163d36]/30 p-4 pt-12 backdrop-blur-sm" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>{children}</div>
 }
 

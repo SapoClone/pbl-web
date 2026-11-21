@@ -2,11 +2,12 @@ import { BadgeDollarSign, Package, ShoppingCart, Store } from "lucide-react"
 import type { Metric, Order, Product, SectionMeta } from "./dashboard.types"
 
 export const orders: Order[] = [
-  { id: "#OM-1048", customer: "Nguyễn Minh Anh", channel: "Website", total: "1.240.000đ", status: "Đã giao", date: "Hôm nay, 10:42" },
-  { id: "#OM-1047", customer: "Trần Hoàng Nam", channel: "Shopee", total: "860.000đ", status: "Đang xử lý", date: "Hôm nay, 09:18" },
-  { id: "#OM-1046", customer: "Lê Thu Hà", channel: "Tại cửa hàng", total: "2.450.000đ", status: "Chờ thanh toán", date: "Hôm qua, 17:36" },
-  { id: "#OM-1045", customer: "Phạm Gia Huy", channel: "Facebook", total: "540.000đ", status: "Đã giao", date: "Hôm qua, 15:20" },
-  { id: "#OM-1044", customer: "Đỗ Khánh Linh", channel: "Website", total: "3.120.000đ", status: "Đang xử lý", date: "24/10/2026, 11:05" }
+  { id: "#OM-1049", externalOrderCode: "LZD-5088776655", customer: "Lê Hoàng Bách", channel: "Lazada", paymentMethod: "COD", fulfillmentStatus: "Chờ đóng gói", total: "840.000đ", status: "Đang xử lý", date: "Hôm nay, 11:15" },
+  { id: "#OM-1048", customer: "Nguyễn Minh Anh", channel: "Website", paymentMethod: "Chuyển khoản", fulfillmentStatus: "Đã giao", total: "1.240.000đ", status: "Đã giao", date: "Hôm nay, 10:42" },
+  { id: "#OM-1047", externalOrderCode: "SHP-2611169988", customer: "Trần Hoàng Nam", channel: "Shopee", paymentMethod: "Ví điện tử", fulfillmentStatus: "Đang giao", total: "860.000đ", status: "Đang xử lý", date: "Hôm nay, 09:18" },
+  { id: "#OM-1046", customer: "Lê Thu Hà", channel: "Tại cửa hàng", paymentMethod: "Tiền mặt", fulfillmentStatus: "Đã nhận tại quầy", total: "2.450.000đ", status: "Chờ thanh toán", date: "Hôm qua, 17:36" },
+  { id: "#OM-1045", customer: "Phạm Gia Huy", channel: "Lazada", externalOrderCode: "LZD-5088771122", paymentMethod: "COD", fulfillmentStatus: "Đã giao", total: "540.000đ", status: "Đã giao", date: "Hôm qua, 15:20" },
+  { id: "#OM-1044", customer: "Đỗ Khánh Linh", channel: "Website", paymentMethod: "Thẻ", fulfillmentStatus: "Đang đóng gói", total: "3.120.000đ", status: "Đang xử lý", date: "24/10/2026, 11:05" }
 ]
 
 export const products: Product[] = [
@@ -25,6 +26,7 @@ export const sectionMeta: Record<import("./dashboard.types").DashboardSection, S
   inventory: { eyebrow: "Vận hành / Tồn kho", title: "Tồn kho", description: "Nắm bắt lượng hàng sẵn có tại từng điểm bán." },
   customers: { eyebrow: "Quan hệ / Khách hàng", title: "Khách hàng", description: "Theo dõi khách hàng và lịch sử mua sắm." },
   pos: { eyebrow: "Bán hàng / Tại quầy", title: "Bán tại quầy", description: "Quản lý đơn bán trực tiếp tại cửa hàng." },
+  promotions: { eyebrow: "Tiếp thị / Ưu đãi", title: "Khuyến mãi & Mã giảm giá", description: "Thiết lập chiến dịch chiết khấu và phát hành voucher đa kênh." },
   channels: { eyebrow: "Bán hàng / Kênh bán", title: "Kênh bán hàng", description: "Kết nối và theo dõi các kênh bán hàng." },
   suppliers: { eyebrow: "Vận hành / Nhập hàng", title: "Nhập hàng & nhà cung cấp", description: "Quản lý phiếu nhập và nhà cung cấp." },
   staff: { eyebrow: "Quản trị / Nhân sự", title: "Nhân viên & Quyền", description: "Quản lý nhân viên, vai trò và quyền truy cập." },
