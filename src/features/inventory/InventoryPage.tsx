@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import axios from "axios"
-import { AlertTriangle, ArrowDownToLine, Boxes, Download, Plus, PackageCheck } from "lucide-react"
+import { AlertTriangle, ArrowDownToLine, Boxes, Download, Plus, PackageCheck, Sparkles } from "lucide-react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useRouterState } from "@tanstack/react-router"
 import { Button } from "@/components/ui/button"
@@ -26,14 +26,130 @@ import { BranchThresholdModal, DocumentDetailModal, LedgerTable, StockLookupBar,
 const modeForTab: Partial<Record<InventoryTab, InventoryFormMode>> = { receipts: "receipt", issues: "issue", transfers: "transfer", stocktakes: "stocktake", warehouses: "warehouse" }
 const createLabels: Partial<Record<InventoryTab, string>> = { receipts: "Tạo phiếu nhập", issues: "Tạo phiếu xuất", transfers: "Tạo phiếu chuyển", stocktakes: "Tạo phiếu kiểm", warehouses: "Thêm kho" }
 
+const DEMO_BRANCH_LIST = [
+  { id: "branch-q1", name: "Chi nhánh Quận 1 - Flagship", code: "CN-Q1" },
+  { id: "branch-tanbinh", name: "Kho Tổng Tân Bình", code: "KHO-TB" }
+]
+
+const DEMO_WAREHOUSES: Warehouse[] = [
+  {
+    id: "wh-q1",
+    branchId: "branch-q1",
+    code: "KHO-Q1",
+    name: "Kho Bán Lẻ Chi Nhánh Q1",
+    kind: "BRANCH",
+    address: "77 Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh",
+    isDefault: true,
+    status: "ACTIVE",
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z"
+  },
+  {
+    id: "wh-tanbinh",
+    branchId: "branch-tanbinh",
+    code: "KHO-TB",
+    name: "Kho Tổng Phân Phối Tân Bình",
+    kind: "CENTRAL",
+    address: "12 Hoàng Hoa Thám, Tân Bình, TP. Hồ Chí Minh",
+    isDefault: false,
+    status: "ACTIVE",
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z"
+  }
+]
+
+const DEMO_STOCK_LEVELS: import("@/api/inventory/stock").StockLevel[] = [
+  {
+    branchId: "branch-q1",
+    variantId: "var-01",
+    name: "Áo Thun Cotton Compact 250gsm",
+    variantLabel: "Đen / L",
+    sku: "TSHIRT-BLK-L",
+    barcode: "8935001234567",
+    onHand: 120,
+    reserved: 15,
+    available: 105,
+    minQuantity: 20,
+    maxQuantity: null,
+    level: "ok"
+  },
+  {
+    branchId: "branch-q1",
+    variantId: "var-02",
+    name: "Quần Jean Slimfit Co Giãn Cao Cấp",
+    variantLabel: "Xanh Đậm / 31",
+    sku: "JEAN-SLIM-31",
+    barcode: "8935001234581",
+    onHand: 85,
+    reserved: 8,
+    available: 77,
+    minQuantity: 15,
+    maxQuantity: null,
+    level: "ok"
+  },
+  {
+    branchId: "branch-tanbinh",
+    variantId: "var-03",
+    name: "Bàn Phím Cơ Không Dây Tri-mode RGB",
+    variantLabel: "White / Red Switch",
+    sku: "KB-TRIMODE-RED",
+    barcode: "8935001234604",
+    onHand: 42,
+    reserved: 5,
+    available: 37,
+    minQuantity: 10,
+    maxQuantity: null,
+    level: "ok"
+  },
+  {
+    branchId: "branch-tanbinh",
+    variantId: "var-04",
+    name: "Tai Nghe Chống Ồn Wireless ANC",
+    variantLabel: "Bạc Titanium",
+    sku: "HEADPHONE-ANC-SILVER",
+    barcode: "8935001234628",
+    onHand: 6,
+    reserved: 4,
+    available: 2,
+    minQuantity: 10,
+    maxQuantity: null,
+    level: "below_min"
+  },
+  {
+    branchId: "branch-q1",
+    variantId: "var-05",
+    name: "Cốc Giữ Nhiệt Inox 316 750ml",
+    variantLabel: "Xanh Rêu",
+    sku: "MUG-316-GRN",
+    barcode: "8935001234642",
+    onHand: 0,
+    reserved: 0,
+    available: 0,
+    minQuantity: 15,
+    maxQuantity: null,
+    level: "out_of_stock"
+  }
+]
+
+const DEMO_STOCK_SUMMARY = {
+  onHand: 253,
+  reserved: 32,
+  available: 221,
+  belowMinCount: 1,
+  outOfStockCount: 1,
+  skuCount: 5,
+  stockValue: 285400000,
+  branchId: "branch-q1"
+}
+
 export function InventoryPage() {
   const queryClient = useQueryClient()
   const isDemo = Boolean(useStoreAuth((state) => state.tokens?.isDemo))
   const requestedTab = useRouterState({ select: (state) => new URLSearchParams(state.location.searchStr).get("tab") })
   const initialTab = tabs.some((item) => item.id === requestedTab) ? requestedTab as InventoryTab : "stock"
   const [tab, setTab] = useState<InventoryTab>(initialTab)
-  const [branchId, setBranchId] = useState("")
-  const [warehouseId, setWarehouseId] = useState("")
+  const [branchId, setBranchId] = useState(isDemo ? "branch-q1" : "")
+  const [warehouseId, setWarehouseId] = useState(isDemo ? "wh-q1" : "")
   const [formMode, setFormMode] = useState<InventoryFormMode | null>(null)
   const [counting, setCounting] = useState<Stocktake | null>(null)
   const [receiving, setReceiving] = useState<StockTransfer | null>(null)
@@ -52,9 +168,13 @@ export function InventoryPage() {
   }, [requestedTab])
 
   const branches = useQuery({ queryKey: ["branches"], queryFn: listBranches, enabled: !isDemo })
-  const selectedBranch = branchId || branches.data?.data[0]?.id || ""
+  const branchList = isDemo ? (DEMO_BRANCH_LIST as any) : branches.data?.data ?? []
+  const selectedBranch = branchId || branchList[0]?.id || ""
+  
   const warehouses = useQuery({ queryKey: ["inventory-warehouses"], queryFn: () => listWarehouses(), enabled: !isDemo })
-  const selectedWarehouse = warehouseId || warehouses.data?.find((item) => item.isDefault)?.id || warehouses.data?.[0]?.id || ""
+  const warehouseList = isDemo ? DEMO_WAREHOUSES : warehouses.data ?? []
+  const selectedWarehouse = warehouseId || warehouseList.find((item) => item.isDefault)?.id || warehouseList[0]?.id || ""
+  
   const variants = useQuery({ queryKey: ["catalog-variants"], queryFn: listActiveVariants, enabled: !isDemo })
   const stock = useQuery({ queryKey: ["inventory-stock", selectedBranch], queryFn: () => listStockLevels(selectedBranch || undefined), enabled: !isDemo })
   const summary = useQuery({ queryKey: ["inventory-summary", selectedBranch], queryFn: () => getStockSummary(selectedBranch || undefined), enabled: !isDemo })
@@ -130,8 +250,8 @@ export function InventoryPage() {
     } catch (error) { setActionError(apiError(error)) } finally { setPendingId("") }
   }
 
-  const metrics = summary.data ?? { onHand: 0, reserved: 0, available: 0, belowMinCount: 0, outOfStockCount: 0, skuCount: 0, stockValue: 0, branchId: null }
-  const loadingError = [branches, warehouses, variants, stock, summary].some((query) => query.isError)
+  const metrics = isDemo ? DEMO_STOCK_SUMMARY : summary.data ?? { onHand: 0, reserved: 0, available: 0, belowMinCount: 0, outOfStockCount: 0, skuCount: 0, stockValue: 0, branchId: null }
+  const loadingError = !isDemo && [branches, warehouses, variants, stock, summary].some((query) => query.isError)
   const docs = tab === "receipts" ? receipts.data ?? [] : tab === "issues" ? issues.data ?? [] : tab === "transfers" ? transfers.data ?? [] : stocktakes.data ?? []
 
   const editWarehouse = async (warehouse: Warehouse) => {
@@ -146,12 +266,20 @@ export function InventoryPage() {
 
   return <main className="mx-auto max-w-[1520px] py-7">
     <DashboardHeader section="inventory" />
-    {isDemo && <p className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">Tài khoản demo không gọi API. Đăng nhập tài khoản backend để sử dụng nhập, xuất, chuyển và kiểm kho.</p>}
+    {isDemo && (
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#16866f]/20 bg-[#e6f5ee]/40 px-4 py-3 text-xs text-[#163d36]">
+        <span className="flex items-center gap-2">
+          <Sparkles size={16} className="text-[#16866f]" />
+          <span>Đang hiển thị dữ liệu tồn kho đa điểm thực tế (Chi nhánh Q1 & Kho Tân Bình). Chuyển chi nhánh hoặc kho để xem hạn mức tồn & khả dụng.</span>
+        </span>
+        <span className="rounded-md bg-[#16866f]/10 px-2.5 py-1 font-semibold text-[#16866f]">Trải nghiệm Demo</span>
+      </div>
+    )}
 
     <div className="mb-5 flex flex-wrap items-end justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4">
       <div className="flex flex-wrap gap-4">
-        <label className="text-xs font-semibold text-slate-500">Chi nhánh<select value={selectedBranch} onChange={(event) => setBranchId(event.target.value)} className="mt-1 block min-w-52 bg-transparent text-sm font-medium text-[#163d36] outline-none"><option value="">Chọn chi nhánh</option>{(branches.data?.data ?? []).map((item) => <option key={item.id} value={item.id}>{item.name} ({item.code})</option>)}</select></label>
-        <label className="text-xs font-semibold text-slate-500">Kho thao tác<select value={selectedWarehouse} onChange={(event) => setWarehouseId(event.target.value)} className="mt-1 block min-w-52 bg-transparent text-sm font-medium text-[#163d36] outline-none"><option value="">Chọn kho</option>{(warehouses.data ?? []).filter((item) => item.status === "ACTIVE").map((item) => <option key={item.id} value={item.id}>{item.name} ({item.code})</option>)}</select></label>
+        <label className="text-xs font-semibold text-slate-500">Chi nhánh<select value={selectedBranch} onChange={(event) => setBranchId(event.target.value)} className="mt-1 block min-w-52 bg-transparent text-sm font-medium text-[#163d36] outline-none"><option value="">Chọn chi nhánh</option>{branchList.map((item: any) => <option key={item.id} value={item.id}>{item.name} ({item.code})</option>)}</select></label>
+        <label className="text-xs font-semibold text-slate-500">Kho thao tác<select value={selectedWarehouse} onChange={(event) => setWarehouseId(event.target.value)} className="mt-1 block min-w-52 bg-transparent text-sm font-medium text-[#163d36] outline-none"><option value="">Chọn kho</option>{warehouseList.filter((item: any) => item.status === "ACTIVE").map((item: any) => <option key={item.id} value={item.id}>{item.name} ({item.code})</option>)}</select></label>
       </div>
       <div className="flex gap-2">{tab === "stock" && <Button variant="outline" onClick={downloadStock} disabled={isDemo || !selectedBranch} className="gap-2"><Download size={16} />Xuất tồn kho</Button>}{tab !== "stock" && createLabels[tab] && <Button onClick={() => { setFormMode(modeForTab[tab]!); setActionError(""); createMutation.reset() }} disabled={isDemo} className="gap-2 bg-[#16866f] text-white hover:bg-[#0f705d]"><Plus size={16} />{createLabels[tab]}</Button>}</div>
     </div>
@@ -161,13 +289,13 @@ export function InventoryPage() {
     {loadingError && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">Không thể tải đầy đủ dữ liệu từ KrakenD.</p>}
     {actionError && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">{actionError}</p>}
 
-    {tab === "stock" && <><StockLookupBar branchId={selectedBranch} pending={lookupMutation.isPending} result={lookupResult} error={lookupMutation.isError ? actionError : ""} onLookup={(code) => lookupMutation.mutate(code)} /><StockTable rows={stock.data?.data ?? []} loading={stock.isLoading} /></>}
+    {tab === "stock" && <><StockLookupBar branchId={selectedBranch} pending={lookupMutation.isPending} result={lookupResult} error={lookupMutation.isError ? actionError : ""} onLookup={(code) => lookupMutation.mutate(code)} /><StockTable rows={isDemo ? DEMO_STOCK_LEVELS : stock.data?.data ?? []} loading={stock.isLoading} /></>}
     {tab === "balances" && <BalanceTable rows={balances.data?.data ?? []} variants={variants.data ?? []} onSelect={setSelectedSku} />}
-    {tab === "ledger" && <LedgerTable rows={ledger.data?.data ?? []} variants={variants.data ?? []} branches={branches.data?.data ?? []} />}
-    {tab === "movements" && <MovementTable rows={movements.data?.data ?? []} variants={variants.data ?? []} warehouses={warehouses.data ?? []} />}
-    {tab === "thresholds" && <><div className="mb-3 flex justify-end gap-2"><Button variant="outline" onClick={() => setBranchThresholdOpen(true)} disabled={isDemo} className="gap-2"><Plus size={16} />Theo chi nhánh</Button><Button onClick={() => setThresholdForm("new")} disabled={isDemo} className="gap-2 bg-[#16866f] text-white"><Plus size={16} />Theo kho</Button></div><ThresholdTable rows={thresholds.data ?? []} variants={variants.data ?? []} warehouses={warehouses.data ?? []} onEdit={setThresholdForm} /></>}
+    {tab === "ledger" && <LedgerTable rows={ledger.data?.data ?? []} variants={variants.data ?? []} branches={branchList} />}
+    {tab === "movements" && <MovementTable rows={movements.data?.data ?? []} variants={variants.data ?? []} warehouses={warehouseList} />}
+    {tab === "thresholds" && <><div className="mb-3 flex justify-end gap-2"><Button variant="outline" onClick={() => setBranchThresholdOpen(true)} disabled={isDemo} className="gap-2"><Plus size={16} />Theo chi nhánh</Button><Button onClick={() => setThresholdForm("new")} disabled={isDemo} className="gap-2 bg-[#16866f] text-white"><Plus size={16} />Theo kho</Button></div><ThresholdTable rows={thresholds.data ?? []} variants={variants.data ?? []} warehouses={warehouseList} onEdit={setThresholdForm} /></>}
     {tab === "reconcile" && <ReconciliationPanel report={reconciliation} pending={reconcileMutation.isPending} onRun={() => reconcileMutation.mutate()} />}
-    {tab === "warehouses" && <WarehouseTable rows={warehouses.data ?? []} loading={warehouses.isLoading} onEdit={editWarehouse} />}
+    {tab === "warehouses" && <WarehouseTable rows={isDemo ? DEMO_WAREHOUSES : warehouses.data ?? []} loading={warehouses.isLoading} onEdit={editWarehouse} />}
     {["receipts", "issues", "transfers", "stocktakes"].includes(tab) && <DocumentTable type={tab === "receipts" ? "receipt" : tab === "issues" ? "issue" : tab === "transfers" ? "transfer" : "stocktake"} rows={docs} warehouses={warehouses.data ?? []} variants={variants.data ?? []} pendingId={pendingId} loading={[receipts, issues, transfers, stocktakes].some((q) => q.isLoading)} onAction={runAction} />}
 
     {formMode && <InventoryForm mode={formMode} warehouses={warehouses.data ?? []} variants={variants.data ?? []} branches={branches.data?.data ?? []} isPending={createMutation.isPending} error={createMutation.isError ? actionError : ""} onClose={() => setFormMode(null)} onSubmit={async (value) => { await createMutation.mutateAsync(value) }} />}

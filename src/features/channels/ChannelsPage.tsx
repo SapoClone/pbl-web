@@ -163,6 +163,13 @@ export function ChannelsPage() {
   const queryClient = useQueryClient()
   const isDemo = Boolean(useStoreAuth((state) => state.tokens?.isDemo))
   const [tab, setTab] = useState<ChannelsTab>(readSearchTab)
+
+  useEffect(() => {
+    const handleUrlChange = () => setTab(readSearchTab())
+    window.addEventListener("popstate", handleUrlChange)
+    return () => window.removeEventListener("popstate", handleUrlChange)
+  }, [])
+
   const [selectedConnectionId, setSelectedConnectionId] = useState("")
   const [message, setMessage] = useState("")
   const [errorMessage, setErrorMessage] = useState("")
@@ -1512,54 +1519,56 @@ export function ChannelsPage() {
                         )}
                       </div>
 
-                      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-4">
-                        <div className="flex flex-wrap gap-1.5">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant={
-                              conn.status === "PENDING_AUTH" ||
-                              conn.status === "REAUTH_REQUIRED" ||
-                              conn.status === "TOKEN_EXPIRED"
-                                ? "default"
-                                : "outline"
-                            }
-                            onClick={() => handleOpenOAuthModal(conn)}
-                            className={
-                              conn.status === "PENDING_AUTH" ||
-                              conn.status === "REAUTH_REQUIRED" ||
-                              conn.status === "TOKEN_EXPIRED"
-                                ? "h-8 gap-1.5 bg-[#16866f] text-xs text-white hover:bg-[#0f705d]"
-                                : "h-8 gap-1.5 text-xs"
-                            }
-                          >
-                            <KeyRound size={13} />
-                            {conn.status === "CONNECTED"
-                              ? "Cấp lại quyền"
-                              : "Ủy quyền Lazada"}
-                          </Button>
+                      <div className="mt-4 space-y-2.5 border-t border-slate-100 pt-3.5">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant={
+                                conn.status === "PENDING_AUTH" ||
+                                conn.status === "REAUTH_REQUIRED" ||
+                                conn.status === "TOKEN_EXPIRED"
+                                  ? "default"
+                                  : "outline"
+                              }
+                              onClick={() => handleOpenOAuthModal(conn)}
+                              className={
+                                conn.status === "PENDING_AUTH" ||
+                                conn.status === "REAUTH_REQUIRED" ||
+                                conn.status === "TOKEN_EXPIRED"
+                                  ? "h-8 gap-1.5 bg-[#16866f] text-xs text-white hover:bg-[#0f705d]"
+                                  : "h-8 gap-1.5 text-xs text-slate-700"
+                              }
+                            >
+                              <KeyRound size={13} />
+                              {conn.status === "CONNECTED"
+                                ? "Cấp lại quyền"
+                                : "Ủy quyền Lazada"}
+                            </Button>
 
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            disabled={conn.status !== "CONNECTED"}
-                            onClick={() => setOrderSyncConn(conn)}
-                            className="h-8 gap-1.5 text-xs"
-                          >
-                            <RefreshCw size={13} /> Tải đơn hàng
-                          </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              disabled={conn.status !== "CONNECTED"}
+                              onClick={() => setOrderSyncConn(conn)}
+                              className="h-8 gap-1.5 text-xs text-slate-700"
+                            >
+                              <RefreshCw size={13} /> Tải đơn hàng
+                            </Button>
 
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            disabled={conn.status !== "CONNECTED"}
-                            onClick={() => handleTriggerInventorySync(conn.id)}
-                            className="h-8 gap-1.5 text-xs"
-                          >
-                            <Boxes size={13} /> Đẩy tồn kho
-                          </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              disabled={conn.status !== "CONNECTED"}
+                              onClick={() => handleTriggerInventorySync(conn.id)}
+                              className="h-8 gap-1.5 text-xs text-slate-700"
+                            >
+                              <Boxes size={13} /> Đẩy tồn kho
+                            </Button>
+                          </div>
 
                           <Button
                             type="button"
@@ -1572,63 +1581,67 @@ export function ChannelsPage() {
                           </Button>
                         </div>
 
-                        <div className="flex items-center gap-1">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            title="Chỉnh sửa Buffer tồn an toàn, % phân bổ & Tự động đẩy tồn"
-                            onClick={() => setSyncConfigConn(conn)}
-                            className="h-8 gap-1 px-2 text-xs font-medium text-[#16866f] hover:bg-[#e6f5ee]"
-                          >
-                            <SlidersHorizontal size={14} /> Cấu hình đồng bộ
-                          </Button>
-
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            title="Trạng thái kết nối & Cấu hình Webhook"
-                            onClick={() => handleOpenHealth(conn)}
-                            className="h-8 gap-1 px-2 text-xs text-slate-600 hover:text-[#16866f]"
-                          >
-                            <Activity size={14} /> Cấu hình & Webhook
-                          </Button>
-
-                          {(conn.status === "CONNECTED" ||
-                            conn.status === "PAUSED") && (
+                        <div className="flex items-center justify-between gap-2 rounded-lg bg-slate-50/80 px-2.5 py-1.5 text-xs">
+                          <div className="flex items-center gap-1">
                             <Button
                               type="button"
                               size="sm"
                               variant="ghost"
-                              title={
-                                conn.status === "CONNECTED"
-                                  ? "Tạm dừng đồng bộ"
-                                  : "Tiếp tục đồng bộ"
-                              }
-                              onClick={() => handlePauseOrResume(conn)}
-                              className="h-8 px-2 text-slate-500"
+                              title="Chỉnh sửa Buffer tồn an toàn, % phân bổ & Tự động đẩy tồn"
+                              onClick={() => setSyncConfigConn(conn)}
+                              className="h-7 gap-1 px-2 text-xs font-medium text-[#16866f] hover:bg-white"
                             >
-                              {conn.status === "CONNECTED" ? (
-                                <PauseCircle size={15} />
-                              ) : (
-                                <PlayCircle size={15} />
-                              )}
+                              <SlidersHorizontal size={13} /> Cấu hình đồng bộ
                             </Button>
-                          )}
 
-                          {conn.status !== "DISCONNECTED" && (
                             <Button
                               type="button"
                               size="sm"
                               variant="ghost"
-                              title="Ngắt kết nối gian hàng"
-                              onClick={() => handleDisconnect(conn)}
-                              className="h-8 px-2 text-slate-400 hover:text-red-600"
+                              title="Trạng thái kết nối & Cấu hình Webhook"
+                              onClick={() => handleOpenHealth(conn)}
+                              className="h-7 gap-1 px-2 text-xs text-slate-600 hover:bg-white hover:text-[#16866f]"
                             >
-                              <Trash2 size={14} />
+                              <Activity size={13} /> Webhook & Health
                             </Button>
-                          )}
+                          </div>
+
+                          <div className="flex items-center gap-1">
+                            {(conn.status === "CONNECTED" ||
+                              conn.status === "PAUSED") && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                title={
+                                  conn.status === "CONNECTED"
+                                    ? "Tạm dừng đồng bộ"
+                                    : "Tiếp tục đồng bộ"
+                                }
+                                onClick={() => handlePauseOrResume(conn)}
+                                className="h-7 px-2 text-slate-500 hover:bg-white"
+                              >
+                                {conn.status === "CONNECTED" ? (
+                                  <PauseCircle size={15} />
+                                ) : (
+                                  <PlayCircle size={15} />
+                                )}
+                              </Button>
+                            )}
+
+                            {conn.status !== "DISCONNECTED" && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                title="Ngắt kết nối gian hàng"
+                                onClick={() => handleDisconnect(conn)}
+                                className="h-7 px-2 text-slate-400 hover:bg-white hover:text-red-600"
+                              >
+                                <Trash2 size={14} />
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </article>
