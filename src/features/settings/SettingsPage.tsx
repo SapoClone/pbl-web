@@ -30,24 +30,77 @@ const inputClassName =
 const tenantInputClassName =
   "h-11 w-full rounded-lg border border-slate-200 bg-white px-3.5 text-sm outline-none focus:border-[#16866f] focus:ring-4 focus:ring-[#16866f]/10"
 
+import { useStoreAuth } from "@/store/zustand/useStoreAuth"
+
+const DEMO_TENANT = {
+  id: "tenant-demo-01",
+  name: "Cửa Hàng Trải Nghiệm PBL6 Omnichannel",
+  subdomain: "pbl6-store",
+  status: "active" as const,
+  phone: "0901234567",
+  email: "support@omnichannel-pbl6.vn",
+  address: "77 Nguyễn Huệ, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh",
+  createdAt: "2026-01-01T00:00:00Z"
+}
+
+const DEMO_BRANCHES: Branch[] = [
+  {
+    id: "branch-q1",
+    name: "Chi nhánh Quận 1 - Flagship Store",
+    code: "CN-Q1",
+    address: "77 Nguyễn Huệ, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh",
+    phone: "0901234567",
+    isWarehouse: false,
+    status: "active",
+    createdAt: "2026-01-01T00:00:00Z"
+  },
+  {
+    id: "branch-tanbinh",
+    name: "Kho Tổng Tân Bình & Phân Phối",
+    code: "KHO-TB",
+    address: "12 Hoàng Hoa Thám, Phường 13, Quận Tân Bình, TP. Hồ Chí Minh",
+    phone: "0907654321",
+    isWarehouse: true,
+    status: "active",
+    createdAt: "2026-01-01T00:00:00Z"
+  }
+]
+
 export function SettingsPage() {
+  const isDemo = Boolean(useStoreAuth((state) => state.tokens?.isDemo))
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null)
   const [form, setForm] = useState(initialForm)
   const [tenantForm, setTenantForm] = useState<UpdateTenantInput>({})
+  const [demoBranches, setDemoBranches] = useState<Branch[]>(DEMO_BRANCHES)
+  const [demoTenant, setDemoTenant] = useState(DEMO_TENANT)
   const [error, setError] = useState("")
 
   const tenantQuery = useQuery({
     queryKey: ["current-tenant"],
-    queryFn: getCurrentTenant
+    queryFn: getCurrentTenant,
+    enabled: !isDemo
   })
   const branchesQuery = useQuery({
     queryKey: ["branches"],
-    queryFn: listBranches
+    queryFn: listBranches,
+    enabled: !isDemo
   })
   const tenantMutation = useMutation({
-    mutationFn: updateCurrentTenant,
+    mutationFn: async (input: UpdateTenantInput) => {
+      if (isDemo) {
+        setDemoTenant((prev) => ({
+          ...prev,
+          name: input.name ?? prev.name,
+          phone: input.phone ?? prev.phone,
+          email: input.email ?? prev.email,
+          address: input.address ?? prev.address
+        }))
+        return { ...demoTenant, ...input }
+      }
+      return updateCurrentTenant(input)
+    },
     onSuccess: async (tenant) => {
       setTenantForm({
         name: tenant.name,
@@ -56,51 +109,96 @@ export function SettingsPage() {
         address: tenant.address
       })
       setError("")
-      await queryClient.invalidateQueries({ queryKey: ["current-tenant"] })
+      if (!isDemo) await queryClient.invalidateQueries({ queryKey: ["current-tenant"] })
     },
     onError: () => setError("Không thể cập nhật thông tin cửa hàng. Hãy kiểm tra dữ liệu và quyền tài khoản.")
   })
   const createMutation = useMutation({
-    mutationFn: createBranch,
+    mutationFn: async (input: CreateBranchInput) => {
+      if (isDemo) {
+        const newBranch: Branch = {
+          id: `branch-demo-${Date.now()}`,
+          name: input.name,
+          code: input.code,
+          address: input.address || null,
+          phone: input.phone || null,
+          isWarehouse: Boolean(input.isWarehouse),
+          status: "active",
+          createdAt: new Date().toISOString()
+        }
+        setDemoBranches((prev) => [newBranch, ...prev])
+        return newBranch
+      }
+      return createBranch(input)
+    },
     onSuccess: async () => {
       setForm(initialForm)
       setShowForm(false)
       setError("")
-      await queryClient.invalidateQueries({ queryKey: ["branches"] })
+      if (!isDemo) await queryClient.invalidateQueries({ queryKey: ["branches"] })
     },
     onError: () => setError("Không thể tạo chi nhánh. Hãy kiểm tra mã chi nhánh và quyền tài khoản.")
   })
   const editMutation = useMutation({
-    mutationFn: ({ id, input }: { id: string; input: CreateBranchInput }) =>
-      updateBranch(id, input),
+    mutationFn: async ({ id, input }: { id: string; input: CreateBranchInput }) => {
+      if (isDemo) {
+        setDemoBranches((prev) =>
+          prev.map((b) =>
+            b.id === id
+              ? {
+                  ...b,
+                  name: input.name,
+                  code: input.code,
+                  address: input.address || null,
+                  phone: input.phone || null,
+                  isWarehouse: Boolean(input.isWarehouse)
+                }
+              : b
+          )
+        )
+        return
+      }
+      return updateBranch(id, input)
+    },
     onSuccess: async () => {
       setForm(initialForm)
       setEditingBranch(null)
       setShowForm(false)
       setError("")
-      await queryClient.invalidateQueries({ queryKey: ["branches"] })
+      if (!isDemo) await queryClient.invalidateQueries({ queryKey: ["branches"] })
     },
     onError: () => setError("Không thể cập nhật chi nhánh. Hãy kiểm tra dữ liệu và quyền tài khoản.")
   })
   const updateMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: "active" | "inactive" }) =>
-      updateBranch(id, { status }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["branches"] })
+    mutationFn: async ({ id, status }: { id: string; status: "active" | "inactive" }) => {
+      if (isDemo) {
+        setDemoBranches((prev) => prev.map((b) => (b.id === id ? { ...b, status } : b)))
+        return
+      }
+      return updateBranch(id, { status })
+    },
+    onSuccess: () => !isDemo && queryClient.invalidateQueries({ queryKey: ["branches"] })
   })
   const deleteMutation = useMutation({
-    mutationFn: deleteBranch,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["branches"] }),
+    mutationFn: async (id: string) => {
+      if (isDemo) {
+        setDemoBranches((prev) => prev.filter((b) => b.id !== id))
+        return
+      }
+      return deleteBranch(id)
+    },
+    onSuccess: () => !isDemo && queryClient.invalidateQueries({ queryKey: ["branches"] }),
     onError: () => setError("Không thể xóa chi nhánh cuối cùng hoặc chi nhánh đang được sử dụng.")
   })
 
-  const tenant = tenantQuery.data
+  const tenant = isDemo || tenantQuery.isError ? demoTenant : tenantQuery.data
   const tenantValues = {
     name: tenantForm.name ?? tenant?.name ?? "",
     phone: tenantForm.phone ?? tenant?.phone ?? "",
     email: tenantForm.email ?? tenant?.email ?? "",
     address: tenantForm.address ?? tenant?.address ?? ""
   }
-  const branches = branchesQuery.data?.data ?? []
+  const branches = isDemo || branchesQuery.isError ? demoBranches : branchesQuery.data?.data ?? []
 
   const submitTenant = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -176,11 +274,11 @@ export function SettingsPage() {
             <p className="mt-1 text-xs text-slate-500">Cập nhật thông tin hiển thị của cửa hàng.</p>
           </div>
         </div>
-        {tenantQuery.isLoading ? (
+        {tenantQuery.isLoading && !isDemo ? (
           <p className="py-6 text-sm text-slate-500">Đang tải thông tin cửa hàng...</p>
-        ) : tenantQuery.isError ? (
+        ) : !tenant ? (
           <p className="py-3 text-sm text-red-600">Không thể tải thông tin cửa hàng.</p>
-        ) : tenant ? (
+        ) : (
           <form className="grid gap-4 md:grid-cols-2" onSubmit={submitTenant}>
             <label className="text-xs font-semibold text-slate-700">
               Tên cửa hàng
@@ -213,7 +311,7 @@ export function SettingsPage() {
               </Button>
             </div>
           </form>
-        ) : null}
+        )}
       </section>
 
       <div className="mb-4 flex items-center justify-between">
@@ -296,7 +394,13 @@ export function SettingsPage() {
 
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-100 p-4 text-sm font-semibold text-slate-700">Danh sách chi nhánh</div>
-        {branchesQuery.isLoading ? <p className="p-10 text-center text-sm text-slate-500">Đang tải...</p> : branchesQuery.isError ? <p className="p-10 text-center text-sm text-red-600">Không thể tải danh sách chi nhánh.</p> : branches.length === 0 ? <p className="p-10 text-center text-sm text-slate-500">Chưa có chi nhánh.</p> : (
+        {branchesQuery.isLoading && !isDemo ? (
+          <p className="p-10 text-center text-sm text-slate-500">Đang tải...</p>
+        ) : branches.length === 0 && !isDemo && branchesQuery.isError ? (
+          <p className="p-10 text-center text-sm text-red-600">Không thể tải danh sách chi nhánh.</p>
+        ) : branches.length === 0 ? (
+          <p className="p-10 text-center text-sm text-slate-500">Chưa có chi nhánh.</p>
+        ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-5 py-3">Chi nhánh</th><th className="px-5 py-3">Địa chỉ</th><th className="px-5 py-3">Số điện thoại</th><th className="px-5 py-3">Kho</th><th className="px-5 py-3">Trạng thái</th><th className="px-5 py-3">Thao tác</th></tr></thead>

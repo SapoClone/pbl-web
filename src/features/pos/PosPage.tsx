@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from "react"
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react"
 import {
   Barcode,
   CheckCircle2,
@@ -164,6 +164,29 @@ export function PosPage() {
   const [receipt, setReceipt] = useState<CompletedReceipt | null>(null)
   const [shiftModalOpen, setShiftModalOpen] = useState(false)
   const [localShift, setLocalShift] = useState<PosShiftApi | null>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return
+
+      if (e.key === "F2") {
+        e.preventDefault()
+        searchInputRef.current?.focus()
+        searchInputRef.current?.select()
+      } else if (e.key === "F4") {
+        e.preventDefault()
+        if (tabs.length < 5) {
+          const nextIndex = tabs.length + 1
+          const newTab = createEmptyTab(nextIndex)
+          setTabs((prev) => [...prev, newTab])
+          setActiveTabId(newTab.id)
+        }
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [tabs.length])
 
   const currentTab = useMemo(
     () => tabs.find((t) => t.id === activeTabId) ?? tabs[0],
@@ -525,17 +548,17 @@ export function PosPage() {
 
   return (
     <main className="mx-auto max-w-[1520px] py-7">
-      <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
+      <header className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <p className="mb-2 text-xs font-bold uppercase tracking-[0.16em] text-[#16866f]">
-            Bán hàng / Tại quầy (POS)
-          </p>
-          <h1 className="text-[32px] font-semibold tracking-[-0.03em] text-[#163d36]">
+          <div className="mb-1.5 inline-flex items-center gap-1.5 rounded-full border border-emerald-200/60 bg-emerald-50/80 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#147853]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#16866f] animate-pulse" />
+            <span>POS Thu Ngân Tại Quầy</span>
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-[#163d36] sm:text-3xl">
             Bán tại quầy
           </h1>
-          <p className="mt-2 text-sm text-slate-500">
-            Tạo đơn bán trực tiếp, lưu tạm nhiều hóa đơn, áp mã giảm giá và in
-            phiếu K80.
+          <p className="mt-1 text-xs text-slate-500 sm:text-sm">
+            Tạo đơn bán trực tiếp, lưu tạm đa đơn hàng, áp mã giảm giá và in phiếu K80.
           </p>
         </div>
 
@@ -543,35 +566,34 @@ export function PosPage() {
           <button
             type="button"
             onClick={() => setShiftModalOpen(true)}
-            className={`inline-flex items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold transition ${
+            className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-semibold transition active:scale-[0.98] ${
               activeShift?.status === "OPEN"
-                ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                : "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100"
+                ? "border-emerald-200/80 bg-emerald-50/90 text-emerald-700 hover:bg-emerald-100 shadow-2xs"
+                : "border-amber-200/80 bg-amber-50/90 text-amber-800 hover:bg-amber-100 shadow-2xs"
             }`}
           >
             <Clock3 size={14} />
             {activeShift?.status === "OPEN"
-              ? `Ca thu ngân: ${activeShift.registerCode || "REG-01"} (Đang mở)`
+              ? `Ca: ${activeShift.registerCode || "REG-01"} (Đang mở)`
               : "Quản lý ca thu ngân"}
           </button>
 
-          <div className="rounded-lg bg-[#e6f5ee] px-3 py-2 text-xs font-semibold text-[#147853]">
-            {products.filter((p) => p.available > 0).length}/{products.length}{" "}
-            SKU còn hàng
+          <div className="rounded-xl border border-emerald-200/60 bg-[#e6f5ee] px-3.5 py-2 text-xs font-semibold text-[#147853] shadow-2xs">
+            {products.filter((p) => p.available > 0).length}/{products.length} SKU còn hàng
           </div>
 
-          <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm shadow-2xs">
+          <div className="flex items-center gap-2 rounded-xl border border-slate-200/80 bg-white/95 px-3.5 py-2 text-xs shadow-2xs">
             <Store size={15} className="text-[#16866f]" />
-            <span className="text-xs text-slate-400">Chi nhánh:</span>
+            <span className="text-slate-400">Chi nhánh:</span>
             {isDemo ? (
-              <b className="text-xs text-[#163d36]">
+              <b className="font-semibold text-[#163d36]">
                 Chi nhánh Trung tâm Quận 1
               </b>
             ) : (
               <select
                 value={selectedBranchId ?? ""}
                 onChange={(event) => setBranchId(event.target.value)}
-                className="bg-transparent text-xs font-semibold text-[#163d36] outline-none"
+                className="bg-transparent font-semibold text-[#163d36] outline-none"
               >
                 {(branchesQuery.data?.data ?? []).map((branch) => (
                   <option key={branch.id} value={branch.id}>
@@ -585,28 +607,28 @@ export function PosPage() {
       </header>
 
       {/* Multi-Tab Hold Bills Bar */}
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-2xs">
-        <div className="flex flex-wrap items-center gap-1.5">
+      <div className="mb-4 flex items-center justify-between gap-3 overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 px-3 py-2.5 shadow-[0_2px_12px_rgba(20,50,45,0.03)] backdrop-blur-sm">
+        <div className="flex flex-1 items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth">
           {tabs.map((t) => {
             const active = t.id === currentTab.id
             const count = t.cart.reduce((s, c) => s + c.quantity, 0)
             return (
               <div
                 key={t.id}
-                className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
+                className={`flex shrink-0 items-center gap-1.5 rounded-xl border px-3.5 py-1.5 text-xs font-medium transition-all duration-200 ${
                   active
-                    ? "border-[#16866f] bg-[#e6f5ee] font-semibold text-[#147853]"
-                    : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
+                    ? "border-[#16866f]/40 bg-[#e6f5ee] font-semibold text-[#147853] shadow-2xs"
+                    : "border-slate-200/70 bg-slate-50/80 text-slate-600 hover:bg-slate-100/80"
                 }`}
               >
                 <button
                   type="button"
                   onClick={() => setActiveTabId(t.id)}
-                  className="flex items-center gap-1.5"
+                  className="flex items-center gap-1.5 whitespace-nowrap"
                 >
                   <span>{t.label}</span>
                   {count > 0 && (
-                    <span className="rounded-full bg-[#16866f] px-1.5 py-0.2 text-[10px] font-bold text-white">
+                    <span className="rounded-full bg-[#16866f] px-1.5 py-0.2 text-[10px] font-bold text-white tabular-nums">
                       {count}
                     </span>
                   )}
@@ -616,7 +638,7 @@ export function PosPage() {
                     type="button"
                     onClick={() => closeHoldTab(t.id)}
                     aria-label={`Đóng ${t.label}`}
-                    className="rounded p-0.5 text-slate-400 hover:bg-white hover:text-red-600"
+                    className="rounded-md p-0.5 text-slate-400 hover:bg-white hover:text-red-600 transition"
                   >
                     <X size={12} />
                   </button>
@@ -627,15 +649,25 @@ export function PosPage() {
           <button
             type="button"
             onClick={addHoldTab}
-            className="inline-flex items-center gap-1 rounded-lg border border-dashed border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:border-[#16866f] hover:text-[#16866f]"
+            className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-dashed border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 whitespace-nowrap transition hover:border-[#16866f] hover:text-[#16866f] hover:bg-emerald-50/40"
           >
             <Plus size={13} /> Lưu tạm / Thêm đơn
           </button>
         </div>
 
-        <span className="text-[11px] text-slate-400">
-          Mẹo: Tối đa 5 đơn lưu tạm để phục vụ nhiều khách cùng lúc
-        </span>
+        <div className="hidden lg:flex shrink-0 items-center gap-2 text-[11px] text-slate-400">
+          <span className="flex items-center gap-1 font-mono">
+            <kbd className="rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">F2</kbd>
+            <span>Tìm SP</span>
+          </span>
+          <span className="text-slate-300">·</span>
+          <span className="flex items-center gap-1 font-mono">
+            <kbd className="rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">F4</kbd>
+            <span>Thêm đơn</span>
+          </span>
+          <span className="text-slate-300">·</span>
+          <span>Tối đa 5 đơn lưu tạm</span>
+        </div>
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[1fr_430px]">
@@ -645,6 +677,7 @@ export function PosPage() {
             <div className="flex flex-1 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-sm text-slate-500 focus-within:border-[#16866f] focus-within:bg-white">
               <Search size={16} className="text-slate-400" />
               <input
+                ref={searchInputRef}
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 onKeyDown={(event) => {
@@ -654,7 +687,7 @@ export function PosPage() {
                     setQuery("")
                   }
                 }}
-                placeholder="Tìm tên sản phẩm, mã SKU hoặc quét mã vạch (Enter để thêm nhanh)..."
+                placeholder="Tìm tên sản phẩm, mã SKU hoặc quét mã vạch (F2 để tìm, Enter thêm nhanh)..."
                 className="w-full bg-transparent text-slate-800 outline-none placeholder:text-slate-400"
               />
               {query && (
@@ -679,11 +712,11 @@ export function PosPage() {
                   key={product.sku}
                   onClick={() => addToCart(product.sku)}
                   disabled={product.available < 1}
-                  className={`group relative flex flex-col justify-between rounded-xl border p-3.5 text-left transition ${
+                  className={`group relative flex flex-col justify-between rounded-2xl border p-4 text-left transition-all duration-200 ${
                     inCartQty > 0
-                      ? "border-[#16866f] bg-[#f4fbf8] shadow-xs"
-                      : "border-slate-200 bg-white hover:border-[#16866f] hover:bg-[#f8fcfb]"
-                  } disabled:cursor-not-allowed disabled:opacity-50`}
+                      ? "border-[#16866f]/50 bg-gradient-to-br from-[#f2faf6] to-white shadow-xs"
+                      : "border-slate-200/80 bg-white hover:border-[#16866f]/40 hover:-translate-y-0.5 hover:shadow-[0_8px_20px_-4px_rgba(20,50,45,0.08)]"
+                  } active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50`}
                 >
                   <div className="flex items-start gap-3">
                     {product.imageUrl ? (
@@ -811,31 +844,31 @@ export function PosPage() {
                           cart: cart.filter((line) => line.sku !== item.sku)
                         })
                       }
-                      className="text-slate-400 hover:text-red-600"
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
                     >
-                      <Trash2 size={15} />
+                      <Trash2 size={14} />
                     </button>
                   </div>
 
-                  <div className="mt-2 flex items-center justify-between pl-12">
+                  <div className="mt-2.5 flex items-center justify-between">
                     <span className="text-xs font-bold text-[#16866f]">
                       {money(item.unitPrice * item.quantity)}
                     </span>
-                    <span className="flex items-center gap-2">
+                    <span className="flex items-center gap-1.5">
                       <button
                         type="button"
                         onClick={() => changeQuantity(item.sku, -1)}
-                        className="rounded-md border border-slate-200 p-1 hover:bg-slate-50"
+                        className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600 transition hover:border-[#16866f]/40 hover:bg-[#e6f5ee] hover:text-[#16866f] active:scale-95"
                       >
                         <Minus size={13} />
                       </button>
-                      <b className="w-6 text-center text-xs tabular-nums">
+                      <b className="w-7 text-center text-xs font-bold tabular-nums text-slate-800">
                         {item.quantity}
                       </b>
                       <button
                         type="button"
                         onClick={() => changeQuantity(item.sku, 1)}
-                        className="rounded-md border border-slate-200 p-1 hover:bg-slate-50"
+                        className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600 transition hover:border-[#16866f]/40 hover:bg-[#e6f5ee] hover:text-[#16866f] active:scale-95"
                       >
                         <Plus size={13} />
                       </button>
@@ -845,14 +878,21 @@ export function PosPage() {
               ))}
 
               {!cart.length && (
-                <div className="flex min-h-48 flex-col items-center justify-center text-center text-slate-400">
-                  <ShoppingCart size={26} />
-                  <p className="mt-2 text-sm font-medium text-slate-500">
+                <div className="flex min-h-60 flex-col items-center justify-center p-6 text-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#e6f5ee] text-[#16866f]">
+                    <ShoppingCart size={22} />
+                  </div>
+                  <p className="mt-3 text-sm font-semibold text-slate-700">
                     Chưa có sản phẩm trong {currentTab.label}
                   </p>
-                  <p className="mt-1 text-xs text-slate-400">
-                    Chọn sản phẩm bên trái hoặc quét mã vạch để thêm vào đơn
+                  <p className="mt-1 max-w-xs text-xs text-slate-400">
+                    Bấm chọn sản phẩm từ danh mục bên trái hoặc dùng máy quét mã vạch (F2) để thêm vào đơn
                   </p>
+                  <div className="mt-4 flex items-center gap-2 text-[11px] text-slate-400">
+                    <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] text-slate-600">F2: Tìm nhanh</span>
+                    <span>•</span>
+                    <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] text-slate-600">F9: Thanh toán</span>
+                  </div>
                 </div>
               )}
             </div>
@@ -1085,15 +1125,15 @@ export function PosPage() {
               </p>
             )}
 
-            <Button
+            <button
               type="submit"
               disabled={orderMutation.isPending || !cart.length}
-              className="mt-3.5 h-11 w-full bg-[#16866f] text-sm font-semibold text-white hover:bg-[#0f705d]"
+              className="mt-3.5 h-12 w-full rounded-xl bg-gradient-to-r from-[#16866f] to-[#126b58] text-sm font-bold text-white shadow-[0_4px_16px_rgba(22,134,111,0.3)] hover:shadow-[0_6px_22px_rgba(22,134,111,0.4)] hover:-translate-y-0.5 active:scale-[0.98] transition-all disabled:cursor-not-allowed disabled:opacity-50 disabled:transform-none disabled:shadow-none"
             >
               {orderMutation.isPending
                 ? "Đang xử lý đơn hàng..."
                 : `Thanh toán và tạo đơn (${money(total)})`}
-            </Button>
+            </button>
           </div>
         </form>
       </div>

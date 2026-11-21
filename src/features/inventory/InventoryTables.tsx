@@ -1,5 +1,6 @@
 import { Check, ClipboardCheck, Eye, PackageCheck, Pencil, Play, RotateCcw, Send, Undo2, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { CopyCodeBadge } from "@/components/ui/micro-ux"
 import type { CatalogVariant } from "@/api/catalog/variants"
 import type { StockIssue, StockLevel, StockReceipt, StockTransfer, Stocktake, Warehouse } from "@/api/inventory/stock"
 
@@ -19,7 +20,7 @@ function Status({ value }: { value: string }) {
 }
 
 export function StockTable({ rows, loading = false }: { rows: StockLevel[]; loading?: boolean }) {
-  return <TableShell empty={rows.length === 0} loading={loading}><table className="w-full min-w-[900px] text-left text-sm"><thead><tr>{["Sản phẩm", "SKU / Barcode", "Tồn thực tế", "Đang giữ", "Khả dụng", "Định mức", "Trạng thái"].map((item) => <th key={item}>{item}</th>)}</tr></thead><tbody>{rows.map((item) => <tr key={`${item.branchId}-${item.variantId}`}><td><b>{item.name ?? "Chưa đồng bộ tên"}</b>{item.variantLabel && <small>{item.variantLabel}</small>}</td><td>{item.sku ?? "—"}<small>{item.barcode ?? "Chưa có barcode"}</small></td><td>{quantity(item.onHand)}</td><td>{quantity(item.reserved)}</td><td className="font-semibold text-[#163d36]">{quantity(item.available)}</td><td>{item.minQuantity === null ? "Chưa đặt" : `Tối thiểu ${quantity(item.minQuantity)}`}</td><td><Status value={item.level === "ok" ? "ACTIVE" : item.level === "below_min" ? "PENDING_APPROVAL" : "INACTIVE"} /></td></tr>)}</tbody></table></TableShell>
+  return <TableShell empty={rows.length === 0} loading={loading}><table className="w-full min-w-[900px] text-left text-sm"><thead><tr>{["Sản phẩm", "SKU / Barcode", "Tồn thực tế", "Đang giữ", "Khả dụng", "Định mức", "Trạng thái"].map((item) => <th key={item}>{item}</th>)}</tr></thead><tbody>{rows.map((item) => <tr key={`${item.branchId}-${item.variantId}`}><td><b>{item.name ?? "Chưa đồng bộ tên"}</b>{item.variantLabel && <small>{item.variantLabel}</small>}</td><td>{item.sku ? <CopyCodeBadge code={item.sku} variant="mono" /> : "—"}{item.barcode && <small>{item.barcode}</small>}</td><td>{quantity(item.onHand)}</td><td>{quantity(item.reserved)}</td><td className="font-semibold text-[#163d36]">{quantity(item.available)}</td><td>{item.minQuantity === null ? "Chưa đặt" : `Tối thiểu ${quantity(item.minQuantity)}`}</td><td><Status value={item.level === "ok" ? "ACTIVE" : item.level === "below_min" ? "PENDING_APPROVAL" : "INACTIVE"} /></td></tr>)}</tbody></table></TableShell>
 }
 
 export function DocumentTable({ type, rows, warehouses, variants, pendingId, loading = false, onAction }: { type: "receipt" | "issue" | "transfer" | "stocktake"; rows: Array<StockReceipt | StockIssue | StockTransfer | Stocktake>; warehouses: Warehouse[]; variants: CatalogVariant[]; pendingId?: string; loading?: boolean; onAction: (action: string, item: StockReceipt | StockIssue | StockTransfer | Stocktake) => void }) {
@@ -49,5 +50,21 @@ export function WarehouseTable({ rows, loading = false, onEdit }: { rows: Wareho
 }
 
 function TableShell({ empty, loading = false, children }: { empty: boolean; loading?: boolean; children: React.ReactNode }) {
-  return <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_3px_15px_rgba(20,50,45,0.04)]"><div className="inventory-table overflow-x-auto">{children}{loading && empty && <div className="space-y-3 p-6">{[1, 2, 3, 4].map((i) => <div key={i} className="h-12 animate-pulse rounded-lg bg-slate-100" />)}</div>}{!loading && empty && <p className="p-12 text-center text-sm text-slate-500">Chưa có dữ liệu.</p>}</div></section>
+  if (loading && empty) {
+    return <div className="space-y-3 p-6 rounded-2xl border border-slate-200/80 bg-white/95 shadow-[0_4px_20px_-4px_rgba(20,50,45,0.04)]">{[1, 2, 3, 4, 5].map((i) => <div key={i} className="h-12 animate-pulse rounded-xl bg-slate-100" />)}</div>
+  }
+  return (
+    <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 shadow-[0_4px_20px_-4px_rgba(20,50,45,0.04)] backdrop-blur-sm">
+      <div className="inventory-table overflow-x-auto no-scrollbar scroll-smooth">
+        {children}
+        {!loading && empty && (
+          <div className="flex flex-col items-center justify-center p-12 text-center text-sm text-slate-400">
+            <PackageCheck size={32} className="mb-2 text-slate-300" />
+            <p className="font-semibold text-slate-600">Chưa có dữ liệu trong phân hệ này</p>
+            <p className="text-xs text-slate-400 mt-1">Dữ liệu phiếu kho hoặc tồn kho sẽ hiển thị tại đây khi phát sinh giao dịch.</p>
+          </div>
+        )}
+      </div>
+    </section>
+  )
 }

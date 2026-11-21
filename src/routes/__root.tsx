@@ -30,14 +30,22 @@ export const Route = rootRouteWithContext<{
 })
 
 function RootComponent() {
+  const showDevtools =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).has("devtools")
+
   return (
     <>
       <Layout>
         <Outlet />
       </Layout>
       <ToastViewport />
-      <ReactQueryDevtools buttonPosition="top-right" />
-      <TanStackRouterDevtools position="bottom-right" />
+      {showDevtools && (
+        <>
+          <ReactQueryDevtools buttonPosition="top-right" />
+          <TanStackRouterDevtools position="bottom-right" />
+        </>
+      )}
     </>
   )
 }

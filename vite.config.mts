@@ -8,7 +8,12 @@ const productionGateway = "https://api.sapo.makeasy.id.vn"
 const gatewayProxy = {
   target: productionGateway,
   changeOrigin: true,
-  secure: true
+  secure: true,
+  bypass: (req: any) => {
+    if (req.headers.accept?.includes("text/html")) {
+      return "/index.html"
+    }
+  }
 }
 
 // https://vitejs.dev/config https://vitest.dev/config

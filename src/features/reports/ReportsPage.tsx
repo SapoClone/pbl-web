@@ -598,22 +598,23 @@ export function ReportsPage({
   return (
     <main className="mx-auto max-w-[1520px] py-7">
       {/* Header */}
-      <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="mb-2 text-xs font-bold uppercase tracking-[0.16em] text-[#16866f]">
-            Insight BI · Phân tích Kinh doanh Đa kênh
-          </p>
-          <h1 className="text-[32px] font-semibold tracking-[-0.03em] text-[#163d36]">
+      <header className="mb-7 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0 flex-1">
+          <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-emerald-200/70 bg-emerald-50/80 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#147853]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#16866f] animate-pulse" />
+            <span>Insight BI · Phân tích Kinh doanh Đa kênh</span>
+          </div>
+          <h1 className="truncate text-2xl font-bold tracking-tight text-[#163d36] sm:text-3xl">
             Báo cáo Điều hành Đa kênh
           </h1>
-          <p className="mt-2 text-sm text-slate-500">
+          <p className="mt-1 text-xs text-slate-500 sm:text-sm">
             Đối chiếu tỷ trọng doanh thu các sàn TMĐT, hiệu suất SKU, giá trị tồn
             kho và biên lợi nhuận gộp thực tế theo thời gian thực.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
-          <span className="rounded-full bg-[#e6f5ee] px-3 py-2 text-xs font-medium text-[#147853]">
+        <div className="flex flex-wrap items-center gap-2.5 sm:shrink-0">
+          <span className="rounded-xl border border-emerald-200/80 bg-[#e6f5ee] px-3 py-2 text-xs font-semibold text-[#147853] shadow-2xs">
             {isDemo
               ? "Dữ liệu phân tích mẫu"
               : "Đồng bộ từ Insight Read-Model"}
@@ -623,25 +624,25 @@ export function ReportsPage({
               type="button"
               variant="outline"
               onClick={() => void handleRefreshAll()}
-              className="gap-2"
+              className="gap-2 rounded-xl border-slate-200/90 text-xs shadow-2xs hover:bg-slate-50"
             >
-              <RefreshCw size={15} />
-              Làm mới
+              <RefreshCw size={14} />
+              <span>Làm mới</span>
             </Button>
           ) : null}
-          <Button
+          <button
             type="button"
             onClick={handleExportCurrentTabCsv}
-            className="gap-2 bg-[#16866f] text-white hover:bg-[#0f705d]"
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#16866f] to-[#126b58] px-4 py-2 text-xs font-semibold text-white shadow-[0_2px_12px_rgba(22,134,111,0.25)] hover:shadow-[0_4px_18px_rgba(22,134,111,0.35)] hover:-translate-y-0.5 active:scale-[0.98] transition-all"
           >
-            <Download size={16} />
-            Xuất CSV tab hiện tại
-          </Button>
+            <Download size={15} />
+            <span>Xuất CSV tab hiện tại</span>
+          </button>
         </div>
       </header>
 
       {/* Global Filter Bar */}
-      <section className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-[0_3px_15px_rgba(20,50,45,0.04)]">
+      <section className="mb-6 rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-[0_4px_20px_-4px_rgba(20,50,45,0.04)] backdrop-blur-sm">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500">
@@ -806,7 +807,15 @@ export function ReportsPage({
                 So sánh đóng góp của POS, Lazada, Shopee và Website.
               </p>
 
-              <div className="mt-4 h-[290px] w-full">
+              <div className="relative mt-4 h-[290px] w-full">
+                <div className="pointer-events-none absolute top-[42%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                    Tổng DT
+                  </p>
+                  <p className="text-sm font-bold tabular-nums text-[#163d36]">
+                    {formatCompactVnd(totalChannelNetRev)}
+                  </p>
+                </div>
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie

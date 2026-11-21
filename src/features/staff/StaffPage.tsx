@@ -13,9 +13,11 @@ import {
   removeMember,
   unlockMember,
   type Member,
-  type MemberStatus
+  type MemberStatus,
+  type MemberSummary
 } from "@/api/platform/members"
 import { listRoles, type Role } from "@/api/platform/roles"
+import { useStoreAuth } from "@/store/zustand/useStoreAuth"
 import { RolesPanel } from "./RolesPanel"
 import { ShiftsPanel } from "./ShiftsPanel"
 
@@ -29,6 +31,124 @@ const roleLabels: Record<string, string> = {
   warehouse_staff: "Nhân viên kho",
   accountant: "Kế toán"
 }
+
+const DEMO_STAFF_BRANCHES = [
+  { id: "branch-q1", name: "Chi nhánh Quận 1 - Flagship" },
+  { id: "branch-tanbinh", name: "Kho Tổng Tân Bình" }
+]
+
+const DEMO_MEMBERS: Member[] = [
+  {
+    accountId: "acc-owner-01",
+    email: "owner@omnichannel-pbl6.vn",
+    name: "Nguyễn Văn An",
+    role: "owner",
+    code: "NV001",
+    status: "active",
+    phone: "0901234567",
+    createdAt: "2026-01-01T00:00:00Z",
+    roleId: "role-owner",
+    roleName: "Chủ cửa hàng",
+    roleCode: "owner",
+    branchIds: [],
+    isOwner: true,
+    lastLoginAt: "2026-03-22T08:30:00Z",
+    isOnShift: true,
+    scheduleLabel: "Toàn thời gian"
+  },
+  {
+    accountId: "acc-mgr-02",
+    email: "bich.tran@omnichannel-pbl6.vn",
+    name: "Trần Thị Bích",
+    role: "branch_manager",
+    code: "NV002",
+    status: "active",
+    phone: "0902345678",
+    createdAt: "2026-01-10T00:00:00Z",
+    roleId: "role-manager",
+    roleName: "Quản lý chi nhánh",
+    roleCode: "branch_manager",
+    branchIds: ["branch-q1"],
+    isOwner: false,
+    lastLoginAt: "2026-03-22T08:15:00Z",
+    isOnShift: true,
+    scheduleLabel: "Ca sáng (08:00 - 16:00)"
+  },
+  {
+    accountId: "acc-sales-03",
+    email: "nam.le@omnichannel-pbl6.vn",
+    name: "Lê Hoàng Nam",
+    role: "sales_staff",
+    code: "NV003",
+    status: "active",
+    phone: "0903456789",
+    createdAt: "2026-02-01T00:00:00Z",
+    roleId: "role-sales",
+    roleName: "Nhân viên bán hàng",
+    roleCode: "sales_staff",
+    branchIds: ["branch-q1"],
+    isOwner: false,
+    lastLoginAt: "2026-03-22T08:45:00Z",
+    isOnShift: true,
+    scheduleLabel: "Ca sáng (08:00 - 16:00)"
+  },
+  {
+    accountId: "acc-wh-04",
+    email: "tuan.pham@omnichannel-pbl6.vn",
+    name: "Phạm Minh Tuấn",
+    role: "warehouse_staff",
+    code: "NV004",
+    status: "active",
+    phone: "0904567890",
+    createdAt: "2026-02-15T00:00:00Z",
+    roleId: "role-warehouse",
+    roleName: "Nhân viên kho",
+    roleCode: "warehouse_staff",
+    branchIds: ["branch-tanbinh"],
+    isOwner: false,
+    lastLoginAt: "2026-03-21T17:00:00Z",
+    isOnShift: false,
+    scheduleLabel: "Ca chiều (14:00 - 22:00)"
+  },
+  {
+    accountId: "acc-acc-05",
+    email: "mai.vu@omnichannel-pbl6.vn",
+    name: "Vũ Thị Mai",
+    role: "accountant",
+    code: "NV005",
+    status: "active",
+    phone: "0905678901",
+    createdAt: "2026-03-01T00:00:00Z",
+    roleId: "role-accountant",
+    roleName: "Kế toán",
+    roleCode: "accountant",
+    branchIds: [],
+    isOwner: false,
+    lastLoginAt: "2026-03-22T08:00:00Z",
+    isOnShift: false,
+    scheduleLabel: "Hành chính"
+  }
+]
+
+const DEMO_SUMMARY: MemberSummary = {
+  total: 5,
+  active: 5,
+  locked: 0,
+  onShift: 3,
+  onShiftByBranch: [
+    { branchId: "branch-q1", branchName: "Chi nhánh Quận 1", count: 2 },
+    { branchId: "branch-tanbinh", branchName: "Kho Tổng Tân Bình", count: 1 }
+  ],
+  defaultRoleCount: 4,
+  dataScope: "ALL"
+}
+
+const DEMO_ROLES: Role[] = [
+  { id: "role-manager", name: "Quản lý chi nhánh", code: "branch_manager", key: "branch_manager", description: "Toàn quyền quản lý doanh thu, kho và nhân sự tại chi nhánh phụ trách", isSeeded: true, isOwner: false, memberCount: 1, permissionCount: 18 },
+  { id: "role-sales", name: "Nhân viên bán hàng", code: "sales_staff", key: "sales_staff", description: "Bán hàng POS, xem đơn hàng và quản lý khách hàng", isSeeded: true, isOwner: false, memberCount: 1, permissionCount: 10 },
+  { id: "role-warehouse", name: "Nhân viên kho", code: "warehouse_staff", key: "warehouse_staff", description: "Nhập, xuất, chuyển và kiểm kê tồn kho", isSeeded: true, isOwner: false, memberCount: 1, permissionCount: 12 },
+  { id: "role-accountant", name: "Kế toán", code: "accountant", key: "accountant", description: "Theo dõi doanh thu, công nợ và báo cáo tài chính", isSeeded: true, isOwner: false, memberCount: 1, permissionCount: 14 }
+]
 
 type StaffTab = "members" | "roles" | "shifts"
 
@@ -66,6 +186,7 @@ export function StaffPage() {
 }
 
 function MembersPanel() {
+  const isDemo = Boolean(useStoreAuth((state) => state.tokens?.isDemo))
   const queryClient = useQueryClient()
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<MemberStatus | "all">("all")
@@ -74,18 +195,21 @@ function MembersPanel() {
   const [email, setEmail] = useState("")
   const [roleId, setRoleId] = useState("")
   const [branchIds, setBranchIds] = useState<string[]>([])
+  const [demoMembers, setDemoMembers] = useState<Member[]>(DEMO_MEMBERS)
   const [error, setError] = useState("")
 
   const membersQuery = useQuery({
     queryKey: ["members", statusFilter],
-    queryFn: () => listMembers(statusFilter === "all" ? undefined : { status: statusFilter })
+    queryFn: () => listMembers(statusFilter === "all" ? undefined : { status: statusFilter }),
+    enabled: !isDemo
   })
   const summaryQuery = useQuery({
     queryKey: ["members-summary"],
-    queryFn: getMemberSummary
+    queryFn: getMemberSummary,
+    enabled: !isDemo
   })
-  const rolesQuery = useQuery({ queryKey: ["roles"], queryFn: listRoles })
-  const branchesQuery = useQuery({ queryKey: ["branches"], queryFn: listBranches })
+  const rolesQuery = useQuery({ queryKey: ["roles"], queryFn: listRoles, enabled: !isDemo })
+  const branchesQuery = useQuery({ queryKey: ["branches"], queryFn: listBranches, enabled: !isDemo })
 
   const invalidateMembers = async () => {
     await Promise.all([
@@ -94,37 +218,99 @@ function MembersPanel() {
     ])
   }
   const addMutation = useMutation({
-    mutationFn: addMember,
+    mutationFn: async (input: { email: string; roleId: string; branchIds: string[] }) => {
+      if (isDemo) {
+        const selectedRole = DEMO_ROLES.find((r) => r.id === input.roleId)
+        const newMember: Member = {
+          accountId: `acc-demo-${Date.now()}`,
+          email: input.email,
+          name: input.email.split("@")[0],
+          role: selectedRole?.code ?? "sales_staff",
+          code: `NV00${demoMembers.length + 1}`,
+          status: "active",
+          phone: null,
+          createdAt: new Date().toISOString(),
+          roleId: input.roleId,
+          roleName: selectedRole?.name ?? "Nhân viên",
+          roleCode: selectedRole?.code ?? "sales_staff",
+          branchIds: input.branchIds,
+          isOwner: false,
+          lastLoginAt: null,
+          isOnShift: false,
+          scheduleLabel: "Toàn thời gian"
+        }
+        setDemoMembers((prev) => [newMember, ...prev])
+        return newMember
+      }
+      return addMember(input)
+    },
     onSuccess: async () => {
       closeForm()
-      await invalidateMembers()
+      if (!isDemo) await invalidateMembers()
     },
     onError: () => setError("Không thể thêm nhân viên. Tài khoản phải đăng ký trước và bạn cần quyền phù hợp.")
   })
   const editMutation = useMutation({
-    mutationFn: ({ accountId, roleId: nextRoleId, branchIds: nextBranchIds }: { accountId: string; roleId: string; branchIds: string[] }) =>
-      changeMemberRole(accountId, { roleId: nextRoleId, branchIds: nextBranchIds }),
+    mutationFn: async ({ accountId, roleId: nextRoleId, branchIds: nextBranchIds }: { accountId: string; roleId: string; branchIds: string[] }) => {
+      if (isDemo) {
+        const selectedRole = DEMO_ROLES.find((r) => r.id === nextRoleId)
+        setDemoMembers((prev) =>
+          prev.map((m) =>
+            m.accountId === accountId
+              ? {
+                  ...m,
+                  roleId: nextRoleId,
+                  roleName: selectedRole?.name ?? m.roleName,
+                  roleCode: selectedRole?.code ?? m.roleCode,
+                  branchIds: nextBranchIds
+                }
+              : m
+          )
+        )
+        return
+      }
+      return changeMemberRole(accountId, { roleId: nextRoleId, branchIds: nextBranchIds })
+    },
     onSuccess: async () => {
       closeForm()
-      await invalidateMembers()
+      if (!isDemo) await invalidateMembers()
     },
     onError: () => setError("Không thể cập nhật vai trò hoặc phạm vi chi nhánh.")
   })
   const statusMutation = useMutation({
-    mutationFn: ({ accountId, status }: { accountId: string; status: MemberStatus }) =>
-      status === "locked" ? lockMember(accountId) : unlockMember(accountId),
-    onSuccess: invalidateMembers,
+    mutationFn: async ({ accountId, status }: { accountId: string; status: MemberStatus }) => {
+      if (isDemo) {
+        setDemoMembers((prev) =>
+          prev.map((m) => (m.accountId === accountId ? { ...m, status } : m))
+        )
+        return
+      }
+      return status === "locked" ? lockMember(accountId) : unlockMember(accountId)
+    },
+    onSuccess: () => !isDemo && invalidateMembers(),
     onError: () => setError("Không thể thay đổi trạng thái nhân viên.")
   })
   const removeMutation = useMutation({
-    mutationFn: removeMember,
-    onSuccess: invalidateMembers,
+    mutationFn: async (accountId: string) => {
+      if (isDemo) {
+        setDemoMembers((prev) => prev.filter((m) => m.accountId !== accountId))
+        return
+      }
+      return removeMember(accountId)
+    },
+    onSuccess: () => !isDemo && invalidateMembers(),
     onError: () => setError("Không thể xóa nhân viên. Không thể xóa chủ cửa hàng hoặc tài khoản hiện tại.")
   })
 
-  const members = useMemo(() => membersQuery.data ?? [], [membersQuery.data])
-  const roles = (rolesQuery.data ?? []).filter((role) => !role.isOwner)
-  const branches = branchesQuery.data?.data ?? []
+  const rawMembers = isDemo || membersQuery.isError ? demoMembers : membersQuery.data ?? []
+  const members = useMemo(() => {
+    if (statusFilter === "all") return rawMembers
+    return rawMembers.filter((m) => m.status === statusFilter)
+  }, [rawMembers, statusFilter])
+
+  const roles = isDemo || rolesQuery.isError ? DEMO_ROLES : (rolesQuery.data ?? []).filter((role) => !role.isOwner)
+  const branches: Array<{ id: string; name: string }> = isDemo || branchesQuery.isError ? DEMO_STAFF_BRANCHES : (branchesQuery.data?.data ?? [])
+  const summary = isDemo || summaryQuery.isError ? DEMO_SUMMARY : summaryQuery.data
   const filteredMembers = useMemo(
     () => members.filter((member) =>
       `${member.name} ${member.email} ${member.code} ${member.roleName}`.toLowerCase().includes(search.toLowerCase())
@@ -192,13 +378,13 @@ function MembersPanel() {
       </header>
 
       <div className="mb-5 grid gap-4 md:grid-cols-4">
-        <Summary label="Tổng thành viên" value={summaryQuery.data?.total ?? members.length} />
-        <Summary label="Đang hoạt động" value={summaryQuery.data?.active ?? 0} />
-        <Summary label="Đang khóa" value={summaryQuery.data?.locked ?? 0} />
-        <Summary label="Đang làm việc" value={summaryQuery.data?.onShift ?? 0} />
+        <Summary label="Tổng thành viên" value={summary?.total ?? members.length} />
+        <Summary label="Đang hoạt động" value={summary?.active ?? members.filter((m) => m.status === "active").length} />
+        <Summary label="Đang khóa" value={summary?.locked ?? members.filter((m) => m.status === "locked").length} />
+        <Summary label="Đang làm việc" value={summary?.onShift ?? 0} />
       </div>
 
-      {membersQuery.isError && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">Không thể tải danh sách thành viên.</p>}
+      {membersQuery.isError && !isDemo && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">Không thể tải danh sách thành viên.</p>}
       {error && !showForm && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</p>}
 
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -252,7 +438,7 @@ function MembersPanel() {
             <div className="grid gap-4 p-6">
               {!editingMember && <label className="text-xs font-medium text-slate-600">Email tài khoản<input required type="email" className={`${inputClass} mt-2`} value={email} onChange={(event) => setEmail(event.target.value)} placeholder="nhanvien@example.com" /></label>}
               <label className="text-xs font-medium text-slate-600">Vai trò<select required className={`${inputClass} mt-2`} value={roleId} onChange={(event) => setRoleId(event.target.value)}><option value="" disabled>Chọn vai trò</option>{roles.map((role: Role) => <option key={role.id} value={role.id}>{role.name} ({role.permissionCount} quyền)</option>)}</select></label>
-              <fieldset><legend className="text-xs font-medium text-slate-600">Phạm vi chi nhánh <span className="font-normal text-slate-400">(bỏ chọn tất cả để áp dụng mọi chi nhánh)</span></legend><div className="mt-2 grid gap-2 sm:grid-cols-2">{branches.map((branch) => <label key={branch.id} className="flex items-center gap-2 rounded-lg border border-slate-200 p-2 text-sm text-slate-600"><input type="checkbox" checked={branchIds.includes(branch.id)} onChange={(event) => setBranchIds((current) => event.target.checked ? [...current, branch.id] : current.filter((id) => id !== branch.id))} />{branch.name}</label>)}</div></fieldset>
+              <fieldset><legend className="text-xs font-medium text-slate-600">Phạm vi chi nhánh <span className="font-normal text-slate-400">(bỏ chọn tất cả để áp dụng mọi chi nhánh)</span></legend><div className="mt-2 grid gap-2 sm:grid-cols-2">{branches.map((branch: { id: string; name: string }) => <label key={branch.id} className="flex items-center gap-2 rounded-lg border border-slate-200 p-2 text-sm text-slate-600"><input type="checkbox" checked={branchIds.includes(branch.id)} onChange={(event) => setBranchIds((current) => event.target.checked ? [...current, branch.id] : current.filter((id) => id !== branch.id))} />{branch.name}</label>)}</div></fieldset>
               {error && <p className="text-sm text-red-600">{error}</p>}
             </div>
             <div className="flex justify-end gap-2 border-t border-slate-100 px-6 py-4"><Button type="button" variant="outline" onClick={closeForm} disabled={isSaving}>Hủy</Button><Button type="submit" disabled={isSaving || rolesQuery.isLoading} className="bg-[#16866f] text-white hover:bg-[#0f705d]">{isSaving ? "Đang lưu..." : editingMember ? "Lưu thay đổi" : "Thêm nhân viên"}</Button></div>

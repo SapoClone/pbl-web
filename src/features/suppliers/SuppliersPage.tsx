@@ -8,6 +8,7 @@ import {
   Pencil,
   Plus,
   Search,
+  Sparkles,
   Trash2,
   Truck,
   X
@@ -33,11 +34,113 @@ import {
   receivePurchaseOrder,
   updateSupplier,
   type PurchaseOrder,
+  type PurchaseOrderSummary,
   type Supplier
 } from "@/api/inventory/procurement"
 import { DashboardHeader } from "@/shared/dashboard/DashboardHeader"
 import { useStoreAuth } from "@/store/zustand/useStoreAuth"
 
+const DEMO_SUPPLIERS: Supplier[] = [
+  {
+    id: "sup-01",
+    code: "NCC-TANPHU",
+    name: "Xưởng Dệt May & Thời Trang Tân Phú",
+    phone: "02838491234",
+    email: "contact@tanphutextile.vn",
+    address: "128 Lũy Bán Bích, Tân Phú, TP. HCM",
+    taxCode: "0312345678",
+    note: "Nhà cung cấp áo thun compact & quần jeans chất lượng cao",
+    status: "ACTIVE",
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z"
+  },
+  {
+    id: "sup-02",
+    code: "NCC-SGTECH",
+    name: "Công Ty TNHH Phụ Kiện Công Nghệ Sài Gòn",
+    phone: "0908881234",
+    email: "sales@sgtech.com.vn",
+    address: "45 Võ Văn Tần, Quận 3, TP. HCM",
+    taxCode: "0318765432",
+    note: "Đại lý phân phối bàn phím cơ, tai nghe chính hãng",
+    status: "ACTIVE",
+    createdAt: "2026-01-05T00:00:00Z",
+    updatedAt: "2026-01-05T00:00:00Z"
+  },
+  {
+    id: "sup-03",
+    code: "NCC-ANKHANG",
+    name: "Nhà Phân Phối Gia Dụng Thông Minh An Khang",
+    phone: "0912334455",
+    email: "ankhang@giadung.vn",
+    address: "210 Lê Văn Lương, Nhà Bè, TP. HCM",
+    taxCode: "0319988776",
+    note: "Chuyên bình giữ nhiệt Inox 316 và phụ kiện nhà bếp",
+    status: "ACTIVE",
+    createdAt: "2026-02-01T00:00:00Z",
+    updatedAt: "2026-02-01T00:00:00Z"
+  }
+]
+
+const DEMO_PURCHASE_ORDERS: PurchaseOrder[] = [
+  {
+    id: "po-01",
+    code: "PO-2026-001",
+    supplierId: "sup-01",
+    warehouseId: "wh-tanbinh",
+    status: "RECEIVED",
+    totalAmount: 45000000,
+    expectedDate: "2026-03-10",
+    note: "Nhập lô áo thun hè đợt 1",
+    approvedAt: "2026-03-02T10:00:00Z",
+    createdAt: "2026-03-01T08:00:00Z",
+    updatedAt: "2026-03-10T14:30:00Z",
+    items: [
+      { id: "line-01", lineNo: 1, skuId: "var-01", orderedQty: "200", receivedQty: "200", remainingQty: "0", unitCost: 150000, unitName: "Cái", conversionFactor: "1" }
+    ]
+  },
+  {
+    id: "po-02",
+    code: "PO-2026-002",
+    supplierId: "sup-02",
+    warehouseId: "wh-tanbinh",
+    status: "APPROVED",
+    totalAmount: 82500000,
+    expectedDate: "2026-03-25",
+    note: "Bàn phím cơ & tai nghe ANC về kho",
+    approvedAt: "2026-03-18T09:00:00Z",
+    createdAt: "2026-03-17T14:00:00Z",
+    updatedAt: "2026-03-18T09:00:00Z",
+    items: [
+      { id: "line-02", lineNo: 1, skuId: "var-03", orderedQty: "50", receivedQty: "0", remainingQty: "50", unitCost: 1100000, unitName: "Cái", conversionFactor: "1" },
+      { id: "line-03", lineNo: 2, skuId: "var-04", orderedQty: "25", receivedQty: "0", remainingQty: "25", unitCost: 1100000, unitName: "Cái", conversionFactor: "1" }
+    ]
+  },
+  {
+    id: "po-03",
+    code: "PO-2026-003",
+    supplierId: "sup-03",
+    warehouseId: "wh-q1",
+    status: "DRAFT",
+    totalAmount: 18200000,
+    expectedDate: "2026-03-28",
+    note: "Bổ sung cốc giữ nhiệt cho chi nhánh Q1",
+    approvedAt: null,
+    createdAt: "2026-03-20T11:00:00Z",
+    updatedAt: "2026-03-20T11:00:00Z",
+    items: [
+      { id: "line-04", lineNo: 1, skuId: "var-05", orderedQty: "100", receivedQty: "0", remainingQty: "100", unitCost: 182000, unitName: "Cái", conversionFactor: "1" }
+    ]
+  }
+]
+
+const DEMO_PURCHASE_SUMMARY: PurchaseOrderSummary = {
+  openCount: 2,
+  partiallyReceivedCount: 0,
+  awaitingDeliveryCount: 1,
+  dueThisWeekCount: 1,
+  payableAmount: 100700000
+}
 const input =
   "mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-[#16866f] focus:ring-4 focus:ring-[#16866f]/10"
 const money = (v: number) => `${v.toLocaleString("vi-VN")} ₫`
@@ -168,10 +271,14 @@ export function SuppliersPage() {
     onError: (e) => setError(apiError(e))
   })
 
+  const supplierList = demo ? DEMO_SUPPLIERS : suppliers.data ?? []
+  const purchaseList = demo ? DEMO_PURCHASE_ORDERS : purchases.data ?? []
+  const summaryData = demo ? DEMO_PURCHASE_SUMMARY : purchaseSummary.data
+
   const pos = useMemo(() => {
-    const raw = purchases.data ?? []
+    const raw = purchaseList
     const supplierMap = new Map(
-      (suppliers.data ?? []).map((s) => [s.id, s.name])
+      supplierList.map((s) => [s.id, s.name])
     )
     return raw.filter((po) => {
       const matchesStatus =
@@ -185,7 +292,7 @@ export function SuppliersPage() {
           .includes(search.toLowerCase())
       return matchesStatus && matchesSearch
     })
-  }, [poStatusFilter, purchases.data, search, suppliers.data, tab])
+  }, [purchaseList, poStatusFilter, search, supplierList, tab])
 
   const exportOrders = async () => {
     try {
@@ -202,10 +309,13 @@ export function SuppliersPage() {
     <main className="mx-auto max-w-[1480px] py-7">
       <DashboardHeader section="suppliers" />
       {demo && (
-        <p className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
-          Tài khoản demo không gọi API mua hàng. Đăng nhập tài khoản hệ thống để
-          tạo đơn mua & nhập kho.
-        </p>
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#16866f]/20 bg-[#e6f5ee]/40 px-4 py-3 text-xs text-[#163d36]">
+          <span className="flex items-center gap-2">
+            <Sparkles size={16} className="text-[#16866f]" />
+            <span>Đang hiển thị danh bạ nhà cung cấp & đơn mua hàng mẫu thực tế. Bạn có thể xem chi tiết đơn mua, phiếu nhập và danh bạ nhà cung ứng.</span>
+          </span>
+          <span className="rounded-md bg-[#16866f]/10 px-2.5 py-1 font-semibold text-[#16866f]">Trải nghiệm Demo</span>
+        </div>
       )}
       <div className="mb-5 flex flex-wrap justify-end gap-2">
         <Button variant="outline" disabled={demo} onClick={exportOrders}>
@@ -232,28 +342,28 @@ export function SuppliersPage() {
           label="Nhà cung cấp"
           value={
             supplierDirectory.data?.pagination.totalRecords ??
-            (suppliers.data?.length ?? 0)
+            supplierList.length
           }
         />
         <Card
           label="Đơn đang mở"
           value={
-            purchaseSummary.data?.openCount ??
+            summaryData?.openCount ??
             purchaseDirectory.data?.pagination.totalRecords ??
             0
           }
         />
         <Card
           label="Chờ giao"
-          value={purchaseSummary.data?.awaitingDeliveryCount ?? 0}
+          value={summaryData?.awaitingDeliveryCount ?? 0}
         />
         <Card
           label="Nhận một phần"
-          value={purchaseSummary.data?.partiallyReceivedCount ?? 0}
+          value={summaryData?.partiallyReceivedCount ?? 0}
         />
         <Card
           label="Giá trị phải trả"
-          value={money(purchaseSummary.data?.payableAmount ?? 0)}
+          value={money(summaryData?.payableAmount ?? 0)}
         />
       </div>
 
@@ -313,7 +423,15 @@ export function SuppliersPage() {
 
         {tab === "suppliers" ? (
           <SupplierRows
-            rows={suppliers.data ?? []}
+            rows={
+              demo && search
+                ? supplierList.filter((s) =>
+                    `${s.code} ${s.name}`
+                      .toLowerCase()
+                      .includes(search.toLowerCase())
+                  )
+                : supplierList
+            }
             pending={action.isPending}
             detail={(x) => setDetail({ type: "supplier", id: x.id })}
             edit={setSupplierForm}
@@ -322,7 +440,7 @@ export function SuppliersPage() {
         ) : (
           <PurchaseRows
             rows={pos}
-            suppliers={suppliers.data ?? []}
+            suppliers={supplierList}
             warehouses={warehouses.data ?? []}
             pending={action.isPending}
             detail={(x) => setDetail({ type: "purchase", id: x.id })}
