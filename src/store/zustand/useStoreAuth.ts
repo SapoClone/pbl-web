@@ -10,6 +10,9 @@ type AuthState = {
 }
 
 const readStoredTokens = (): AuthTokens | null => {
+  if (typeof localStorage === "undefined" || typeof localStorage?.getItem !== "function") {
+    return null
+  }
   const stored = localStorage.getItem(AUTH_STORAGE_KEY)
   if (!stored) return null
 
@@ -24,11 +27,15 @@ const readStoredTokens = (): AuthTokens | null => {
 export const useStoreAuth = create<AuthState>((set) => ({
   tokens: readStoredTokens(),
   setTokens: (tokens) => {
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(tokens))
+    if (typeof localStorage !== "undefined" && typeof localStorage?.setItem === "function") {
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(tokens))
+    }
     set({ tokens })
   },
   clearTokens: () => {
-    localStorage.removeItem(AUTH_STORAGE_KEY)
+    if (typeof localStorage !== "undefined" && typeof localStorage?.removeItem === "function") {
+      localStorage.removeItem(AUTH_STORAGE_KEY)
+    }
     set({ tokens: null })
   }
 }))

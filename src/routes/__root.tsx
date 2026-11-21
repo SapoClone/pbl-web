@@ -3,6 +3,7 @@ import { TanStackRouterDevtools } from "@tanstack/router-devtools"
 import { QueryClient } from "@tanstack/react-query"
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
 import { Layout } from "@/components/layout"
+import { ToastViewport } from "@/components/ui/toast"
 import { useStoreAuth } from "@/store/zustand/useStoreAuth"
 
 const publicPaths = ["/login", "/register", "/forgot-password"]
@@ -34,6 +35,7 @@ function RootComponent() {
       <Layout>
         <Outlet />
       </Layout>
+      <ToastViewport />
       <ReactQueryDevtools buttonPosition="top-right" />
       <TanStackRouterDevtools position="bottom-right" />
     </>
