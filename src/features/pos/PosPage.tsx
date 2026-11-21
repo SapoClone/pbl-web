@@ -878,14 +878,21 @@ export function PosPage() {
               ))}
 
               {!cart.length && (
-                <div className="flex min-h-48 flex-col items-center justify-center text-center text-slate-400">
-                  <ShoppingCart size={26} />
-                  <p className="mt-2 text-sm font-medium text-slate-500">
+                <div className="flex min-h-60 flex-col items-center justify-center p-6 text-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#e6f5ee] text-[#16866f]">
+                    <ShoppingCart size={22} />
+                  </div>
+                  <p className="mt-3 text-sm font-semibold text-slate-700">
                     Chưa có sản phẩm trong {currentTab.label}
                   </p>
-                  <p className="mt-1 text-xs text-slate-400">
-                    Chọn sản phẩm bên trái hoặc quét mã vạch để thêm vào đơn
+                  <p className="mt-1 max-w-xs text-xs text-slate-400">
+                    Bấm chọn sản phẩm từ danh mục bên trái hoặc dùng máy quét mã vạch (F2) để thêm vào đơn
                   </p>
+                  <div className="mt-4 flex items-center gap-2 text-[11px] text-slate-400">
+                    <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] text-slate-600">F2: Tìm nhanh</span>
+                    <span>•</span>
+                    <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] text-slate-600">F9: Thanh toán</span>
+                  </div>
                 </div>
               )}
             </div>
