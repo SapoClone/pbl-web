@@ -97,5 +97,14 @@ export const navigation: NavigationItem[] = [
     ]
   },
   { label: "Nhập hàng & NCC", icon: Truck, to: "/suppliers" },
-  { label: "Nhân viên & Quyền", icon: ShieldCheck, to: "/staff" }
+  {
+    label: "Nhân viên & Quyền",
+    icon: ShieldCheck,
+    to: "/staff",
+    children: [
+      { label: "Nhân viên", tab: "members" },
+      { label: "Vai trò & phân quyền", tab: "roles" },
+      { label: "Ca làm việc", tab: "shifts" }
+    ]
+  }
 ]
