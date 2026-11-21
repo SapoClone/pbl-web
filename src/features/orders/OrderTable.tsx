@@ -779,7 +779,7 @@ export function OrderTable({ compact = false }: { compact?: boolean }) {
                 <td className="px-4 py-3.5">
                   <div className="font-semibold text-[#163d36]">{order.id}</div>
                   {order.externalOrderCode && (
-                    <span className="font-mono text-[11px] text-[#1a71ff]">
+                    <span className="font-mono text-[11px] text-[#16866f]">
                       {order.externalOrderCode}
                     </span>
                   )}
@@ -831,8 +831,8 @@ export function OrderTable({ compact = false }: { compact?: boolean }) {
       )}
 
       {/* Top Filter & Search Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-3.5">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-[0_4px_20px_-4px_rgba(20,50,45,0.04)] backdrop-blur-sm lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth">
           {[
             { id: "all", label: `Tất cả (${rows.length})` },
             {
@@ -856,12 +856,14 @@ export function OrderTable({ compact = false }: { compact?: boolean }) {
               key={tab.id}
               type="button"
               onClick={() => setChannel(tab.id)}
-              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+              className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap transition-all duration-200 ${
                 channel === tab.id
                   ? tab.id === "Lazada"
                     ? "bg-[#0f146d] text-white shadow-xs"
-                    : "bg-[#1a71ff] text-white shadow-xs"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    : tab.id === "Shopee"
+                      ? "bg-[#ee4d2d] text-white shadow-xs"
+                      : "bg-gradient-to-r from-[#16866f] to-[#126b58] text-white shadow-[0_2px_10px_rgba(22,134,111,0.25)]"
+                  : "bg-slate-100/80 text-slate-600 hover:bg-slate-200/70"
               }`}
             >
               {tab.label}
@@ -869,21 +871,21 @@ export function OrderTable({ compact = false }: { compact?: boolean }) {
           ))}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-1.5 text-xs text-slate-500 focus-within:border-[#1a71ff] focus-within:bg-white">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <label className="flex flex-1 sm:w-72 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-1.5 text-xs text-slate-500 focus-within:border-[#16866f] focus-within:bg-white transition">
             <Search size={14} className="text-slate-400" />
             <input
               value={queryText}
               onChange={(event) => setQueryText(event.target.value)}
-              placeholder="Tìm số đơn hàng Lazada, tên KH, SKU sản phẩm..."
-              className="w-64 bg-transparent text-slate-700 outline-none placeholder:text-slate-400"
+              placeholder="Tìm số đơn, mã sàn, tên KH, SKU..."
+              className="w-full bg-transparent text-slate-700 outline-none placeholder:text-slate-400 text-xs"
             />
           </label>
           <select
             aria-label="Lọc trạng thái đơn hàng"
             value={status}
             onChange={(event) => setStatus(event.target.value)}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 outline-none"
+            className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-[#16866f]"
           >
             <option value="all">Tất cả trạng thái</option>
             <option value="Đang xử lý">Chờ xử lý / Đóng gói</option>
@@ -907,8 +909,8 @@ export function OrderTable({ compact = false }: { compact?: boolean }) {
         </div>
       </div>
 
-      {/* Lazada Seller Center Bulk Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-3 text-xs">
+      {/* Bulk Action & Summary Toolbar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white/95 px-5 py-3 text-xs shadow-2xs">
         <div className="flex flex-wrap items-center gap-2.5">
           <label className="flex cursor-pointer items-center gap-2 font-medium text-slate-700">
             <input
@@ -918,10 +920,10 @@ export function OrderTable({ compact = false }: { compact?: boolean }) {
                 selectedOrderIds.length === filtered.length
               }
               onChange={toggleSelectAll}
-              className="h-4 w-4 rounded border-slate-300 accent-[#1a71ff]"
+              className="h-4 w-4 rounded border-slate-300 accent-[#16866f]"
             />
-            <span>
-              Page 1, 1 - {filtered.length} of {rows.length} items
+            <span className="font-semibold text-slate-700">
+              Hiển thị 1 - {filtered.length} trên tổng {rows.length} đơn hàng
             </span>
           </label>
 
@@ -933,10 +935,10 @@ export function OrderTable({ compact = false }: { compact?: boolean }) {
                 filtered[0]
               if (target) setPackingOrder(target)
             }}
-            className={`rounded-lg px-3 py-1.5 font-medium transition ${
+            className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all ${
               selectedOrderIds.length > 0
-                ? "bg-[#1a71ff] text-white shadow-xs hover:bg-[#125de0]"
-                : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                ? "bg-gradient-to-r from-[#16866f] to-[#126b58] text-white shadow-[0_2px_10px_rgba(22,134,111,0.25)] hover:shadow-md hover:-translate-y-0.5"
+                : "bg-slate-100 text-slate-400 cursor-not-allowed"
             }`}
           >
             Đóng gói & In{" "}
@@ -1016,14 +1018,14 @@ export function OrderTable({ compact = false }: { compact?: boolean }) {
               className="overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-[0_2px_10px_rgba(15,20,109,0.04)] transition hover:border-[#1a71ff]/40"
             >
               {/* Card Top Header Bar */}
-              <header className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-[#fcfdfe] px-4 py-2.5 text-xs">
+              <header className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-gradient-to-r from-slate-50/70 to-white px-4 py-2.5 text-xs">
                 <div className="flex flex-wrap items-center gap-2.5">
                   <input
                     type="checkbox"
                     checked={isSelected}
                     onChange={() => toggleSelectOrder(order.id)}
                     aria-label={`Chọn đơn hàng ${order.id}`}
-                    className="h-4 w-4 rounded border-slate-300 accent-[#1a71ff]"
+                    className="h-4 w-4 rounded border-slate-300 accent-[#16866f]"
                   />
                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-200/80 text-slate-600">
                     <UserRound size={13} />
@@ -1031,15 +1033,15 @@ export function OrderTable({ compact = false }: { compact?: boolean }) {
                   <button
                     type="button"
                     onClick={() => void handleSelectOrder(order)}
-                    className="font-semibold text-[#1a71ff] hover:underline"
+                    className="font-semibold text-[#163d36] hover:text-[#16866f] transition"
                   >
                     {order.customer}
                   </button>
                   <MessageCircleMore
                     size={15}
-                    className="cursor-pointer text-[#1a71ff]"
+                    className="cursor-pointer text-[#16866f]"
                   />
-                  <span className="font-medium text-slate-700">
+                  <span className="font-medium text-slate-500">
                     ({order.itemCount ?? items.length} Sản phẩm)
                   </span>
                   <span
@@ -1051,7 +1053,7 @@ export function OrderTable({ compact = false }: { compact?: boolean }) {
                     {order.channel}
                   </span>
                   {order.externalOrderCode && (
-                    <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] text-slate-500">
+                    <span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] text-slate-500">
                       Nội bộ: {order.id}
                     </span>
                   )}
@@ -1067,7 +1069,7 @@ export function OrderTable({ compact = false }: { compact?: boolean }) {
                     <button
                       type="button"
                       onClick={() => void handleSelectOrder(order)}
-                      className="font-mono font-semibold text-[#1a71ff] hover:underline"
+                      className="font-mono font-semibold text-[#16866f] hover:underline"
                     >
                       {displayOrderNumber}
                     </button>
@@ -1075,7 +1077,7 @@ export function OrderTable({ compact = false }: { compact?: boolean }) {
                       type="button"
                       onClick={() => copyOrderCode(displayOrderNumber)}
                       title="Sao chép số đơn hàng"
-                      className="rounded p-0.5 text-[#1a71ff] hover:bg-blue-50"
+                      className="rounded p-0.5 text-slate-400 hover:text-[#16866f] transition"
                     >
                       <Copy size={12} />
                     </button>
@@ -1089,7 +1091,7 @@ export function OrderTable({ compact = false }: { compact?: boolean }) {
                   <button
                     type="button"
                     onClick={() => void handleSelectOrder(order)}
-                    className="inline-flex items-center gap-1 text-slate-500 hover:text-slate-800"
+                    className="inline-flex items-center gap-1 text-slate-500 hover:text-slate-800 transition"
                   >
                     <span>
                       Thời gian tạo:{" "}
@@ -1110,12 +1112,6 @@ export function OrderTable({ compact = false }: { compact?: boolean }) {
                       className="flex items-start justify-between gap-3"
                     >
                       <div className="flex min-w-0 items-start gap-3">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleSelectOrder(order.id)}
-                          className="mt-4 h-4 w-4 shrink-0 rounded border-slate-300 accent-[#1a71ff]"
-                        />
                         <img
                           src={
                             item.imageUrl ||
@@ -1123,7 +1119,7 @@ export function OrderTable({ compact = false }: { compact?: boolean }) {
                             DEFAULT_FASHION_THUMBNAILS[0]
                           }
                           alt={item.name}
-                          className="h-14 w-14 shrink-0 rounded-md border border-slate-200 bg-slate-50 object-cover"
+                          className="h-14 w-14 shrink-0 rounded-xl border border-slate-200/80 bg-slate-50 object-cover shadow-2xs"
                         />
                         <div className="min-w-0">
                           <p className="line-clamp-2 text-xs font-semibold leading-snug text-slate-800">
@@ -1144,7 +1140,7 @@ export function OrderTable({ compact = false }: { compact?: boolean }) {
                                 [order.id]: !prev[order.id]
                               }))
                             }
-                            className="mt-1 inline-flex items-center gap-0.5 text-[11px] font-medium text-slate-700 hover:text-[#1a71ff]"
+                            className="mt-1 inline-flex items-center gap-0.5 text-[11px] font-medium text-slate-600 hover:text-[#16866f]"
                           >
                             {items.length > 2
                               ? isExpanded
@@ -1164,7 +1160,7 @@ export function OrderTable({ compact = false }: { compact?: boolean }) {
                           {item.unitPrice.toLocaleString("vi-VN")}{" "}
                           <span className="underline">₫</span>
                         </div>
-                        <div className="mt-0.5 text-sm font-bold text-[#1a71ff]">
+                        <div className="mt-0.5 text-sm font-bold text-[#16866f]">
                           × {item.quantity}
                         </div>
                       </div>
@@ -1174,10 +1170,14 @@ export function OrderTable({ compact = false }: { compact?: boolean }) {
 
                 {/* Column 2: Tổng cộng */}
                 <div className="col-span-6 sm:col-span-3 lg:col-span-2">
-                  <div className="text-xs font-semibold text-slate-800">
+                  <div className="text-xs font-bold text-slate-800 tabular-nums">
                     {order.total}
                   </div>
-                  <span className="mt-1.5 inline-block rounded border border-blue-200 bg-blue-50/40 px-2 py-0.5 text-[11px] font-medium text-[#1a71ff]">
+                  <span className={`mt-1.5 inline-block rounded-md border px-2 py-0.5 text-[11px] font-medium ${
+                    order.paymentMethod === "MARKETPLACE" || order.paymentMethod === "card"
+                      ? "border-emerald-200/80 bg-emerald-50 text-emerald-800"
+                      : "border-amber-200/80 bg-amber-50 text-amber-800"
+                  }`}>
                     {order.paymentMethod === "MARKETPLACE"
                       ? "Ví Sàn / Đã TT"
                       : order.paymentMethod || "COD"}
@@ -1213,7 +1213,7 @@ export function OrderTable({ compact = false }: { compact?: boolean }) {
                         : "Cảnh báo tồn kho"}
                     </span>
                   ) : (
-                    <span className="mt-1 inline-block rounded bg-[#e8f3ff] px-2 py-0.5 text-[10px] font-medium text-[#1a71ff]">
+                    <span className="mt-1 inline-block rounded-md bg-[#e6f5ee] px-2 py-0.5 text-[10px] font-semibold text-[#147853]">
                       {order.status === "Đã giao"
                         ? "Đã đối soát giao thành công"
                         : "Bàn giao cho đvvc để không bị hủy"}
@@ -1246,7 +1246,7 @@ export function OrderTable({ compact = false }: { compact?: boolean }) {
                   <button
                     type="button"
                     onClick={() => setPackingOrder(order)}
-                    className="w-full max-w-[122px] rounded-lg bg-[#1a71ff] px-3 py-1.5 text-center text-xs font-semibold text-white shadow-xs transition hover:bg-[#125de0]"
+                    className="w-full max-w-[122px] rounded-xl bg-gradient-to-r from-[#16866f] to-[#126b58] px-3 py-1.5 text-center text-xs font-semibold text-white shadow-xs hover:shadow hover:-translate-y-0.5 active:scale-95 transition-all"
                   >
                     Đóng gói & In
                   </button>
@@ -1468,7 +1468,7 @@ function LazadaPackAndPrintModal({
               <select
                 value={carrierCode}
                 onChange={(e) => setCarrierCode(e.target.value)}
-                className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 outline-none focus:border-[#1a71ff]"
+                className="mt-1 h-9 w-full rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 outline-none focus:border-[#16866f]"
               >
                 <option value="lex_vn">LEX VN (Lazada Express)</option>
                 <option value="ghn">Giao Hàng Nhanh (GHN)</option>
@@ -1482,7 +1482,7 @@ function LazadaPackAndPrintModal({
               <input
                 value={trackingCode}
                 onChange={(e) => setTrackingCode(e.target.value.toUpperCase())}
-                className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 font-mono text-xs font-semibold text-slate-800 outline-none focus:border-[#1a71ff]"
+                className="mt-1 h-9 w-full rounded-xl border border-slate-200 bg-white px-2.5 font-mono text-xs font-semibold text-slate-800 outline-none focus:border-[#16866f]"
               />
             </label>
           </div>
@@ -1537,7 +1537,7 @@ function LazadaPackAndPrintModal({
                     <span className="truncate pr-2">
                       {it.name} ({it.sku})
                     </span>
-                    <span className="font-bold text-[#1a71ff]">
+                    <span className="font-bold text-[#16866f]">
                       × {it.quantity}
                     </span>
                   </div>
@@ -1546,7 +1546,7 @@ function LazadaPackAndPrintModal({
             </div>
           </div>
 
-          <div className="mt-4 flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+          <div className="mt-4 flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs text-emerald-800 border border-emerald-200/60">
             <Truck size={15} className="shrink-0 text-emerald-600" />
             <span>
               Sau khi xác nhận <strong>Đóng gói & In</strong>, đơn hàng sẽ
@@ -1556,13 +1556,13 @@ function LazadaPackAndPrintModal({
           </div>
 
           <div className="mt-5 flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={onClose} className="rounded-xl">
               Đóng
             </Button>
             <Button
               type="button"
               onClick={() => onConfirmPrint(carrierCode, trackingCode)}
-              className="gap-1.5 bg-[#1a71ff] text-white hover:bg-[#125de0]"
+              className="gap-1.5 rounded-xl bg-gradient-to-r from-[#16866f] to-[#126b58] text-white shadow-xs hover:shadow hover:-translate-y-0.5 transition-all"
             >
               <Printer size={15} /> Xác nhận Đóng gói & In phiếu
             </Button>
@@ -1801,7 +1801,7 @@ function OrderDetails({
       <section className="w-full max-w-2xl rounded-xl bg-white p-6 shadow-2xl">
         <div className="flex items-start justify-between border-b border-slate-100 pb-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-[#1a71ff]">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[#16866f]">
               Chi tiết đơn hàng đa kênh ({order.channel})
             </p>
             <h2 className="mt-1 text-xl font-bold text-slate-900">
@@ -1846,7 +1846,7 @@ function OrderDetails({
           </div>
           <div>
             <span className="text-xs text-slate-400">Thanh toán</span>
-            <p className="font-semibold text-[#1a71ff]">
+            <p className="font-semibold text-[#16866f]">
               {order.paymentMethod || "COD"}
             </p>
           </div>
@@ -1876,7 +1876,7 @@ function OrderDetails({
                       <img
                         src={item.imageUrl}
                         alt={item.name}
-                        className="h-12 w-12 rounded-md border border-slate-200 object-cover"
+                        className="h-12 w-12 rounded-xl border border-slate-200/80 object-cover shadow-2xs"
                       />
                     )}
                     <div>
@@ -1891,7 +1891,7 @@ function OrderDetails({
                   <div className="text-right">
                     <p className="text-xs text-slate-500">
                       {item.unitPrice.toLocaleString("vi-VN")} ₫ ×{" "}
-                      <b className="text-[#1a71ff]">{item.quantity}</b>
+                      <b className="text-[#16866f]">{item.quantity}</b>
                     </p>
                     <p className="font-semibold text-slate-800">
                       {item.lineTotal.toLocaleString("vi-VN")} ₫
@@ -1910,7 +1910,7 @@ function OrderDetails({
               variant="outline"
               size="sm"
               onClick={onOpenPack}
-              className="gap-1.5"
+              className="gap-1.5 rounded-xl"
             >
               <Printer size={14} /> Đóng gói & In AWB
             </Button>
@@ -1920,7 +1920,7 @@ function OrderDetails({
                 variant="outline"
                 size="sm"
                 onClick={onComplete}
-                className="gap-1.5 text-emerald-700"
+                className="gap-1.5 rounded-xl text-emerald-700"
               >
                 <CheckCircle2 size={14} /> Đã giao thành công
               </Button>
@@ -1931,7 +1931,7 @@ function OrderDetails({
                 variant="outline"
                 size="sm"
                 onClick={onOpenReturn}
-                className="gap-1.5 text-amber-700"
+                className="gap-1.5 rounded-xl text-amber-700"
               >
                 <RotateCcw size={14} /> Đổi trả / Hoàn tiền
               </Button>
@@ -1939,7 +1939,7 @@ function OrderDetails({
           </div>
           <Button
             onClick={onClose}
-            className="bg-[#1a71ff] text-white hover:bg-[#125de0]"
+            className="rounded-xl bg-gradient-to-r from-[#16866f] to-[#126b58] text-white shadow-xs hover:shadow hover:-translate-y-0.5 transition-all"
           >
             Đóng
           </Button>
