@@ -24,6 +24,8 @@ import {
   KpiStatCard,
   SegmentedTabs
 } from "@/components/ui/micro-ux"
+import { EmptyState } from "@/components/ui/empty-state"
+import { TableSkeleton } from "@/components/ui/table-skeleton"
 import { useToast } from "@/components/ui/toast"
 import { getCustomerHealth } from "@/api/customer/health"
 import {
@@ -919,20 +921,31 @@ export function CustomersPage({
               </table>
 
               {loading && filtered.length === 0 ? (
-                <div className="space-y-3 p-6">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div
-                      key={i}
-                      className="h-14 animate-pulse rounded-lg bg-slate-100"
-                    />
-                  ))}
+                <div className="p-6">
+                  <TableSkeleton rows={5} cols={6} />
                 </div>
               ) : null}
 
               {!loading && filtered.length === 0 ? (
-                <p className="p-10 text-center text-sm text-slate-500">
-                  Không tìm thấy khách hàng phù hợp.
-                </p>
+                <EmptyState
+                  icon={Users}
+                  title="Không tìm thấy khách hàng"
+                  description="Không có khách hàng nào khớp với bộ lọc hiện tại. Thử thay đổi từ khóa hoặc nhóm khách."
+                  actionLabel={
+                    query || groupFilter !== "ALL" || sourceFilter !== "ALL"
+                      ? "Xóa tất cả bộ lọc"
+                      : "Thêm khách hàng mới"
+                  }
+                  onAction={
+                    query || groupFilter !== "ALL" || sourceFilter !== "ALL"
+                      ? () => {
+                          setQuery("")
+                          setGroupFilter("ALL")
+                          setSourceFilter("ALL")
+                        }
+                      : openCreate
+                  }
+                />
               ) : null}
             </div>
           </section>

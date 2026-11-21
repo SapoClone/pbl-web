@@ -807,7 +807,15 @@ export function ReportsPage({
                 So sánh đóng góp của POS, Lazada, Shopee và Website.
               </p>
 
-              <div className="mt-4 h-[290px] w-full">
+              <div className="relative mt-4 h-[290px] w-full">
+                <div className="pointer-events-none absolute top-[42%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                    Tổng DT
+                  </p>
+                  <p className="text-sm font-bold tabular-nums text-[#163d36]">
+                    {formatCompactVnd(totalChannelNetRev)}
+                  </p>
+                </div>
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
