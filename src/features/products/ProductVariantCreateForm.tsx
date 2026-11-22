@@ -123,7 +123,7 @@ export function ProductVariantCreateForm({ product, attributes, onClose, onCreat
           <label className={labelClass}>Giá bán (VND) *<input required type="number" min="0" step="1" className={inputClass} value={draft.basePrice} onChange={(event) => update("basePrice", event.target.value)} /></label>
           <label className={labelClass}>Khối lượng (kg)<input className={inputClass} placeholder="Ví dụ: 0.250" value={draft.weight} onChange={(event) => update("weight", event.target.value)} /></label>
           <label className={labelClass}>URL ảnh<input type="url" className={inputClass} value={draft.imageUrl} onChange={(event) => update("imageUrl", event.target.value)} /></label>
-          <div className="md:col-span-2 rounded-lg border border-slate-100 bg-slate-50 p-4">
+          <div className="rounded-lg border border-slate-100 bg-slate-50 p-4 md:col-span-2">
             <p className="text-xs font-semibold text-slate-700">Thuộc tính biến thể</p>
             <p className="mt-1 text-xs text-slate-400">Chọn tối đa một giá trị cho mỗi thuộc tính.</p>
             <div className="mt-3 space-y-3">

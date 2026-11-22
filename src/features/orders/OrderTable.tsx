@@ -832,7 +832,7 @@ export function OrderTable({ compact = false }: { compact?: boolean }) {
 
       {/* Top Filter & Search Bar */}
       <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-[0_4px_20px_-4px_rgba(20,50,45,0.04)] backdrop-blur-sm lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth">
+        <div className="no-scrollbar flex items-center gap-1.5 overflow-x-auto scroll-smooth">
           {[
             { id: "all", label: `Tất cả (${rows.length})` },
             {
@@ -856,12 +856,12 @@ export function OrderTable({ compact = false }: { compact?: boolean }) {
               key={tab.id}
               type="button"
               onClick={() => setChannel(tab.id)}
-              className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap transition-all duration-200 ${
+              className={`whitespace-nowrap rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all duration-200 ${
                 channel === tab.id
                   ? tab.id === "Lazada"
-                    ? "bg-[#0f146d] text-white shadow-xs"
+                    ? "shadow-xs bg-[#0f146d] text-white"
                     : tab.id === "Shopee"
-                      ? "bg-[#ee4d2d] text-white shadow-xs"
+                      ? "shadow-xs bg-[#ee4d2d] text-white"
                       : "bg-gradient-to-r from-[#16866f] to-[#126b58] text-white shadow-[0_2px_10px_rgba(22,134,111,0.25)]"
                   : "bg-slate-100/80 text-slate-600 hover:bg-slate-200/70"
               }`}
@@ -872,13 +872,13 @@ export function OrderTable({ compact = false }: { compact?: boolean }) {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          <label className="flex flex-1 sm:w-72 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-1.5 text-xs text-slate-500 focus-within:border-[#16866f] focus-within:bg-white transition">
+          <label className="flex flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-1.5 text-xs text-slate-500 transition focus-within:border-[#16866f] focus-within:bg-white sm:w-72">
             <Search size={14} className="text-slate-400" />
             <input
               value={queryText}
               onChange={(event) => setQueryText(event.target.value)}
               placeholder="Tìm số đơn, mã sàn, tên KH, SKU..."
-              className="w-full bg-transparent text-slate-700 outline-none placeholder:text-slate-400 text-xs"
+              className="w-full bg-transparent text-xs text-slate-700 outline-none placeholder:text-slate-400"
             />
           </label>
           <select
@@ -910,7 +910,7 @@ export function OrderTable({ compact = false }: { compact?: boolean }) {
       </div>
 
       {/* Bulk Action & Summary Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white/95 px-5 py-3 text-xs shadow-2xs">
+      <div className="shadow-2xs flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white/95 px-5 py-3 text-xs">
         <div className="flex flex-wrap items-center gap-2.5">
           <label className="flex cursor-pointer items-center gap-2 font-medium text-slate-700">
             <input
@@ -937,8 +937,8 @@ export function OrderTable({ compact = false }: { compact?: boolean }) {
             }}
             className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all ${
               selectedOrderIds.length > 0
-                ? "bg-gradient-to-r from-[#16866f] to-[#126b58] text-white shadow-[0_2px_10px_rgba(22,134,111,0.25)] hover:shadow-md hover:-translate-y-0.5"
-                : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                ? "bg-gradient-to-r from-[#16866f] to-[#126b58] text-white shadow-[0_2px_10px_rgba(22,134,111,0.25)] hover:-translate-y-0.5 hover:shadow-md"
+                : "cursor-not-allowed bg-slate-100 text-slate-400"
             }`}
           >
             Đóng gói & In{" "}
@@ -994,7 +994,7 @@ export function OrderTable({ compact = false }: { compact?: boolean }) {
         <div className="col-span-2">Tổng cộng</div>
         <div className="col-span-2">Giao hàng</div>
         <div className="col-span-2">Trạng thái</div>
-        <div className="col-span-1 text-right pr-2">Thao tác</div>
+        <div className="col-span-1 pr-2 text-right">Thao tác</div>
       </div>
 
       {/* Lazada Seller Center Order Cards List */}
@@ -1033,7 +1033,7 @@ export function OrderTable({ compact = false }: { compact?: boolean }) {
                   <button
                     type="button"
                     onClick={() => void handleSelectOrder(order)}
-                    className="font-semibold text-[#163d36] hover:text-[#16866f] transition"
+                    className="font-semibold text-[#163d36] transition hover:text-[#16866f]"
                   >
                     {order.customer}
                   </button>
@@ -1077,7 +1077,7 @@ export function OrderTable({ compact = false }: { compact?: boolean }) {
                       type="button"
                       onClick={() => copyOrderCode(displayOrderNumber)}
                       title="Sao chép số đơn hàng"
-                      className="rounded p-0.5 text-slate-400 hover:text-[#16866f] transition"
+                      className="rounded p-0.5 text-slate-400 transition hover:text-[#16866f]"
                     >
                       <Copy size={12} />
                     </button>
@@ -1091,7 +1091,7 @@ export function OrderTable({ compact = false }: { compact?: boolean }) {
                   <button
                     type="button"
                     onClick={() => void handleSelectOrder(order)}
-                    className="inline-flex items-center gap-1 text-slate-500 hover:text-slate-800 transition"
+                    className="inline-flex items-center gap-1 text-slate-500 transition hover:text-slate-800"
                   >
                     <span>
                       Thời gian tạo:{" "}
@@ -1103,7 +1103,7 @@ export function OrderTable({ compact = false }: { compact?: boolean }) {
               </header>
 
               {/* Card Body Grid */}
-              <div className="grid grid-cols-12 items-start gap-4 px-4 py-4">
+              <div className="grid grid-cols-12 items-start gap-4 p-4">
                 {/* Column 1: Sản phẩm (Line Items) */}
                 <div className="col-span-12 space-y-3 lg:col-span-5">
                   {visibleItems.map((item, idx) => (
@@ -1119,7 +1119,7 @@ export function OrderTable({ compact = false }: { compact?: boolean }) {
                             DEFAULT_FASHION_THUMBNAILS[0]
                           }
                           alt={item.name}
-                          className="h-14 w-14 shrink-0 rounded-xl border border-slate-200/80 bg-slate-50 object-cover shadow-2xs"
+                          className="shadow-2xs h-14 w-14 shrink-0 rounded-xl border border-slate-200/80 bg-slate-50 object-cover"
                         />
                         <div className="min-w-0">
                           <p className="line-clamp-2 text-xs font-semibold leading-snug text-slate-800">
@@ -1170,7 +1170,7 @@ export function OrderTable({ compact = false }: { compact?: boolean }) {
 
                 {/* Column 2: Tổng cộng */}
                 <div className="col-span-6 sm:col-span-3 lg:col-span-2">
-                  <div className="text-xs font-bold text-slate-800 tabular-nums">
+                  <div className="text-xs font-bold tabular-nums text-slate-800">
                     {order.total}
                   </div>
                   <span className={`mt-1.5 inline-block rounded-md border px-2 py-0.5 text-[11px] font-medium ${
@@ -1246,7 +1246,7 @@ export function OrderTable({ compact = false }: { compact?: boolean }) {
                   <button
                     type="button"
                     onClick={() => setPackingOrder(order)}
-                    className="w-full max-w-[122px] rounded-xl bg-gradient-to-r from-[#16866f] to-[#126b58] px-3 py-1.5 text-center text-xs font-semibold text-white shadow-xs hover:shadow hover:-translate-y-0.5 active:scale-95 transition-all"
+                    className="shadow-xs w-full max-w-[122px] rounded-xl bg-gradient-to-r from-[#16866f] to-[#126b58] px-3 py-1.5 text-center text-xs font-semibold text-white transition-all hover:-translate-y-0.5 hover:shadow active:scale-95"
                   >
                     Đóng gói & In
                   </button>
@@ -1434,7 +1434,7 @@ function LazadaPackAndPrintModal({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-xs"
+      className="backdrop-blur-xs fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 p-4"
       role="dialog"
       aria-modal="true"
     >
@@ -1546,7 +1546,7 @@ function LazadaPackAndPrintModal({
             </div>
           </div>
 
-          <div className="mt-4 flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs text-emerald-800 border border-emerald-200/60">
+          <div className="mt-4 flex items-center gap-2 rounded-xl border border-emerald-200/60 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
             <Truck size={15} className="shrink-0 text-emerald-600" />
             <span>
               Sau khi xác nhận <strong>Đóng gói & In</strong>, đơn hàng sẽ
@@ -1562,7 +1562,7 @@ function LazadaPackAndPrintModal({
             <Button
               type="button"
               onClick={() => onConfirmPrint(carrierCode, trackingCode)}
-              className="gap-1.5 rounded-xl bg-gradient-to-r from-[#16866f] to-[#126b58] text-white shadow-xs hover:shadow hover:-translate-y-0.5 transition-all"
+              className="shadow-xs gap-1.5 rounded-xl bg-gradient-to-r from-[#16866f] to-[#126b58] text-white transition-all hover:-translate-y-0.5 hover:shadow"
             >
               <Printer size={15} /> Xác nhận Đóng gói & In phiếu
             </Button>
@@ -1644,7 +1644,7 @@ function OrderReturnModal({
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-xs"
+      className="backdrop-blur-xs fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/40 p-4"
       role="dialog"
       aria-modal="true"
     >
@@ -1876,7 +1876,7 @@ function OrderDetails({
                       <img
                         src={item.imageUrl}
                         alt={item.name}
-                        className="h-12 w-12 rounded-xl border border-slate-200/80 object-cover shadow-2xs"
+                        className="shadow-2xs h-12 w-12 rounded-xl border border-slate-200/80 object-cover"
                       />
                     )}
                     <div>
@@ -1939,7 +1939,7 @@ function OrderDetails({
           </div>
           <Button
             onClick={onClose}
-            className="rounded-xl bg-gradient-to-r from-[#16866f] to-[#126b58] text-white shadow-xs hover:shadow hover:-translate-y-0.5 transition-all"
+            className="shadow-xs rounded-xl bg-gradient-to-r from-[#16866f] to-[#126b58] text-white transition-all hover:-translate-y-0.5 hover:shadow"
           >
             Đóng
           </Button>

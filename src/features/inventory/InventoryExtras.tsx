@@ -16,15 +16,15 @@ export function StockLookupBar({ branchId, pending, result, error, onLookup }: {
     <form onSubmit={submit} className="flex flex-wrap items-end gap-3">
       <label className="min-w-64 flex-1 text-xs font-semibold text-slate-700">
         Tra cứu nhanh SKU / Barcode
-        <input className="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-slate-50/60 px-3.5 text-xs text-slate-800 outline-none focus:border-[#16866f] focus:bg-white transition" value={code} onChange={(event) => setCode(event.target.value)} placeholder="Nhập chính xác SKU hoặc quét mã vạch..." />
+        <input className="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-slate-50/60 px-3.5 text-xs text-slate-800 outline-none transition focus:border-[#16866f] focus:bg-white" value={code} onChange={(event) => setCode(event.target.value)} placeholder="Nhập chính xác SKU hoặc quét mã vạch..." />
       </label>
-      <Button type="submit" disabled={!branchId || pending} className="h-10 gap-2 rounded-xl bg-gradient-to-r from-[#16866f] to-[#126b58] text-xs font-semibold text-white shadow-[0_2px_10px_rgba(22,134,111,0.25)] hover:shadow hover:-translate-y-0.5 active:scale-95 transition-all">
+      <Button type="submit" disabled={!branchId || pending} className="h-10 gap-2 rounded-xl bg-gradient-to-r from-[#16866f] to-[#126b58] text-xs font-semibold text-white shadow-[0_2px_10px_rgba(22,134,111,0.25)] transition-all hover:-translate-y-0.5 hover:shadow active:scale-95">
         <Search size={14} />{pending ? "Đang tìm..." : "Tra cứu"}
       </Button>
     </form>
     {error && <p className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-600">{error}</p>}
     {result && (
-      <div className="mt-4 grid gap-3 rounded-xl border border-emerald-200/70 bg-[#e6f5ee]/40 p-4 sm:grid-cols-3 lg:grid-cols-6 text-xs">
+      <div className="mt-4 grid gap-3 rounded-xl border border-emerald-200/70 bg-[#e6f5ee]/40 p-4 text-xs sm:grid-cols-3 lg:grid-cols-6">
         <Info label="Sản phẩm" value={result.name} />
         <Info label="SKU" value={result.sku} />
         <Info label="Barcode" value={result.barcode ?? "—"} />

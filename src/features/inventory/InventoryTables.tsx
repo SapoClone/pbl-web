@@ -51,17 +51,17 @@ export function WarehouseTable({ rows, loading = false, onEdit }: { rows: Wareho
 
 function TableShell({ empty, loading = false, children }: { empty: boolean; loading?: boolean; children: React.ReactNode }) {
   if (loading && empty) {
-    return <div className="space-y-3 p-6 rounded-2xl border border-slate-200/80 bg-white/95 shadow-[0_4px_20px_-4px_rgba(20,50,45,0.04)]">{[1, 2, 3, 4, 5].map((i) => <div key={i} className="h-12 animate-pulse rounded-xl bg-slate-100" />)}</div>
+    return <div className="space-y-3 rounded-2xl border border-slate-200/80 bg-white/95 p-6 shadow-[0_4px_20px_-4px_rgba(20,50,45,0.04)]">{[1, 2, 3, 4, 5].map((i) => <div key={i} className="h-12 animate-pulse rounded-xl bg-slate-100" />)}</div>
   }
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 shadow-[0_4px_20px_-4px_rgba(20,50,45,0.04)] backdrop-blur-sm">
-      <div className="inventory-table overflow-x-auto no-scrollbar scroll-smooth">
+      <div className="inventory-table no-scrollbar overflow-x-auto scroll-smooth">
         {children}
         {!loading && empty && (
           <div className="flex flex-col items-center justify-center p-12 text-center text-sm text-slate-400">
             <PackageCheck size={32} className="mb-2 text-slate-300" />
             <p className="font-semibold text-slate-600">Chưa có dữ liệu trong phân hệ này</p>
-            <p className="text-xs text-slate-400 mt-1">Dữ liệu phiếu kho hoặc tồn kho sẽ hiển thị tại đây khi phát sinh giao dịch.</p>
+            <p className="mt-1 text-xs text-slate-400">Dữ liệu phiếu kho hoặc tồn kho sẽ hiển thị tại đây khi phát sinh giao dịch.</p>
           </div>
         )}
       </div>

@@ -438,7 +438,7 @@ export function InventoryForm({
                       </button>
                     )}
                   </div>
-                  <div className="mt-2 max-h-44 grid gap-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50/50 p-3 sm:grid-cols-2">
+                  <div className="mt-2 grid max-h-44 gap-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50/50 p-3 sm:grid-cols-2">
                     {variants.map((item) => {
                       const checked = stocktakeSkuIds.includes(item.variantId)
                       return (

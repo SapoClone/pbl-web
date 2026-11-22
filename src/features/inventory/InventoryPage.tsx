@@ -335,7 +335,7 @@ export function InventoryPage() {
             variant="outline"
             onClick={downloadStock}
             disabled={isDemo || !selectedBranch}
-            className="gap-2 rounded-xl border-slate-200/90 text-xs shadow-2xs hover:bg-slate-50"
+            className="shadow-2xs gap-2 rounded-xl border-slate-200/90 text-xs hover:bg-slate-50"
           >
             <Download size={15} /> Xuất tồn kho
           </Button>
@@ -349,7 +349,7 @@ export function InventoryPage() {
               createMutation.reset()
             }}
             disabled={isDemo}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#16866f] to-[#126b58] px-3.5 py-2 text-xs font-semibold text-white shadow-[0_2px_10px_rgba(22,134,111,0.25)] hover:shadow-[0_4px_16px_rgba(22,134,111,0.35)] hover:-translate-y-0.5 active:scale-[0.98] transition-all disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#16866f] to-[#126b58] px-3.5 py-2 text-xs font-semibold text-white shadow-[0_2px_10px_rgba(22,134,111,0.25)] transition-all hover:-translate-y-0.5 hover:shadow-[0_4px_16px_rgba(22,134,111,0.35)] active:scale-[0.98] disabled:opacity-50"
           >
             <Plus size={15} strokeWidth={2.5} />
             {createLabels[tab]}
@@ -408,7 +408,7 @@ function Metric({
           {label}
         </p>
         <div
-          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-2xs ${
+          className={`shadow-2xs flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
             warning
               ? "border border-amber-200/50 bg-amber-50 text-amber-600"
               : "border border-[#16866f]/20 bg-[#e6f5ee] text-[#16866f]"

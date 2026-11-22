@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react"
-import { ImageOff, Link2, List, Package, PackageX, Pencil, Search, Trash2 } from "lucide-react"
+import { Fragment, useMemo, useState, type ReactNode } from "react"
+import { ImageOff, PackageX, Pencil, Search, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { CopyCodeBadge } from "@/components/ui/micro-ux"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -38,7 +38,7 @@ function ProductThumbnail({ product }: { product: Product }) {
       src={imageUrl}
       alt={`Ảnh bìa của ${product.name}`}
       onError={() => setFailed(true)}
-      className="h-11 w-11 shrink-0 rounded-lg border border-slate-200 object-cover shadow-xs"
+      className="shadow-xs h-11 w-11 shrink-0 rounded-lg border border-slate-200 object-cover"
     />
   )
 }
@@ -48,14 +48,14 @@ export function ProductsTable({
   products,
   loading = false,
   onEdit,
-  onViewVariants,
+  renderVariants,
   onDelete
 }: {
   section: "products" | "inventory"
   products?: Product[]
   loading?: boolean
   onEdit?: (product: Product) => void
-  onViewVariants?: (product: Product) => void
+  renderVariants?: (product: Product) => ReactNode
   onDelete?: (product: Product) => Promise<void>
 }) {
   const [query, setQuery] = useState("")
@@ -111,13 +111,13 @@ export function ProductsTable({
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 shadow-[0_4px_20px_-4px_rgba(20,50,45,0.04)] backdrop-blur-sm">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-4">
-        <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2 text-xs text-slate-500 focus-within:border-[#16866f] focus-within:bg-white transition">
+        <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2 text-xs text-slate-500 transition focus-within:border-[#16866f] focus-within:bg-white">
           <Search size={15} className="text-slate-400" />
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Tìm tên sản phẩm, mã SKU..."
-            className="w-60 bg-transparent text-slate-800 outline-none placeholder:text-slate-400 text-xs"
+            className="w-60 bg-transparent text-xs text-slate-800 outline-none placeholder:text-slate-400"
           />
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -199,12 +199,9 @@ export function ProductsTable({
             <tr>
               {[
                 "Sản phẩm",
-                "Mã SKU / Biến thể",
-                "Danh mục / Thương hiệu",
-                "Giá bán (VND)",
                 ...(section === "inventory"
-                  ? ["Giá vốn", "Tồn kho"]
-                  : ["Đồng bộ sàn TMĐT"]),
+                  ? ["Mã SKU", "Danh mục / Thương hiệu", "Giá bán (VND)", "Giá vốn", "Tồn kho"]
+                  : ["Danh mục / Thương hiệu", "Đơn vị cơ sở", "Số biến thể"]),
                 "Trạng thái",
                 ""
               ].map((heading) => (
@@ -216,7 +213,9 @@ export function ProductsTable({
           </thead>
           <tbody className="divide-y divide-slate-100">
             {filtered.map((product) => (
-              <tr key={product.id ?? product.sku} className="hover:bg-slate-50">
+              <Fragment key={product.id ?? product.sku}>
+              <tr className="hover:bg-slate-50">
+                {section === "inventory" ? <>
                 <td className="px-5 py-4">
                   <div className="flex items-center gap-3">
                     <ProductThumbnail product={product} />
@@ -260,37 +259,31 @@ export function ProductsTable({
                     ? product.price
                     : formatPrice(product.retailPrice)}
                 </td>
-                {section === "inventory" ? (
-                  <>
                     <td className="px-5 py-4 text-slate-400">
                       {formatPrice(product.costPrice)}
                     </td>
                     <td className="px-5 py-4 font-semibold text-slate-700">
                       {product.stock ?? 0}
                     </td>
-                  </>
-                ) : (
-                  <td className="px-5 py-4">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {(product.lazadaSkuCount ?? 0) > 0 ? (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-[#0f146d]/15 bg-[#eef0ff] px-2.5 py-0.5 text-[11px] font-semibold text-[#0f146d]">
-                          <Link2 size={11} />
-                          Lazada ({product.lazadaSkuCount} SKU)
+                  </> : <>
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-3">
+                        <ProductThumbnail product={product} />
+                        <span className="min-w-0">
+                          <b className="block max-w-[210px] truncate font-medium text-[#163d36]">{product.name}</b>
+                          <span className="block max-w-[230px] truncate text-xs text-slate-400">
+                            {product.description || "Chưa có mô tả"}
+                          </span>
                         </span>
-                      ) : (
-                        <span className="text-xs text-slate-400">
-                          Chưa liên kết sàn
-                        </span>
-                      )}
-                      {(product.shopeeSkuCount ?? 0) > 0 && (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-[#ee4d2d]/15 bg-[#fff1ee] px-2.5 py-0.5 text-[11px] font-semibold text-[#ee4d2d]">
-                          <Link2 size={11} />
-                          Shopee ({product.shopeeSkuCount} SKU)
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                )}
+                      </div>
+                    </td>
+                    <td className="px-5 py-4">
+                      <span className="block text-slate-600">{product.category}</span>
+                      <span className="text-xs text-slate-400">{product.brand || "Chưa có thương hiệu"}</span>
+                    </td>
+                    <td className="px-5 py-4 text-slate-600">{product.unit || "Cái"}</td>
+                    <td className="px-5 py-4 font-semibold text-slate-700">{product.variantCount ?? 0}</td>
+                  </>}
                 <td className="px-5 py-4">
                   <span
                     className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
@@ -307,16 +300,6 @@ export function ProductsTable({
                   </span>
                 </td>
                 <td className="px-5 py-4 text-right">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`Xem biến thể của ${product.name}`}
-                    title="Xem biến thể"
-                    onClick={() => onViewVariants?.(product)}
-                    className="text-slate-400 hover:bg-[#e6f5ee] hover:text-[#16866f]"
-                  >
-                    <List size={16} />
-                  </Button>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -340,6 +323,14 @@ export function ProductsTable({
                   </Button>
                 </td>
               </tr>
+              {section === "products" && renderVariants && (
+                <tr className="bg-slate-50/70">
+                  <td colSpan={6} className="px-5 pb-5 pt-0">
+                    {renderVariants(product)}
+                  </td>
+                </tr>
+              )}
+              </Fragment>
             ))}
           </tbody>
         </table>
