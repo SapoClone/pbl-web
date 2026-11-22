@@ -27,16 +27,21 @@ import { listStock } from "@/api/inventory/stock"
 import { listBranches } from "@/api/platform/branches"
 import {
   closePosShift,
-  createOrder,
   getActivePosShift,
+  listAvailablePosShifts,
   openPosShift,
+  posCheckout,
+  salesErrorMessage,
   type CreateOrderInput,
+  type PosCheckoutInput,
   type PosShiftApi
 } from "@/api/sales/orders"
 import { products as demoCatalogProducts } from "@/shared/dashboard/dashboard.mock"
 import { useStoreAuth } from "@/store/zustand/useStoreAuth"
 
 type PosProductItem = {
+  /** The catalog variant: what the checkout sells (the SKU code is for people) */
+  variantId?: string
   sku: string
   name: string
   barcode?: string | null
@@ -46,6 +51,7 @@ type PosProductItem = {
 }
 
 type CartLine = {
+  variantId?: string
   sku: string
   name: string
   imageUrl?: string | null
@@ -231,6 +237,18 @@ export function PosPage() {
 
   const activeShift = localShift ?? shiftQuery.data ?? null
 
+  // a POS sale belongs to an open shift of the branch (the drawer is shared): the cashier's own, else the first open one
+  const availableShiftsQuery = useQuery({
+    queryKey: ["pos-available-shifts", selectedBranchId],
+    queryFn: () => listAvailablePosShifts(selectedBranchId),
+    enabled: Boolean(selectedBranchId) && !isDemo,
+    retry: false
+  })
+  const sellingShiftId =
+    activeShift?.status === "OPEN"
+      ? activeShift.id
+      : availableShiftsQuery.data?.[0]?.id
+
   const variantsQuery = useQuery({
     queryKey: ["catalog-variants"],
     queryFn: listActiveVariants,
@@ -301,6 +319,7 @@ export function PosPage() {
             ? `${variant.name} - ${variant.label}`
             : variant.name
         return {
+          variantId: variant.variantId,
           sku: variant.skuCode,
           name: displayName,
           barcode: variant.barcode,
@@ -391,10 +410,13 @@ export function PosPage() {
       ?.name ?? "Chi nhánh Quận 1 - Nguyễn Trãi"
 
   const orderMutation = useMutation({
-    mutationFn: createOrder,
+    mutationFn: (input: PosCheckoutInput) => posCheckout(input),
     onSuccess: (order) => {
+      const serverChange = order.tenders?.tenders.find(
+        (tender) => tender.method === "CASH"
+      )?.changeDue
       const completedSnapshot: CompletedReceipt = {
-        code: order.code,
+        code: order.orderCode,
         branchName: selectedBranchName,
         customerName: customerName.trim() || "Khách lẻ",
         paymentMethod,
@@ -405,7 +427,7 @@ export function PosPage() {
         couponCode: currentTab.couponCode.trim().toUpperCase() || undefined,
         total,
         cashTendered: paymentMethod === "cash" ? tenderedAmount : total,
-        changeDue
+        changeDue: serverChange ?? changeDue
       }
       updateCurrentTab({
         cart: [],
@@ -416,16 +438,30 @@ export function PosPage() {
         note: ""
       })
       setError("")
-      setSuccess(`Đã thanh toán và tạo đơn tại quầy ${order.code} thành công!`)
+      setSuccess(`Đã thanh toán và tạo đơn tại quầy ${order.orderCode} thành công!`)
       setReceipt(completedSnapshot)
       void queryClient.invalidateQueries({ queryKey: ["inventory-stock"] })
       void queryClient.invalidateQueries({ queryKey: ["orders"] })
       void queryClient.invalidateQueries({ queryKey: ["orders-summary"] })
+      void queryClient.invalidateQueries({ queryKey: ["pos-available-shifts"] })
     },
-    onError: () =>
+    onError: (e) => {
       setError(
-        "Không thể tạo đơn. Hãy kiểm tra tồn khả dụng, chi nhánh và quyền tài khoản."
+        salesErrorMessage(
+          e,
+          "Không thể thanh toán. Hãy kiểm tra tồn khả dụng, ca thu ngân và quyền tài khoản."
+        )
       )
+      if (
+        ["SHIFT_REQUIRED", "SHIFT_NOT_FOUND"].includes(
+          (e as { response?: { data?: { errorCode?: string } } })?.response?.data
+            ?.errorCode ?? ""
+        )
+      ) {
+        void queryClient.invalidateQueries({ queryKey: ["pos-available-shifts"] })
+        void queryClient.invalidateQueries({ queryKey: ["pos-active-shift"] })
+      }
+    }
   })
 
   const addToCart = (sku: string) => {
@@ -450,6 +486,7 @@ export function PosPage() {
       : [
           ...cart,
           {
+            variantId: product.variantId,
             sku,
             name: product.name,
             imageUrl: product.imageUrl,
@@ -533,16 +570,43 @@ export function PosPage() {
       return
     }
 
+    if (!sellingShiftId) {
+      setShiftModalOpen(true)
+      return setError(
+        salesErrorMessage({ response: { data: { errorCode: "SHIFT_REQUIRED" } } }, "")
+      )
+    }
+    const unknown = cart.find((line) => !line.variantId)
+    if (unknown) {
+      return setError(
+        `Không xác định được biến thể của ${unknown.sku}. Hãy tải lại trang để lấy danh mục mới.`
+      )
+    }
+    // the server prices the sale (discount, coupon) and takes the exact total: the page sends what the cashier chose
+    const manualDiscount = Number(currentTab.discountInput) || 0
+    const couponCode = currentTab.couponCode.trim().toUpperCase()
+    const method = {
+      cash: "CASH",
+      card: "CARD",
+      transfer: "BANK_TRANSFER",
+      cod: "COD"
+    } as const
     orderMutation.mutate({
       branchId: selectedBranchId,
-      paymentMethod,
+      shiftId: sellingShiftId,
       customerName: customerName.trim() || undefined,
-      items: cart.map(({ sku, name, quantity, unitPrice }) => ({
-        sku,
-        name,
-        quantity,
-        unitPrice
-      }))
+      lines: cart.map((line) => ({ variantId: line.variantId!, qty: line.quantity })),
+      ...(manualDiscount > 0
+        ? {
+            orderDiscountType:
+              currentTab.discountMode === "PERCENT" ? ("PERCENT" as const) : ("FIXED" as const),
+            orderDiscountValue: manualDiscount
+          }
+        : {}),
+      ...(couponCode ? { couponCode } : {}),
+      paymentMethod: method[paymentMethod],
+      ...(paymentMethod === "cash" ? { tenderedCash: Math.round(tenderedAmount) } : {}),
+      note: currentTab.note.trim() || undefined
     })
   }
 
@@ -575,7 +639,9 @@ export function PosPage() {
             <Clock3 size={14} />
             {activeShift?.status === "OPEN"
               ? `Ca: ${activeShift.registerCode || "REG-01"} (Đang mở)`
-              : "Quản lý ca thu ngân"}
+              : availableShiftsQuery.data?.[0]
+                ? `Ca ${availableShiftsQuery.data[0].register.code} đang mở: bán vào ca này`
+                : "Chưa có ca: mở ca để bán"}
           </button>
 
           <div className="rounded-xl border border-emerald-200/60 bg-[#e6f5ee] px-3.5 py-2 text-xs font-semibold text-[#147853] shadow-2xs">
@@ -1150,6 +1216,9 @@ export function PosPage() {
             void queryClient.invalidateQueries({
               queryKey: ["pos-active-shift"]
             })
+            void queryClient.invalidateQueries({
+              queryKey: ["pos-available-shifts"]
+            })
           }}
         />
       )}
@@ -1187,7 +1256,9 @@ function PosShiftModal({
     String(activeShift?.expectedCash ?? activeShift?.openingCash ?? 2000000)
   )
   const [note, setNote] = useState("")
+  const [reason, setReason] = useState("")
   const [error, setError] = useState("")
+  const [notice, setNotice] = useState("")
   const [pending, setPending] = useState(false)
 
   const isOpen = activeShift?.status === "OPEN"
@@ -1195,54 +1266,60 @@ function PosShiftModal({
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setError("")
+    setNotice("")
     setPending(true)
     try {
       if (!isOpen) {
         const cash = Math.max(0, Math.round(Number(openingCash) || 0))
-        if (!isDemo && branchId) {
-          try {
-            const opened = await openPosShift({
-              branchId,
-              registerCode,
-              openingCash: cash,
-              note: note.trim() || undefined
-            })
-            onShiftUpdated(opened)
-            onClose()
-            return
-          } catch {
-            // Fallback local shift session if backend shift endpoint requires extra register seed
-          }
+        if (isDemo || !branchId) {
+          // demo mode only: nothing is sent anywhere
+          onShiftUpdated({
+            id: `shift-${Date.now()}`,
+            branchId,
+            registerCode,
+            status: "OPEN",
+            openingCash: cash,
+            expectedCash: cash,
+            openedAt: new Date().toISOString(),
+            note: note.trim() || null
+          })
+          onClose()
+          return
         }
-        onShiftUpdated({
-          id: `shift-${Date.now()}`,
+        const opened = await openPosShift({
           branchId,
           registerCode,
-          status: "OPEN",
           openingCash: cash,
-          expectedCash: cash,
-          openedAt: new Date().toISOString(),
-          note: note.trim() || null
+          note: note.trim() || undefined
         })
+        onShiftUpdated(opened)
         onClose()
-      } else {
-        const counted = Math.max(0, Math.round(Number(actualCash) || 0))
-        if (!isDemo && activeShift.id && !activeShift.id.startsWith("shift-")) {
-          try {
-            await closePosShift(activeShift.id, {
-              actualCash: counted,
-              version: activeShift.version ?? 1,
-              note: note.trim() || undefined
-            })
-          } catch {
-            // Proceed to close local shift state
-          }
-        }
+        return
+      }
+      if (isDemo) {
         onShiftUpdated(null)
         onClose()
+        return
       }
-    } catch {
-      setError("Không thể cập nhật trạng thái ca thu ngân.")
+      const counted = Math.max(0, Math.round(Number(actualCash) || 0))
+      const closed = await closePosShift(activeShift.id, {
+        actualCash: counted,
+        version: activeShift.version ?? 1,
+        reason: reason || undefined,
+        note: note.trim() || undefined
+      })
+      if (closed.status === "CLOSED") {
+        onShiftUpdated(null)
+        onClose()
+        return
+      }
+      // counted above the tolerance: the shift waits for a manager to approve the close
+      onShiftUpdated(closed)
+      setNotice(
+        "Đã gửi kết ca. Chênh lệch vượt dung sai nên ca chờ quản lý (quyền duyệt kết ca) xác nhận."
+      )
+    } catch (e) {
+      setError(salesErrorMessage(e, "Không thể cập nhật trạng thái ca thu ngân."))
     } finally {
       setPending(false)
     }
@@ -1332,6 +1409,24 @@ function PosShiftModal({
                 />
               </label>
 
+              {variance !== 0 && (
+                <label className="block font-medium text-slate-600">
+                  Lý do chênh lệch
+                  <select
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[#16866f]"
+                  >
+                    <option value="">(chỉ bắt buộc khi vượt dung sai)</option>
+                    <option value="miscounted_change">Thối nhầm tiền</option>
+                    <option value="unrecorded_sale">Bán hàng chưa ghi nhận</option>
+                    <option value="refund_not_recorded">Hoàn tiền chưa ghi nhận</option>
+                    <option value="theft_suspected">Nghi mất tiền</option>
+                    <option value="other">Khác</option>
+                  </select>
+                </label>
+              )}
+
               <div className="flex items-center justify-between rounded-lg bg-[#f4fbf8] px-3 py-2">
                 <span className="text-slate-600">Chênh lệch kiểm quỹ:</span>
                 <b
@@ -1360,7 +1455,8 @@ function PosShiftModal({
             />
           </label>
 
-          {error && <p className="text-red-600">{error}</p>}
+          {error && <p role="alert" className="text-red-600">{error}</p>}
+          {notice && <p role="status" className="rounded-lg bg-amber-50 p-3 text-amber-800">{notice}</p>}
         </div>
 
         <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-4">
