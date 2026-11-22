@@ -28,12 +28,7 @@ export const navigation: NavigationItem[] = [
   {
     label: "Sản phẩm",
     icon: Package,
-    to: "/products", permission: "products.view",
-    children: [
-      { label: "Danh mục sản phẩm", tab: "catalog" },
-      { label: "Bảng giá đa kênh", tab: "price-lists" },
-      { label: "Sản phẩm Combo", tab: "combos" }
-    ]
+    to: "/products", permission: "products.view"
   },
   {
     label: "Tồn kho",

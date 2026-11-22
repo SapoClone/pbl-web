@@ -47,7 +47,7 @@ export function Topbar({
           onClick={onToggleCollapse}
           aria-label={collapsed ? "Mở rộng thanh menu" : "Thu gọn thanh menu"}
           title={collapsed ? "Mở rộng thanh menu" : "Thu gọn thanh menu"}
-          className="hidden h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-2xs hover:bg-slate-50 hover:text-slate-800 transition md:flex active:scale-95"
+          className="shadow-2xs hidden h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-800 active:scale-95 md:flex"
         >
           {collapsed ? (
             <PanelLeftOpen size={16} />
@@ -62,7 +62,7 @@ export function Topbar({
         >
           <Link
             to="/"
-            className="text-slate-400 hover:text-[#16866f] transition font-medium"
+            className="font-medium text-slate-400 transition hover:text-[#16866f]"
           >
             OmniRetail
           </Link>
@@ -75,13 +75,13 @@ export function Topbar({
         <div className="hidden items-center gap-2 rounded-xl border border-slate-200/80 bg-slate-50/70 px-3 py-1.5 text-xs text-slate-400 sm:flex">
           <Search size={13} className="text-slate-400" />
           <span>Tìm nhanh (Đơn, SP, Khách)...</span>
-          <kbd className="rounded border border-slate-200 bg-white px-1.5 py-0.2 font-mono text-[10px] font-semibold text-slate-500 shadow-2xs">
+          <kbd className="py-0.2 shadow-2xs rounded border border-slate-200 bg-white px-1.5 font-mono text-[10px] font-semibold text-slate-500">
             ⌘K
           </kbd>
         </div>
 
-        <div className="flex items-center gap-2 rounded-full border border-emerald-200/80 bg-[#e6f5ee]/80 px-3 py-1 text-xs font-semibold text-[#147853] shadow-2xs">
-          <span className="h-1.5 w-1.5 rounded-full bg-[#16866f] animate-pulse" />
+        <div className="shadow-2xs flex items-center gap-2 rounded-full border border-emerald-200/80 bg-[#e6f5ee]/80 px-3 py-1 text-xs font-semibold text-[#147853]">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#16866f]" />
           <Store size={13} />
           <span className="hidden sm:inline">Chi nhánh:</span>
           <span className="max-w-[120px] truncate sm:max-w-none">

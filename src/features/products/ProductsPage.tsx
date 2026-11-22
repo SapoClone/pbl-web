@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Boxes, Layers, Package, Tag } from "lucide-react"
 import { DashboardHeader } from "@/shared/dashboard/DashboardHeader"
 import { products as demoDefaultProducts } from "@/shared/dashboard/dashboard.mock"
@@ -11,7 +11,7 @@ import { ProductVariantList } from "./ProductVariantList"
 import { PriceListsPanel } from "./PriceListsPanel"
 import { ProductCombosPanel } from "./ProductCombosPanel"
 import { Button } from "@/components/ui/button"
-import { KpiStatCard, SegmentedTabs } from "@/components/ui/micro-ux"
+import { KpiStatCard } from "@/components/ui/micro-ux"
 import type { Product } from "@/shared/dashboard/dashboard.types"
 import {
   createCatalogProduct,
@@ -45,12 +45,9 @@ import {
   type CreateCatalogCategoryInput,
   type CreateCatalogProductInput
 } from "@/api/catalog/products"
-import { listActiveVariants } from "@/api/catalog/variants"
 import { listSkuMappings } from "@/api/integration"
 import { queryClient } from "@/api/tanstack-query"
 import { useStoreAuth } from "@/store/zustand/useStoreAuth"
-
-type ProductsTab = "catalog" | "price-lists" | "combos"
 
 const normalizeWeight = (weight: string) => {
   const trimmedWeight = weight.trim()
@@ -79,23 +76,15 @@ type ProductsBundle = {
 }
 
 export const fetchProductsBundle = async (): Promise<ProductsBundle> => {
-  const [loadedCategories, loadedBrands, response, activeVariants, skuMappings] = await Promise.all([
+  const [loadedCategories, loadedBrands, response, skuMappings] = await Promise.all([
     listCategories().catch(() => [] as CatalogCategory[]),
     listBrands().catch(() => [] as CatalogBrand[]),
     listCatalogProducts({ limit: 100 }),
-    queryClient.fetchQuery({ queryKey: ["catalog-variants"], queryFn: listActiveVariants }).catch(() => []),
     queryClient.fetchQuery({ queryKey: ["integration-sku-mappings", ""], queryFn: () => listSkuMappings() }).catch(() => [])
   ])
 
   const categoryNames = new Map(loadedCategories.map((item) => [item.id, item.name]))
   const brandNames = new Map(loadedBrands.map((item) => [item.id, item.name]))
-
-  const variantsByProduct = new Map<string, typeof activeVariants>()
-  for (const v of activeVariants) {
-    const list = variantsByProduct.get(v.productId) ?? []
-    list.push(v)
-    variantsByProduct.set(v.productId, list)
-  }
 
   const lazadaByProduct = new Map<string, number>()
   const shopeeByProduct = new Map<string, number>()
@@ -109,18 +98,10 @@ export const fetchProductsBundle = async (): Promise<ProductsBundle> => {
   }
 
   const mappedProducts: Product[] = response.items.map((row) => {
-    const pVariants = variantsByProduct.get(row.id) ?? []
-    const primaryVariant = pVariants[0]
-    const imageUrls = row.images.length > 0
-      ? row.images.map((image) => image.url)
-      : primaryVariant?.imageUrl
-        ? [primaryVariant.imageUrl]
-        : []
-    const retailPrice = primaryVariant?.price
     return {
       id: row.id,
       name: row.name,
-      sku: primaryVariant?.skuCode ?? "",
+      sku: "",
       category: row.categoryId ? categoryNames.get(row.categoryId) ?? "Chưa phân loại" : "Chưa phân loại",
       categoryId: row.categoryId ?? undefined,
       brand: row.brandId ? brandNames.get(row.brandId) : undefined,
@@ -131,13 +112,12 @@ export const fetchProductsBundle = async (): Promise<ProductsBundle> => {
       catalogStatus: row.status,
       unit: row.baseUnit,
       images: row.images,
-      imageUrls,
-      variantCount: pVariants.length,
+      imageUrls: row.images.map((image) => image.url),
+      variantCount: 0,
       lazadaSkuCount: lazadaByProduct.get(row.id) ?? 0,
       shopeeSkuCount: shopeeByProduct.get(row.id) ?? 0,
-      retailPrice,
       stock: 0,
-      price: retailPrice !== undefined ? `${retailPrice.toLocaleString("vi-VN")} ₫` : "—",
+      price: "—",
       state: row.status === "ACTIVE" ? "Đang bán" : row.status === "DRAFT" ? "Lưu nháp" : row.status === "INACTIVE" ? "Ngừng kinh doanh" : "Đã lưu trữ"
     }
   })
@@ -154,32 +134,10 @@ export function ProductsPage({
 }: {
   requestedTab?: string | null
 } = {}) {
+  void requestedTab
   const isDemo = useStoreAuth((s) => Boolean(s.tokens?.isDemo))
-  const [tab, setTab] = useState<ProductsTab>(() => {
-    const raw =
-      requestedTab ??
-      (typeof window !== "undefined"
-        ? new URLSearchParams(window.location.search).get("tab")
-        : null)
-    return raw === "catalog" || raw === "price-lists" || raw === "combos"
-      ? raw
-      : "catalog"
-  })
-  useEffect(() => {
-    if (
-      requestedTab === "catalog" ||
-      requestedTab === "price-lists" ||
-      requestedTab === "combos"
-    ) {
-      setTab(requestedTab)
-    }
-  }, [requestedTab])
-
-  const handleChangeTab = (next: ProductsTab) => {
-    setTab(next)
-    const url = new URL(window.location.href)
-    url.searchParams.set("tab", next)
-    window.history.replaceState({}, "", url.toString())
+  const scrollToSection = (id: string) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" })
   }
 
   const cachedBundle = queryClient.getQueryData<ProductsBundle>(["catalog-products-bundle"])
@@ -187,8 +145,7 @@ export function ProductsPage({
   const [showCatalogManagement, setShowCatalogManagement] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [variantProduct, setVariantProduct] = useState<Product | null>(null)
-  const [viewingVariants, setViewingVariants] = useState<{ product: Product; variants: CatalogVariant[] | null } | null>(null)
-  const variantListRequestId = useRef(0)
+  const [variantsByProduct, setVariantsByProduct] = useState<Record<string, CatalogVariant[] | null>>({})
   const [products, setProducts] = useState<Product[]>(
     cachedBundle?.products ?? (isDemo ? demoDefaultProducts : [])
   )
@@ -254,9 +211,10 @@ export function ProductsPage({
     try {
       const created = await createCatalogVariant(productId, input)
       setVariantProduct(null)
-      setViewingVariants((current) => current && current.product.id === productId && current.variants
-        ? { ...current, variants: [...current.variants, created] }
-        : current)
+      setVariantsByProduct((current) => ({
+        ...current,
+        [productId]: [...(current[productId] ?? []), created]
+      }))
       setError("")
     } catch (error) {
       const message = catalogErrorMessage(error)
@@ -289,9 +247,10 @@ export function ProductsPage({
       const result = input.status === updated.status
         ? updated
         : await updateCatalogVariantStatus(updated.id, input.status, updated.version)
-      setViewingVariants((current) => current && current.product.id === variant.productId && current.variants
-        ? { ...current, variants: current.variants.map((item) => item.id === result.id ? result : item) }
-        : current)
+      setVariantsByProduct((current) => ({
+        ...current,
+        [variant.productId]: (current[variant.productId] ?? []).map((item) => item.id === result.id ? result : item)
+      }))
     } catch (error) {
       throw new Error(catalogErrorMessage(error) ?? "Không thể cập nhật biến thể.")
     }
@@ -300,9 +259,10 @@ export function ProductsPage({
   const handleVariantDeleted = async (variant: CatalogVariant) => {
     try {
       await deleteCatalogVariant(variant.id)
-      setViewingVariants((current) => current && current.product.id === variant.productId && current.variants
-        ? { ...current, variants: current.variants.filter((item) => item.id !== variant.id) }
-        : current)
+      setVariantsByProduct((current) => ({
+        ...current,
+        [variant.productId]: (current[variant.productId] ?? []).filter((item) => item.id !== variant.id)
+      }))
     } catch (error) {
       throw new Error(catalogErrorMessage(error) ?? "Không thể xóa biến thể.")
     }
@@ -314,33 +274,14 @@ export function ProductsPage({
       await deleteCatalogProduct(product.id)
       setProducts((current) => current.filter((item) => item.id !== product.id))
       setEditingProduct((current) => current?.id === product.id ? null : current)
-      setViewingVariants((current) => current?.product.id === product.id ? null : current)
+      setVariantsByProduct((current) => {
+        const next = { ...current }
+        delete next[product.id!]
+        return next
+      })
       setError("")
     } catch (error) {
       setError(catalogErrorMessage(error) ?? "Không thể xóa sản phẩm.")
-    }
-  }
-
-  const handleViewVariants = async (product: Product) => {
-    if (!product.id) {
-      setError("Không xác định được sản phẩm.")
-      return
-    }
-    const requestId = ++variantListRequestId.current
-    setViewingVariants({ product, variants: null })
-    try {
-      const [variants, productAttributes] = await Promise.all([
-        listCatalogProductVariants(product.id),
-        listCatalogProductAttributes(product.id)
-      ])
-      if (requestId !== variantListRequestId.current) return
-      setAttributes(productAttributes)
-      setViewingVariants({ product, variants })
-      setError("")
-    } catch (error) {
-      if (requestId !== variantListRequestId.current) return
-      setViewingVariants(null)
-      setError(catalogErrorMessage(error) ?? "Không thể tải danh sách biến thể của sản phẩm.")
     }
   }
 
@@ -357,6 +298,31 @@ export function ProductsPage({
       setError("Không thể tải thuộc tính của sản phẩm.")
     }
   }
+
+  useEffect(() => {
+    const productIds = products.flatMap((product) => product.id ? [product.id] : [])
+    const missingIds = productIds.filter((id) => !(id in variantsByProduct))
+    if (missingIds.length === 0) return
+    setVariantsByProduct((current) => Object.fromEntries([
+      ...Object.entries(current),
+      ...missingIds.map((id) => [id, null])
+    ]))
+    void Promise.all(missingIds.map(async (productId) => {
+      try {
+        const variants = await listCatalogProductVariants(productId)
+        setVariantsByProduct((current) => ({ ...current, [productId]: variants }))
+        setProducts((current) => current.map((product) => product.id === productId
+          ? { ...product, variantCount: variants.length }
+          : product))
+      } catch (error) {
+        setVariantsByProduct((current) => ({ ...current, [productId]: [] }))
+        setError(catalogErrorMessage(error) ?? "Không thể tải danh sách biến thể của sản phẩm.")
+      }
+    }))
+    // The map is intentionally read as a snapshot; adding it as a dependency would
+    // restart this loader after every individual product response.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [products])
 
   const handleCreateAttribute = async (productId: string, name: string) => {
     const normalizedName = normalizeAttributeName(name)
@@ -430,7 +396,7 @@ export function ProductsPage({
     <main className="mx-auto max-w-[1520px] py-7">
       <DashboardHeader
         section="products"
-        onCreate={tab === "catalog" ? () => setShowCreate(true) : undefined}
+        onCreate={() => setShowCreate(true)}
       />
 
       <section className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -441,7 +407,7 @@ export function ProductsPage({
           icon={Package}
           tone="emerald"
           loading={loading}
-          onClick={() => handleChangeTab("catalog")}
+          onClick={() => scrollToSection("product-catalog")}
         />
         <KpiStatCard
           label="Đã đồng bộ Sàn TMĐT"
@@ -450,7 +416,7 @@ export function ProductsPage({
           icon={Layers}
           tone="sky"
           loading={loading}
-          onClick={() => handleChangeTab("catalog")}
+          onClick={() => scrollToSection("product-catalog")}
         />
         <KpiStatCard
           label="Bảng giá Đa kênh"
@@ -458,7 +424,7 @@ export function ProductsPage({
           hint="Tách giá bán lẻ & giá bù chiết khấu sàn"
           icon={Tag}
           tone="amber"
-          onClick={() => handleChangeTab("price-lists")}
+          onClick={() => scrollToSection("product-price-lists")}
         />
         <KpiStatCard
           label="Gói sản phẩm Combo"
@@ -467,49 +433,27 @@ export function ProductsPage({
           icon={Boxes}
           tone="indigo"
           loading={loading}
-          onClick={() => handleChangeTab("combos")}
+          onClick={() => scrollToSection("product-combos")}
         />
       </section>
 
-      <div className="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <SegmentedTabs<ProductsTab>
-          value={tab}
-          onChange={handleChangeTab}
-          ariaLabel="Phân mục quản lý Sản phẩm"
-          tabs={[
-            {
-              value: "catalog",
-              label: "Danh mục Sản phẩm",
-              icon: Package,
-              badge: loading ? undefined : products.length
-            },
-            {
-              value: "price-lists",
-              label: "Bảng giá theo Kênh bán",
-              icon: Tag
-            },
-            {
-              value: "combos",
-              label: "Sản phẩm Combo (Bundle)",
-              icon: Boxes,
-              badge: isDemo ? 2 : loading ? undefined : stats.comboCount
-            }
-          ]}
-        />
-
-        {tab === "catalog" && (
+      <section id="product-catalog" className="scroll-mt-6">
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-[#163d36]">Danh mục sản phẩm</h2>
+            <p className="mt-1 text-xs text-slate-500">Quản lý sản phẩm, biến thể, danh mục và thương hiệu.</p>
+          </div>
           <Button
             type="button"
             variant="outline"
             onClick={() => setShowCatalogManagement(true)}
-            className="rounded-xl border-slate-200 bg-white text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition-all active:scale-[0.98]"
+            className="shadow-2xs rounded-xl border-slate-200 bg-white text-xs font-semibold text-slate-700 transition-all hover:bg-slate-50 active:scale-[0.98]"
           >
             Quản lý danh mục &amp; thương hiệu
           </Button>
-        )}
-      </div>
+        </div>
 
-      {error && tab === "catalog" && (
+      {error && (
         <p
           className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
           role="alert"
@@ -518,27 +462,43 @@ export function ProductsPage({
         </p>
       )}
 
-      {tab === "catalog" && (
         <ProductsTable
           section="products"
           products={products}
           loading={loading}
           onEdit={setEditingProduct}
-          onViewVariants={(product) => void handleViewVariants(product)}
+          renderVariants={(product) => (
+            <ProductVariantList
+              embedded
+              product={product}
+              variants={product.id ? variantsByProduct[product.id] ?? null : []}
+              attributes={[]}
+              onClose={() => undefined}
+              onAddVariant={() => void handleOpenVariantForm(product)}
+              onUpdateVariant={handleVariantUpdated}
+              onDeleteVariant={handleVariantDeleted}
+            />
+          )}
           onDelete={handleProductDeleted}
         />
-      )}
+      </section>
 
-      {tab === "price-lists" && <PriceListsPanel />}
+      <section id="product-price-lists" className="mt-10 scroll-mt-6 border-t border-slate-200 pt-8">
+        <h2 className="mb-1 text-lg font-bold text-[#163d36]">Bảng giá theo kênh bán</h2>
+        <p className="mb-5 text-xs text-slate-500">Thiết lập giá bán cho POS, sàn thương mại điện tử và website.</p>
+        <PriceListsPanel />
+      </section>
 
-      {tab === "combos" && (
+      <section id="product-combos" className="mt-10 scroll-mt-6 border-t border-slate-200 pt-8">
+        <h2 className="mb-1 text-lg font-bold text-[#163d36]">Sản phẩm Combo</h2>
+        <p className="mb-5 text-xs text-slate-500">Tạo và quản lý các gói sản phẩm bán theo bộ.</p>
         <ProductCombosPanel
           products={products}
           categories={categories}
           brands={brands}
           onReloadProducts={() => loadProducts(true)}
         />
-      )}
+      </section>
 
       {showCreate && (
         <ProductCreateForm
@@ -555,20 +515,6 @@ export function ProductsPage({
           brands={brands}
           onClose={() => setEditingProduct(null)}
           onUpdated={handleUpdated}
-        />
-      )}
-      {viewingVariants && (
-        <ProductVariantList
-          product={viewingVariants.product}
-          variants={viewingVariants.variants}
-          attributes={attributes}
-          onAddVariant={() => void handleOpenVariantForm(viewingVariants.product)}
-          onUpdateVariant={handleVariantUpdated}
-          onDeleteVariant={handleVariantDeleted}
-          onClose={() => {
-            variantListRequestId.current += 1
-            setViewingVariants(null)
-          }}
         />
       )}
       {variantProduct && (

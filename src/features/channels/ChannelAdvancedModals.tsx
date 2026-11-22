@@ -647,7 +647,7 @@ export function BulkAutoMatchSkuModal({
 
             {preview ? (
               <div className="flex flex-wrap items-center gap-2 text-xs">
-                <span className="rounded-lg bg-white px-2.5 py-1 font-medium text-slate-600 shadow-2xs">
+                <span className="shadow-2xs rounded-lg bg-white px-2.5 py-1 font-medium text-slate-600">
                   Đã quét: <b>{preview.totalScanned}</b> SP
                 </span>
                 <span className="rounded-lg bg-[#e6f5ee] px-2.5 py-1 font-semibold text-[#147853]">
@@ -739,7 +739,7 @@ export function BulkAutoMatchSkuModal({
             </div>
           ) : (
             <table className="w-full min-w-[900px] text-left text-xs">
-              <thead className="sticky top-0 bg-[#fbfcfc] text-[10px] uppercase tracking-wider text-slate-400 shadow-2xs">
+              <thead className="shadow-2xs sticky top-0 bg-[#fbfcfc] text-[10px] uppercase tracking-wider text-slate-400">
                 <tr>
                   <th className="w-10 px-4 py-3">Chọn</th>
                   <th className="px-4 py-3">Sản phẩm & SellerSKU trên sàn</th>

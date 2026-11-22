@@ -55,13 +55,12 @@ describe("Omnichannel Retail 5-Module Suite (Promotions, PriceList/Combos, CRM 3
     expect(screen.getByText("HE2026")).toBeInTheDocument()
   })
 
-  it("renders ProductsPage with PriceLists and Combos tabs", () => {
+  it("renders catalog, price lists, and combos together in ProductsPage", () => {
     renderWithProviders(<ProductsPage requestedTab="price-lists" />)
     expect(
       screen.getAllByText(/Bảng giá/i).length
     ).toBeGreaterThan(0)
 
-    fireEvent.click(screen.getByRole("tab", { name: /Combo/i }))
     expect(
       screen.getAllByText(/Combo/i).length
     ).toBeGreaterThan(0)

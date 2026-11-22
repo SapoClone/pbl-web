@@ -201,7 +201,7 @@ export function LazadaConnectionModal({
                 }`}
               >
                 1. Đăng nhập & Ủy quyền qua Sàn (Khuyên dùng)
-                <span className="mt-0.5 block font-normal text-[11px] text-slate-500">
+                <span className="mt-0.5 block text-[11px] font-normal text-slate-500">
                   Chuyển tới cổng Lazada Seller Center để cấp quyền tự động
                 </span>
               </button>
@@ -215,7 +215,7 @@ export function LazadaConnectionModal({
                 }`}
               >
                 2. Kết nối bằng Token có sẵn (Sandbox / In-house)
-                <span className="mt-0.5 block font-normal text-[11px] text-slate-500">
+                <span className="mt-0.5 block text-[11px] font-normal text-slate-500">
                   Dành cho môi trường thử nghiệm hoặc ứng dụng nội bộ
                 </span>
               </button>

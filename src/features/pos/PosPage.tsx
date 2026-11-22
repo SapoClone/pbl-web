@@ -621,7 +621,7 @@ export function PosPage() {
       <header className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <div className="mb-1.5 inline-flex items-center gap-1.5 rounded-full border border-emerald-200/60 bg-emerald-50/80 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#147853]">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#16866f] animate-pulse" />
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#16866f]" />
             <span>POS Thu Ngân Tại Quầy</span>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-[#163d36] sm:text-3xl">
@@ -638,8 +638,8 @@ export function PosPage() {
             onClick={() => setShiftModalOpen(true)}
             className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-semibold transition active:scale-[0.98] ${
               activeShift?.status === "OPEN"
-                ? "border-emerald-200/80 bg-emerald-50/90 text-emerald-700 hover:bg-emerald-100 shadow-2xs"
-                : "border-amber-200/80 bg-amber-50/90 text-amber-800 hover:bg-amber-100 shadow-2xs"
+                ? "shadow-2xs border-emerald-200/80 bg-emerald-50/90 text-emerald-700 hover:bg-emerald-100"
+                : "shadow-2xs border-amber-200/80 bg-amber-50/90 text-amber-800 hover:bg-amber-100"
             }`}
           >
             <Clock3 size={14} />
@@ -650,13 +650,13 @@ export function PosPage() {
                 : "Chưa có ca: mở ca để bán"}
           </button>
 
-          <div className="rounded-xl border border-emerald-200/60 bg-[#e6f5ee] px-3.5 py-2 text-xs font-semibold text-[#147853] shadow-2xs">
+          <div className="shadow-2xs rounded-xl border border-emerald-200/60 bg-[#e6f5ee] px-3.5 py-2 text-xs font-semibold text-[#147853]">
             {catalogLoading
               ? "Đang tải sản phẩm..."
               : `${products.filter((p) => p.available > 0).length}/${products.length} SKU còn hàng`}
           </div>
 
-          <div className="flex items-center gap-2 rounded-xl border border-slate-200/80 bg-white/95 px-3.5 py-2 text-xs shadow-2xs">
+          <div className="shadow-2xs flex items-center gap-2 rounded-xl border border-slate-200/80 bg-white/95 px-3.5 py-2 text-xs">
             <Store size={15} className="text-[#16866f]" />
             <span className="text-slate-400">Chi nhánh:</span>
             {isDemo ? (
@@ -683,7 +683,7 @@ export function PosPage() {
 
       {/* Multi-Tab Hold Bills Bar */}
       <div className="mb-4 flex items-center justify-between gap-3 overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 px-3 py-2.5 shadow-[0_2px_12px_rgba(20,50,45,0.03)] backdrop-blur-sm">
-        <div className="flex flex-1 items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth">
+        <div className="no-scrollbar flex flex-1 items-center gap-2 overflow-x-auto scroll-smooth">
           {tabs.map((t) => {
             const active = t.id === currentTab.id
             const count = t.cart.reduce((s, c) => s + c.quantity, 0)
@@ -692,7 +692,7 @@ export function PosPage() {
                 key={t.id}
                 className={`flex shrink-0 items-center gap-1.5 rounded-xl border px-3.5 py-1.5 text-xs font-medium transition-all duration-200 ${
                   active
-                    ? "border-[#16866f]/40 bg-[#e6f5ee] font-semibold text-[#147853] shadow-2xs"
+                    ? "shadow-2xs border-[#16866f]/40 bg-[#e6f5ee] font-semibold text-[#147853]"
                     : "border-slate-200/70 bg-slate-50/80 text-slate-600 hover:bg-slate-100/80"
                 }`}
               >
@@ -703,7 +703,7 @@ export function PosPage() {
                 >
                   <span>{t.label}</span>
                   {count > 0 && (
-                    <span className="rounded-full bg-[#16866f] px-1.5 py-0.2 text-[10px] font-bold text-white tabular-nums">
+                    <span className="py-0.2 rounded-full bg-[#16866f] px-1.5 text-[10px] font-bold tabular-nums text-white">
                       {count}
                     </span>
                   )}
@@ -713,7 +713,7 @@ export function PosPage() {
                     type="button"
                     onClick={() => closeHoldTab(t.id)}
                     aria-label={`Đóng ${t.label}`}
-                    className="rounded-md p-0.5 text-slate-400 hover:bg-white hover:text-red-600 transition"
+                    className="rounded-md p-0.5 text-slate-400 transition hover:bg-white hover:text-red-600"
                   >
                     <X size={12} />
                   </button>
@@ -724,13 +724,13 @@ export function PosPage() {
           <button
             type="button"
             onClick={addHoldTab}
-            className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-dashed border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 whitespace-nowrap transition hover:border-[#16866f] hover:text-[#16866f] hover:bg-emerald-50/40"
+            className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-xl border border-dashed border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:border-[#16866f] hover:bg-emerald-50/40 hover:text-[#16866f]"
           >
             <Plus size={13} /> Lưu tạm / Thêm đơn
           </button>
         </div>
 
-        <div className="hidden lg:flex shrink-0 items-center gap-2 text-[11px] text-slate-400">
+        <div className="hidden shrink-0 items-center gap-2 text-[11px] text-slate-400 lg:flex">
           <span className="flex items-center gap-1 font-mono">
             <kbd className="rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">F2</kbd>
             <span>Tìm SP</span>
@@ -803,8 +803,8 @@ export function PosPage() {
                   disabled={product.available < 1}
                   className={`group relative flex flex-col justify-between rounded-2xl border p-4 text-left transition-all duration-200 ${
                     inCartQty > 0
-                      ? "border-[#16866f]/50 bg-gradient-to-br from-[#f2faf6] to-white shadow-xs"
-                      : "border-slate-200/80 bg-white hover:border-[#16866f]/40 hover:-translate-y-0.5 hover:shadow-[0_8px_20px_-4px_rgba(20,50,45,0.08)]"
+                      ? "shadow-xs border-[#16866f]/50 bg-gradient-to-br from-[#f2faf6] to-white"
+                      : "border-slate-200/80 bg-white hover:-translate-y-0.5 hover:border-[#16866f]/40 hover:shadow-[0_8px_20px_-4px_rgba(20,50,45,0.08)]"
                   } active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50`}
                 >
                   <div className="flex items-start gap-3">
@@ -933,7 +933,7 @@ export function PosPage() {
                           cart: cart.filter((line) => line.sku !== item.sku)
                         })
                       }
-                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -1217,7 +1217,7 @@ export function PosPage() {
             <button
               type="submit"
               disabled={orderMutation.isPending || !cart.length}
-              className="mt-3.5 h-12 w-full rounded-xl bg-gradient-to-r from-[#16866f] to-[#126b58] text-sm font-bold text-white shadow-[0_4px_16px_rgba(22,134,111,0.3)] hover:shadow-[0_6px_22px_rgba(22,134,111,0.4)] hover:-translate-y-0.5 active:scale-[0.98] transition-all disabled:cursor-not-allowed disabled:opacity-50 disabled:transform-none disabled:shadow-none"
+              className="mt-3.5 h-12 w-full rounded-xl bg-gradient-to-r from-[#16866f] to-[#126b58] text-sm font-bold text-white shadow-[0_4px_16px_rgba(22,134,111,0.3)] transition-all hover:-translate-y-0.5 hover:shadow-[0_6px_22px_rgba(22,134,111,0.4)] active:scale-[0.98] disabled:transform-none disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
             >
               {orderMutation.isPending
                 ? "Đang xử lý đơn hàng..."
@@ -1353,7 +1353,7 @@ function PosShiftModal({
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center bg-[#163d36]/35 p-4 backdrop-blur-xs"
+      className="backdrop-blur-xs fixed inset-0 z-[70] flex items-center justify-center bg-[#163d36]/35 p-4"
       role="dialog"
       aria-modal="true"
     >
@@ -1519,7 +1519,7 @@ function ThermalReceiptModal({
 
   return (
     <div
-      className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-xs"
+      className="backdrop-blur-xs fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/45 p-4"
       role="dialog"
       aria-modal="true"
     >

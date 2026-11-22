@@ -1365,7 +1365,7 @@ function Modal({
   children: React.ReactNode
 }) {
   return (
-    <div className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-[#163d36]/35 p-4 pt-14 backdrop-blur-xs">
+    <div className="backdrop-blur-xs fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-[#163d36]/35 p-4 pt-14">
       <section className="w-full max-w-3xl rounded-2xl bg-white p-6 shadow-2xl">
         <div className="mb-5 flex justify-between">
           <h2 className="text-lg font-semibold text-[#163d36]">{title}</h2>
