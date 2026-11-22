@@ -656,19 +656,19 @@ export function CustomersPage({
               value: "customers",
               label: "Danh sách khách hàng",
               icon: UserRound,
-              badge: customers.length
+              badge: loading ? undefined : customers.length
             },
             {
               value: "groups",
               label: "Nhóm khách hàng",
               icon: Users,
-              badge: enrichedGroups.length
+              badge: loading ? undefined : enrichedGroups.length
             },
             {
               value: "loyalty",
               label: "Hạng thành viên & Tích điểm",
               icon: Crown,
-              badge: tiers.length
+              badge: loading ? undefined : tiers.length
             }
           ]}
         />
@@ -684,6 +684,7 @@ export function CustomersPage({
               hint={`Gồm ${lazadaCount} khách đồng bộ từ Lazada`}
               icon={UserRound}
               tone="emerald"
+              loading={loading}
             />
             <KpiStatCard
               label="Khách Sàn TMĐT & Website"
@@ -691,6 +692,7 @@ export function CustomersPage({
               hint="Tự động gộp trùng số điện thoại"
               icon={ShoppingBag}
               tone="indigo"
+              loading={loading}
             />
             <KpiStatCard
               label="Tổng quỹ điểm khả dụng"
@@ -698,6 +700,7 @@ export function CustomersPage({
               hint={`Quy đổi ~${formatVnd(kpis.totalPoints * (loyaltySettings.redeemValuePerPoint || 1000))}`}
               icon={Coins}
               tone="sky"
+              loading={loading}
               onClick={() => handleTabChange("loyalty")}
             />
             <KpiStatCard
@@ -706,6 +709,7 @@ export function CustomersPage({
               hint={`${kpis.debtorCount} khách hàng đang có công nợ mở`}
               icon={Wallet}
               tone={kpis.totalDebt > 0 ? "amber" : "emerald"}
+              loading={loading}
             />
           </div>
 

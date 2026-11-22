@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Copy, Lock, Plus, RotateCcw, Save, ShieldCheck, Trash2, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { ListSkeleton, Skeleton } from "@/components/ui/skeleton"
 import { usePermissions } from "@/lib/permissions"
 import {
   createRole,
@@ -91,7 +92,11 @@ export function RolesPanel() {
         <RoleList roles={roles} activeId={activeId} loading={rolesQuery.isLoading} onSelect={select} />
         <section className="min-w-0 rounded-xl border border-slate-200 bg-white shadow-sm">
           {!catalogQuery.data ? (
-            <p className="p-10 text-center text-sm text-slate-500">{catalogQuery.isLoading ? "Đang tải..." : "Chưa có danh mục quyền."}</p>
+            catalogQuery.isLoading ? (
+              <MatrixSkeleton />
+            ) : (
+              <p className="p-10 text-center text-sm text-slate-500">Chưa có danh mục quyền.</p>
+            )
           ) : activeId === NEW_ROLE ? (
             <RoleEditorLoader
               key={NEW_ROLE}
@@ -121,7 +126,11 @@ export function RolesPanel() {
               }}
             />
           ) : (
-            <p className="p-10 text-center text-sm text-slate-500">{rolesQuery.isLoading ? "Đang tải..." : "Chưa có vai trò nào."}</p>
+            rolesQuery.isLoading ? (
+              <MatrixSkeleton />
+            ) : (
+              <p className="p-10 text-center text-sm text-slate-500">Chưa có vai trò nào.</p>
+            )
           )}
         </section>
       </div>
@@ -142,7 +151,7 @@ function RoleList({
 }) {
   return (
     <nav aria-label="Danh sách vai trò" className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
-      {loading && <p className="p-4 text-sm text-slate-500">Đang tải...</p>}
+      {loading && <ListSkeleton rows={4} className="p-2" />}
       <ul className="grid gap-1">
         {activeId === NEW_ROLE && (
           <li>
@@ -204,7 +213,7 @@ function RoleEditorLoader(props: EditorProps) {
   if (role && detailQuery.isError) {
     return <p role="alert" className="p-10 text-center text-sm text-red-600">Không thể tải quyền của vai trò này.</p>
   }
-  if (role && !detailQuery.data) return <p className="p-10 text-center text-sm text-slate-500">Đang tải quyền...</p>
+  if (role && !detailQuery.data) return <MatrixSkeleton />
   return <RoleEditor {...props} detail={detailQuery.data ?? null} />
 }
 
@@ -474,5 +483,30 @@ function TriCheckbox({ label, state, disabled, onChange }: { label: string; stat
       onChange={onChange}
       className="h-4 w-4 accent-[#16866f]"
     />
+  )
+}
+
+/** The permission matrix while the role and the catalog load */
+function MatrixSkeleton() {
+  return (
+    <div role="status" aria-label="Đang tải quyền" className="p-5">
+      <div className="flex items-center gap-3">
+        <Skeleton className="h-6 w-6 rounded-full" />
+        <div className="space-y-1.5">
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="h-3 w-64" />
+        </div>
+      </div>
+      <div className="mt-6 space-y-3">
+        {Array.from({ length: 8 }).map((_, row) => (
+          <div key={row} className="flex items-center gap-4">
+            <Skeleton className="h-4 w-36" />
+            {Array.from({ length: 5 }).map((_, col) => (
+              <Skeleton key={col} className="h-4 w-8" />
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }

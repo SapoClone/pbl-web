@@ -753,6 +753,7 @@ export function PromotionsPage({
           value={kpis.activePromos}
           hint={`Trên tổng số ${promotions.length} chiến dịch đã tạo`}
           icon={Sparkles}
+          loading={isLoading}
           tone="emerald"
           onClick={() => handleChangeTab("programs")}
         />
@@ -761,6 +762,7 @@ export function PromotionsPage({
           value={kpis.activeCoupons}
           hint={`${coupons.length} mã đã phát hành toàn hệ thống`}
           icon={TicketPercent}
+          loading={isLoading}
           tone="sky"
           onClick={() => handleChangeTab("coupons")}
         />
@@ -769,6 +771,7 @@ export function PromotionsPage({
           value={kpis.totalRedemptions.toLocaleString("vi-VN")}
           hint="Ghi nhận tự động qua sổ cái đơn hàng"
           icon={CheckCircle2}
+          loading={isLoading}
           tone="indigo"
         />
         <KpiStatCard
@@ -776,6 +779,7 @@ export function PromotionsPage({
           value={`${kpis.avgUtilization}%`}
           hint="Trung bình tỷ lệ dùng trên hạn mức phát hành"
           icon={Calculator}
+          loading={isLoading}
           tone="amber"
           onClick={() => handleChangeTab("simulator")}
         />
@@ -792,13 +796,13 @@ export function PromotionsPage({
               value: "programs",
               label: "Chương trình khuyến mãi",
               icon: Sparkles,
-              badge: promotions.length
+              badge: isLoading ? undefined : promotions.length
             },
             {
               value: "coupons",
               label: "Kho Mã giảm giá (Coupon)",
               icon: TicketPercent,
-              badge: coupons.length
+              badge: isLoading ? undefined : coupons.length
             },
             {
               value: "simulator",

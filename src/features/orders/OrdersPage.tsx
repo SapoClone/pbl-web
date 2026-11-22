@@ -9,6 +9,7 @@ import {
 } from "lucide-react"
 import { useQuery } from "@tanstack/react-query"
 import { getOrdersSummary } from "@/api/sales/orders"
+import { Skeleton } from "@/components/ui/skeleton"
 import { DashboardHeader } from "@/shared/dashboard/DashboardHeader"
 import { orders } from "@/shared/dashboard/dashboard.mock"
 import { useStoreAuth } from "@/store/zustand/useStoreAuth"
@@ -36,6 +37,8 @@ export function OrdersPage() {
   )
 
   const liveSummary = summaryQuery.data
+  // the summary is still in flight: placeholders, never a "0" or a "—"
+  const summaryLoading = !isDemo && summaryQuery.isLoading
   const needsActionCount = isDemo ? 1 : (liveSummary?.needsAction.total ?? 0)
 
   return (
@@ -73,6 +76,7 @@ export function OrdersPage() {
                 "—")
           }
           icon={ShoppingCart}
+          loading={summaryLoading}
         />
         <OrderMetric
           label="Đang đóng gói & Giao vận"
@@ -86,6 +90,7 @@ export function OrdersPage() {
                 : "—"
           }
           icon={Clock3}
+          loading={summaryLoading}
         />
         <OrderMetric
           label="Đã hoàn tất"
@@ -97,6 +102,7 @@ export function OrdersPage() {
                 "—")
           }
           icon={CheckCircle2}
+          loading={summaryLoading}
         />
         <OrderMetric
           label={
@@ -106,6 +112,7 @@ export function OrdersPage() {
           }
           value={isDemo ? demoSummary.marketplace : needsActionCount}
           icon={ShoppingBag}
+          loading={summaryLoading}
         />
       </div>
 
@@ -119,11 +126,13 @@ export function OrdersPage() {
 function OrderMetric({
   label,
   value,
-  icon: Icon
+  icon: Icon,
+  loading = false
 }: {
   label: string
   value: number | string
   icon: typeof ShoppingCart
+  loading?: boolean
 }) {
   return (
     <section className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 p-5 shadow-[0_4px_20px_-4px_rgba(20,50,45,0.04),0_12px_28px_-8px_rgba(20,50,45,0.05)] backdrop-blur-sm transition-all duration-300 hover:border-[#16866f]/30 hover:shadow-[0_8px_30px_-4px_rgba(20,50,45,0.08)]">
@@ -135,9 +144,15 @@ function OrderMetric({
           <Icon size={18} />
         </div>
       </div>
-      <p className="mt-3 text-2xl font-bold tabular-nums tracking-tight text-[#163d36] sm:text-3xl">
-        {value}
-      </p>
+      {loading ? (
+        <div role="status" aria-label="Đang tải" className="mt-3.5">
+          <Skeleton className="h-8 w-24" />
+        </div>
+      ) : (
+        <p className="mt-3 text-2xl font-bold tabular-nums tracking-tight text-[#163d36] sm:text-3xl">
+          {value}
+        </p>
+      )}
     </section>
   )
 }

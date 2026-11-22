@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState, type FormEvent } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { CalendarClock, Clock, Plus, Trash2, UserRound, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
+import { TableSkeleton } from "@/components/ui/table-skeleton"
 import { apiErrorCode } from "@/api/error-code"
 import { usePermissions } from "@/lib/permissions"
 import { listBranches } from "@/api/platform/branches"
@@ -137,9 +139,13 @@ export function ShiftsPanel() {
 
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         {!activeBranchId ? (
-          <p className="p-10 text-center text-sm text-slate-500">{branchesQuery.isLoading ? "Đang tải..." : "Chưa có chi nhánh đang hoạt động."}</p>
+          branchesQuery.isLoading ? (
+            <TableSkeleton rows={4} cols={7} className="rounded-none border-0 shadow-none" />
+          ) : (
+            <p className="p-10 text-center text-sm text-slate-500">Chưa có chi nhánh đang hoạt động.</p>
+          )
         ) : schedulesQuery.isLoading ? (
-          <p className="p-10 text-center text-sm text-slate-500">Đang tải...</p>
+          <TableSkeleton rows={4} cols={7} className="rounded-none border-0 shadow-none" />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[960px] text-left text-sm">
@@ -243,7 +249,10 @@ function OnDutyBar({ shifts, at, loading }: { shifts: StaffSchedule[]; at?: stri
         <Clock size={16} className="text-[#16866f]" /> Đang trực{time ? ` lúc ${time}` : ""}
       </h2>
       {loading ? (
-        <p className="text-sm text-slate-500">Đang tải...</p>
+        <div role="status" aria-label="Đang tải" className="flex gap-2">
+          <Skeleton className="h-14 w-36" />
+          <Skeleton className="h-14 w-36" />
+        </div>
       ) : shifts.length === 0 ? (
         <p className="text-sm text-slate-500">Hiện không có ca nào đang chạy ở chi nhánh này.</p>
       ) : (

@@ -18,6 +18,8 @@ import {
 } from "@/api/platform/members"
 import { listRoles, type Role } from "@/api/platform/roles"
 import { useStoreAuth } from "@/store/zustand/useStoreAuth"
+import { Skeleton } from "@/components/ui/skeleton"
+import { TableSkeleton } from "@/components/ui/table-skeleton"
 import { usePermissions } from "@/lib/permissions"
 import { RolesPanel } from "./RolesPanel"
 import { ShiftsPanel } from "./ShiftsPanel"
@@ -317,6 +319,8 @@ function MembersPanel() {
   const roles = isDemo || rolesQuery.isError ? DEMO_ROLES : (rolesQuery.data ?? []).filter((role) => !role.isOwner)
   const branches: Array<{ id: string; name: string }> = isDemo || branchesQuery.isError ? DEMO_STAFF_BRANCHES : (branchesQuery.data?.data ?? [])
   const summary = isDemo || summaryQuery.isError ? DEMO_SUMMARY : summaryQuery.data
+  // the numbers are still on their way: placeholders, never a "0"
+  const summaryLoading = !isDemo && !summary && (summaryQuery.isLoading || membersQuery.isLoading)
   const filteredMembers = useMemo(
     () => members.filter((member) =>
       `${member.name} ${member.email} ${member.code} ${member.roleName}`.toLowerCase().includes(search.toLowerCase())
@@ -386,10 +390,10 @@ function MembersPanel() {
       </header>
 
       <div className="mb-5 grid gap-4 md:grid-cols-4">
-        <Summary label="Tổng thành viên" value={summary?.total ?? members.length} />
-        <Summary label="Đang hoạt động" value={summary?.active ?? members.filter((m) => m.status === "active").length} />
-        <Summary label="Đang khóa" value={summary?.locked ?? members.filter((m) => m.status === "locked").length} />
-        <Summary label="Đang làm việc" value={summary?.onShift ?? 0} />
+        <Summary loading={summaryLoading} label="Tổng thành viên" value={summary?.total ?? members.length} />
+        <Summary loading={summaryLoading} label="Đang hoạt động" value={summary?.active ?? members.filter((m) => m.status === "active").length} />
+        <Summary loading={summaryLoading} label="Đang khóa" value={summary?.locked ?? members.filter((m) => m.status === "locked").length} />
+        <Summary loading={summaryLoading} label="Đang làm việc" value={summary?.onShift ?? 0} />
       </div>
 
       {membersQuery.isError && !isDemo && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">Không thể tải danh sách thành viên.</p>}
@@ -408,7 +412,7 @@ function MembersPanel() {
           </select>
         </div>
         {membersQuery.isLoading ? (
-          <p className="p-10 text-center text-sm text-slate-500">Đang tải...</p>
+          <TableSkeleton rows={4} cols={6} className="rounded-none border-0 shadow-none" />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1050px] text-left text-sm">
@@ -457,6 +461,17 @@ function MembersPanel() {
   )
 }
 
-function Summary({ label, value }: { label: string; value: number }) {
-  return <section className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-xs text-slate-500">{label}</p><p className="mt-1 text-2xl font-semibold text-[#163d36]">{value}</p></section>
+function Summary({ label, value, loading = false }: { label: string; value: number; loading?: boolean }) {
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-4">
+      <p className="text-xs text-slate-500">{label}</p>
+      {loading ? (
+        <div role="status" aria-label="Đang tải" className="mt-2">
+          <Skeleton className="h-7 w-14" />
+        </div>
+      ) : (
+        <p className="mt-1 text-2xl font-semibold text-[#163d36]">{value}</p>
+      )}
+    </section>
+  )
 }

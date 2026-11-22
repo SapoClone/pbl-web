@@ -1,3 +1,4 @@
+import { Skeleton } from "@/components/ui/skeleton"
 import { useEffect, useState } from "react"
 import axios from "axios"
 import { AlertTriangle, ArrowDownToLine, Boxes, Download, Plus, PackageCheck, Sparkles } from "lucide-react"
@@ -252,6 +253,8 @@ export function InventoryPage() {
   }
 
   const metrics = isDemo ? DEMO_STOCK_SUMMARY : summary.data ?? { onHand: 0, reserved: 0, available: 0, belowMinCount: 0, outOfStockCount: 0, skuCount: 0, stockValue: 0, branchId: null }
+  // while the summary is in flight there is no number yet: a placeholder, never a "0"
+  const summaryLoading = !isDemo && summary.isLoading
   const loadingError = !isDemo && [branches, warehouses, variants, stock, summary].some((query) => query.isError)
   const docs = tab === "receipts" ? receipts.data ?? [] : tab === "issues" ? issues.data ?? [] : tab === "transfers" ? transfers.data ?? [] : stocktakes.data ?? []
 
@@ -297,7 +300,7 @@ export function InventoryPage() {
               onChange={(event) => setBranchId(event.target.value)}
               className="min-w-48 bg-transparent text-xs font-semibold text-[#163d36] outline-none"
             >
-              <option value="">Chọn chi nhánh</option>
+              <option value="">{!isDemo && branches.isLoading ? "Đang tải chi nhánh..." : "Chọn chi nhánh"}</option>
               {branchList.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.name} ({item.code})
@@ -314,7 +317,7 @@ export function InventoryPage() {
               onChange={(event) => setWarehouseId(event.target.value)}
               className="min-w-48 bg-transparent text-xs font-semibold text-[#163d36] outline-none"
             >
-              <option value="">Chọn kho</option>
+              <option value="">{!isDemo && warehouses.isLoading ? "Đang tải kho..." : "Chọn kho"}</option>
               {warehouseList
                 .filter((item) => item.status === "ACTIVE")
                 .map((item) => (
@@ -356,10 +359,10 @@ export function InventoryPage() {
     </div>
 
     <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <Metric label="Tồn thực tế" value={metrics.onHand} icon={Boxes} />
-      <Metric label="Đang giữ cho đơn" value={metrics.reserved} icon={PackageCheck} />
-      <Metric label="Tồn khả dụng" value={metrics.available} icon={ArrowDownToLine} />
-      <Metric label="Sản phẩm cần chú ý" value={metrics.belowMinCount + metrics.outOfStockCount} icon={AlertTriangle} warning />
+      <Metric label="Tồn thực tế" value={metrics.onHand} icon={Boxes} loading={summaryLoading} />
+      <Metric label="Đang giữ cho đơn" value={metrics.reserved} icon={PackageCheck} loading={summaryLoading} />
+      <Metric label="Tồn khả dụng" value={metrics.available} icon={ArrowDownToLine} loading={summaryLoading} />
+      <Metric label="Sản phẩm cần chú ý" value={metrics.belowMinCount + metrics.outOfStockCount} icon={AlertTriangle} warning loading={summaryLoading} />
     </div>
 
     {loadingError && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">Không thể tải đầy đủ dữ liệu từ KrakenD.</p>}
@@ -389,12 +392,14 @@ function Metric({
   label,
   value,
   icon: Icon,
-  warning = false
+  warning = false,
+  loading = false
 }: {
   label: string
   value: number
   icon: typeof Boxes
   warning?: boolean
+  loading?: boolean
 }) {
   return (
     <section className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 p-5 shadow-[0_4px_20px_-4px_rgba(20,50,45,0.04),0_12px_28px_-8px_rgba(20,50,45,0.05)] backdrop-blur-sm transition-all duration-300 hover:border-[#16866f]/30 hover:shadow-[0_8px_30px_-4px_rgba(20,50,45,0.08)]">
@@ -412,9 +417,15 @@ function Metric({
           <Icon size={18} />
         </div>
       </div>
-      <p className="mt-3 text-2xl font-bold tabular-nums tracking-tight text-[#163d36] sm:text-3xl">
-        {value.toLocaleString("vi-VN", { maximumFractionDigits: 3 })}
-      </p>
+      {loading ? (
+        <div role="status" aria-label="Đang tải" className="mt-3.5">
+          <Skeleton className="h-8 w-28" />
+        </div>
+      ) : (
+        <p className="mt-3 text-2xl font-bold tabular-nums tracking-tight text-[#163d36] sm:text-3xl">
+          {value.toLocaleString("vi-VN", { maximumFractionDigits: 3 })}
+        </p>
+      )}
     </section>
   )
 }
