@@ -1,5 +1,8 @@
 import { useState } from "react"
 import { useRouterState } from "@tanstack/react-router"
+import { usePermissions } from "@/lib/permissions"
+import { navigation } from "@/shared/navigation/navigation"
+import { NoAccess } from "./NoAccess"
 import { Sidebar } from "./Sidebar/Sidebar"
 import { Topbar } from "./Topbar/Topbar"
 
@@ -13,6 +16,12 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     "/forgot-password",
     "/onboarding-tenant"
   ].includes(pathname)
+
+  const { can } = usePermissions()
+  const required = navigation.find((item) =>
+    item.to === "/" ? pathname === "/" : pathname.startsWith(item.to)
+  )?.permission
+  const firstAllowed = navigation.find((item) => can(item.permission))
 
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     if (typeof window === "undefined") return false
@@ -41,9 +50,15 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
           collapsed={collapsed}
           onToggleCollapse={handleToggleCollapse}
         />
-        <main className="relative flex-1 bg-gradient-to-br from-[#f8faf9] via-[#f3f7f5] to-[#f5f8f6] px-4 py-4 sm:px-6 md:px-8 md:py-6">
+        <main className="relative flex-1 bg-gradient-to-br from-[#f8faf9] via-[#f3f7f5] to-[#f5f8f6] p-4 sm:px-6 md:px-8 md:py-6">
           <div className="pointer-events-none absolute -top-40 right-0 h-96 w-96 rounded-full bg-emerald-100/35 blur-3xl" />
-          <div className="relative z-10">{children}</div>
+          <div className="relative z-10">
+            {can(required) ? (
+              children
+            ) : (
+              <NoAccess permission={required} homeTo={firstAllowed?.to} />
+            )}
+          </div>
         </main>
       </div>
     </div>

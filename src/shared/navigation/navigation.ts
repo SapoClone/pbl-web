@@ -18,15 +18,17 @@ export type NavigationItem = {
   to: string
   icon: LucideIcon
   badge?: string
+  /** The permission that opens the page (`<module>.view`); the sidebar hides the entry and the layout refuses the page without it */
+  permission?: string
   children?: Array<{ label: string; tab: string }>
 }
 
 export const navigation: NavigationItem[] = [
-  { label: "Tổng quan", icon: LayoutDashboard, to: "/" },
+  { label: "Tổng quan", icon: LayoutDashboard, to: "/", permission: "dashboard.view" },
   {
     label: "Sản phẩm",
     icon: Package,
-    to: "/products",
+    to: "/products", permission: "products.view",
     children: [
       { label: "Danh mục sản phẩm", tab: "catalog" },
       { label: "Bảng giá đa kênh", tab: "price-lists" },
@@ -36,7 +38,7 @@ export const navigation: NavigationItem[] = [
   {
     label: "Tồn kho",
     icon: Warehouse,
-    to: "/inventory",
+    to: "/inventory", permission: "inventory.view",
     children: [
       { label: "Tổng quan tồn kho", tab: "stock" },
       { label: "Tồn theo kho", tab: "balances" },
@@ -51,12 +53,12 @@ export const navigation: NavigationItem[] = [
       { label: "Danh sách kho", tab: "warehouses" }
     ]
   },
-  { label: "Đơn hàng", icon: ClipboardList, to: "/orders" },
-  { label: "Bán tại quầy", icon: Monitor, to: "/pos" },
+  { label: "Đơn hàng", icon: ClipboardList, to: "/orders", permission: "orders.view" },
+  { label: "Bán tại quầy", icon: Monitor, to: "/pos", permission: "pos.view" },
   {
     label: "Khuyến mãi",
     icon: Ticket,
-    to: "/promotions",
+    to: "/promotions", permission: "orders.view",
     children: [
       { label: "Chương trình KM", tab: "programs" },
       { label: "Mã giảm giá (Coupon)", tab: "coupons" },
@@ -66,7 +68,7 @@ export const navigation: NavigationItem[] = [
   {
     label: "Kênh bán hàng",
     icon: Share2,
-    to: "/channels",
+    to: "/channels", permission: "channels.view",
     children: [
       { label: "Tổng quan & Lazada", tab: "overview" },
       { label: "Ánh xạ SKU Lazada", tab: "sku-mappings" },
@@ -78,7 +80,7 @@ export const navigation: NavigationItem[] = [
   {
     label: "Khách hàng",
     icon: UsersRound,
-    to: "/customers",
+    to: "/customers", permission: "customers.view",
     children: [
       { label: "Danh sách khách hàng", tab: "customers" },
       { label: "Nhóm khách hàng", tab: "groups" },
@@ -88,7 +90,7 @@ export const navigation: NavigationItem[] = [
   {
     label: "Báo cáo",
     icon: BarChart3,
-    to: "/reports",
+    to: "/reports", permission: "reports.view",
     children: [
       { label: "Bán hàng theo kênh", tab: "channels" },
       { label: "Báo cáo sản phẩm", tab: "products" },
@@ -96,11 +98,11 @@ export const navigation: NavigationItem[] = [
       { label: "Tài chính & Lợi nhuận", tab: "finance" }
     ]
   },
-  { label: "Nhập hàng & NCC", icon: Truck, to: "/suppliers" },
+  { label: "Nhập hàng & NCC", icon: Truck, to: "/suppliers", permission: "purchasing.view" },
   {
     label: "Nhân viên & Quyền",
     icon: ShieldCheck,
-    to: "/staff",
+    to: "/staff", permission: "staff.view",
     children: [
       { label: "Nhân viên", tab: "members" },
       { label: "Vai trò & phân quyền", tab: "roles" },

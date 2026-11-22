@@ -6,6 +6,8 @@ import * as membersApi from "@/api/platform/members"
 import * as schedulesApi from "@/api/platform/staff-schedules"
 import type { Member } from "@/api/platform/members"
 import type { StaffSchedule } from "@/api/platform/staff-schedules"
+import { fakeAccessToken } from "@/test/jwt"
+import { useStoreAuth } from "@/store/zustand/useStoreAuth"
 import { ShiftsPanel } from "./ShiftsPanel"
 
 vi.mock("@/api/platform/branches", () => ({ listBranches: vi.fn() }))
@@ -81,6 +83,30 @@ describe("Shift management", () => {
   })
   afterEach(() => {
     vi.restoreAllMocks()
+    useStoreAuth.setState({ tokens: null })
+  })
+
+  const signInWith = (perms: string[]) =>
+    useStoreAuth.setState({
+      tokens: { userId: "u", accessToken: fakeAccessToken({ perms }), refreshToken: "r", tokenExpires: Date.now() + 3600_000, tenantId: "t", tenants: [] }
+    })
+
+  it("shows the schedule without any way to change it to a member who may only view staff", async () => {
+    signInWith(["staff.view"])
+    renderPanel()
+    const monday = await waitFor(() => cellOf("An", "T2"))
+    expect(within(monday).getByText("08:00–16:00")).toBeTruthy()
+    expect(screen.queryByRole("button", { name: /Thêm ca/ })).toBeNull()
+    expect(screen.queryByRole("button", { name: /Sửa ca/ })).toBeNull()
+    expect(screen.queryByRole("button", { name: /Thêm ca cho/ })).toBeNull()
+  })
+
+  it("offers editing to a member with staff.update", async () => {
+    signInWith(["staff.view", "staff.update"])
+    renderPanel()
+    await waitFor(() => cellOf("An", "T2"))
+    expect(screen.getByRole("button", { name: /Thêm ca$/ })).toBeTruthy()
+    expect(screen.getByRole("button", { name: /Sửa ca An Thứ hai/ })).toBeTruthy()
   })
 
   it("puts each shift under its weekday, with the duty and the time range", async () => {

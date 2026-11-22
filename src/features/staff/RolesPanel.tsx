@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Copy, Lock, Plus, RotateCcw, Save, ShieldCheck, Trash2, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { usePermissions } from "@/lib/permissions"
 import {
   createRole,
   deleteRole,
@@ -40,6 +41,8 @@ const NEW_ROLE = "new"
 const errorMessage = (error: unknown, fallback: string) => roleErrorMessages[roleErrorCode(error) ?? ""] ?? fallback
 
 export function RolesPanel() {
+  const { can } = usePermissions()
+  const canEdit = can("staff.update")
   const rolesQuery = useQuery({ queryKey: ["roles"], queryFn: listRoles })
   const catalogQuery = useQuery({ queryKey: ["permission-catalog"], queryFn: getPermissionCatalog, staleTime: 5 * 60_000 })
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -71,9 +74,11 @@ export function RolesPanel() {
             Chọn một vai trò, tick các chức năng mà vai trò đó được làm. Chủ cửa hàng luôn có đủ quyền.
           </p>
         </div>
-        <Button onClick={() => select(NEW_ROLE)} className="gap-2 bg-[#16866f] text-white hover:bg-[#0f705d]">
-          <Plus size={17} /> Thêm vai trò
-        </Button>
+        {canEdit && (
+          <Button onClick={() => select(NEW_ROLE)} className="gap-2 bg-[#16866f] text-white hover:bg-[#0f705d]">
+            <Plus size={17} /> Thêm vai trò
+          </Button>
+        )}
       </header>
 
       {(rolesQuery.isError || catalogQuery.isError) && (
@@ -221,7 +226,9 @@ function RoleEditor({
   onDeleted
 }: EditorProps & { detail: RoleDetail | null }) {
   const queryClient = useQueryClient()
-  const readOnly = !!role?.isOwner
+  const { can } = usePermissions()
+  const noRight = !can("staff.update")
+  const readOnly = !!role?.isOwner || noRight
   const [baseline, setBaseline] = useState<Baseline>(() => baselineOf(detail))
   const [name, setName] = useState(baseline.name)
   const [description, setDescription] = useState(baseline.description)
@@ -299,7 +306,9 @@ function RoleEditor({
           <div>
             <h2 className="font-semibold text-[#163d36]">{role ? role.name : "Vai trò mới"}</h2>
             <p className="text-xs text-slate-500">
-              {readOnly
+              {noRight
+                ? "Bạn chỉ có quyền xem vai trò. Sửa vai trò cần quyền staff.update."
+                : readOnly
                 ? "Vai trò Chủ cửa hàng luôn có đủ quyền và không thể sửa."
                 : role?.isSeeded
                   ? "Vai trò mặc định: sửa được quyền, không xóa được."

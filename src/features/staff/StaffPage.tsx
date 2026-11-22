@@ -18,6 +18,7 @@ import {
 } from "@/api/platform/members"
 import { listRoles, type Role } from "@/api/platform/roles"
 import { useStoreAuth } from "@/store/zustand/useStoreAuth"
+import { usePermissions } from "@/lib/permissions"
 import { RolesPanel } from "./RolesPanel"
 import { ShiftsPanel } from "./ShiftsPanel"
 
@@ -187,6 +188,11 @@ export function StaffPage() {
 
 function MembersPanel() {
   const isDemo = Boolean(useStoreAuth((state) => state.tokens?.isDemo))
+  // the API refuses these without the permission: the buttons are not offered
+  const { can } = usePermissions()
+  const canCreate = can("staff.create")
+  const canUpdate = can("staff.update")
+  const canDelete = can("staff.delete")
   const queryClient = useQueryClient()
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<MemberStatus | "all">("all")
@@ -372,9 +378,11 @@ function MembersPanel() {
           <h1 className="text-[32px] font-semibold tracking-[-0.03em] text-[#163d36]">Nhân viên & Quyền</h1>
           <p className="mt-2 text-sm text-slate-500">Quản lý thành viên, vai trò và phạm vi chi nhánh theo quyền API.</p>
         </div>
-        <Button onClick={openCreateForm} className="gap-2 bg-[#16866f] text-white hover:bg-[#0f705d]">
-          <Plus size={17} /> Thêm nhân viên
-        </Button>
+        {canCreate && (
+          <Button onClick={openCreateForm} className="gap-2 bg-[#16866f] text-white hover:bg-[#0f705d]">
+            <Plus size={17} /> Thêm nhân viên
+          </Button>
+        )}
       </header>
 
       <div className="mb-5 grid gap-4 md:grid-cols-4">
@@ -416,7 +424,7 @@ function MembersPanel() {
                     <td className="px-5 py-4 text-slate-500">{member.branchIds.length ? `${member.branchIds.length} chi nhánh` : "Tất cả chi nhánh"}</td>
                     <td className="px-5 py-4"><span className={`rounded-full px-2.5 py-1 text-xs ${member.status === "active" ? "bg-[#e6f5ee] text-[#147853]" : "bg-red-50 text-red-600"}`}>{member.status === "active" ? "Đang hoạt động" : "Đang khóa"}</span></td>
                     <td className="whitespace-nowrap px-5 py-4 text-right">
-                      {!member.isOwner && <><Button variant="ghost" size="sm" onClick={() => openEditForm(member)}>Sửa quyền</Button><Button variant="ghost" size="icon" title={member.status === "active" ? "Khóa nhân viên" : "Mở khóa nhân viên"} disabled={statusMutation.isPending} onClick={() => statusMutation.mutate({ accountId: member.accountId, status: member.status === "active" ? "locked" : "active" })}>{member.status === "active" ? <LockKeyhole size={16} /> : <Unlock size={16} />}</Button><Button variant="ghost" size="sm" className="text-red-600 hover:bg-red-50" disabled={removeMutation.isPending} onClick={() => window.confirm(`Xóa ${member.name} khỏi cửa hàng?`) && removeMutation.mutate(member.accountId)}>Xóa</Button></>}
+                      {!member.isOwner && <>{canUpdate && <Button variant="ghost" size="sm" onClick={() => openEditForm(member)}>Sửa quyền</Button>}{canUpdate && <Button variant="ghost" size="icon" title={member.status === "active" ? "Khóa nhân viên" : "Mở khóa nhân viên"} disabled={statusMutation.isPending} onClick={() => statusMutation.mutate({ accountId: member.accountId, status: member.status === "active" ? "locked" : "active" })}>{member.status === "active" ? <LockKeyhole size={16} /> : <Unlock size={16} />}</Button>}{canDelete && <Button variant="ghost" size="sm" className="text-red-600 hover:bg-red-50" disabled={removeMutation.isPending} onClick={() => window.confirm(`Xóa ${member.name} khỏi cửa hàng?`) && removeMutation.mutate(member.accountId)}>Xóa</Button>}</>}
                       {member.isOwner && <span className="text-xs text-slate-400">Chủ cửa hàng</span>}
                     </td>
                   </tr>
