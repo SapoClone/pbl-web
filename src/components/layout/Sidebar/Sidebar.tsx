@@ -17,7 +17,8 @@ import { getOrdersSummary } from "@/api/sales/orders"
 import { useStoreAuth } from "@/store/zustand/useStoreAuth"
 import { usePermissions } from "@/lib/permissions"
 import { navigation } from "@/shared/navigation/navigation"
-import { getCurrentSubscription } from "@/api/platform/subscription"
+import { getTenantContext } from "@/api/platform/context"
+import { storeCard } from "./storeCard"
 
 function Navigation({
   pathname,
@@ -331,11 +332,13 @@ export function Sidebar({ collapsed = false }: { collapsed?: boolean }) {
   const setTokens = useStoreAuth((state) => state.setTokens)
   const isDemo = Boolean(tokens?.isDemo)
 
-  const subscription = useQuery({
-    queryKey: ["current-subscription"],
-    queryFn: getCurrentSubscription,
+  // the store's plan, branch count and name in one call
+  const tenantContext = useQuery({
+    queryKey: ["tenant-context"],
+    queryFn: getTenantContext,
     enabled: Boolean(tokens?.tenantId) && !isDemo,
-    retry: false
+    retry: false,
+    staleTime: 60_000
   })
 
   const ordersSummaryQuery = useQuery({
@@ -348,21 +351,16 @@ export function Sidebar({ collapsed = false }: { collapsed?: boolean }) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [tenantMenuOpen, setTenantMenuOpen] = useState(false)
   const closeMobile = () => setMobileOpen(false)
-  const branchUsage = subscription.data?.usage?.find(
-    (item) => item.key === "branches"
-  )
-
   const tenantsList = tokens?.tenants ?? []
-  const activeTenantName =
-    tenantsList.find((t) => t.id === tokens?.tenantId)?.name ??
-    (isDemo ? "Mộc Store" : "Cửa hàng của bạn")
-  // the plan comes from the API; nothing is shown when it is not known (only the demo has a made-up plan)
-  const planName = isDemo ? "Pro" : (subscription.data?.plan?.name ?? null)
-  const branchText = branchUsage
-    ? `${branchUsage.used}/${branchUsage.limit} chi nhánh`
-    : isDemo
-      ? "3/5 chi nhánh"
-      : null
+  const {
+    name: activeTenantName,
+    planName,
+    branchText
+  } = storeCard({
+    isDemo,
+    context: tenantContext.data,
+    tokenTenantName: tenantsList.find((t) => t.id === tokens?.tenantId)?.name
+  })
 
   const pendingOrdersCount = isDemo
     ? 3
