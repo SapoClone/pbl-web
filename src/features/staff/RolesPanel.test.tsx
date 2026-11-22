@@ -3,6 +3,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import * as rolesApi from "@/api/platform/roles"
 import type { PermissionCatalog, Role, RoleDetail } from "@/api/platform/roles"
+import { fakeAccessToken } from "@/test/jwt"
+import { useStoreAuth } from "@/store/zustand/useStoreAuth"
 import { RolesPanel } from "./RolesPanel"
 
 vi.mock("@/api/platform/roles", async (importOriginal) => {
@@ -90,6 +92,33 @@ describe("Roles and permission matrix", () => {
   })
   afterEach(() => {
     vi.restoreAllMocks()
+    useStoreAuth.setState({ tokens: null })
+  })
+
+  const signInWith = (perms: string[]) =>
+    useStoreAuth.setState({
+      tokens: { userId: "u", accessToken: fakeAccessToken({ perms }), refreshToken: "r", tokenExpires: Date.now() + 3600_000, tenantId: "t", tenants: [] }
+    })
+
+  it("is read-only for a member who may view staff but not change it", async () => {
+    signInWith(["staff.view"])
+    renderPanel()
+    await openRole("Thu ngân")
+    const cell = (await screen.findByLabelText("Sản phẩm: Xem")) as HTMLInputElement
+    expect(cell.disabled).toBe(true)
+    expect((screen.getByLabelText("Tên vai trò") as HTMLInputElement).disabled).toBe(true)
+    expect(screen.queryByRole("button", { name: /Thêm vai trò/ })).toBeNull()
+    expect(screen.queryByRole("button", { name: "Lưu thay đổi" })).toBeNull()
+    expect(screen.queryByRole("button", { name: /Xóa vai trò/ })).toBeNull()
+    expect(screen.getByText(/chỉ có quyền xem vai trò/)).toBeTruthy()
+  })
+
+  it("lets a member with staff.update edit", async () => {
+    signInWith(["staff.view", "staff.update"])
+    renderPanel()
+    await openRole("Thu ngân")
+    expect(((await screen.findByLabelText("Sản phẩm: Xem")) as HTMLInputElement).disabled).toBe(false)
+    expect(screen.getByRole("button", { name: /Thêm vai trò/ })).toBeTruthy()
   })
 
   it("lists the roles with their kind and counts, and shows the owner read-only with every permission", async () => {

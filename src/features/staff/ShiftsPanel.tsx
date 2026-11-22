@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { CalendarClock, Clock, Plus, Trash2, UserRound, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { apiErrorCode } from "@/api/error-code"
+import { usePermissions } from "@/lib/permissions"
 import { listBranches } from "@/api/platform/branches"
 import { listMembers, type Member } from "@/api/platform/members"
 import {
@@ -39,6 +40,7 @@ type DialogState =
 const errorMessage = (error: unknown, fallback: string) => scheduleErrorMessages[apiErrorCode(error) ?? ""] ?? fallback
 
 export function ShiftsPanel() {
+  const canEdit = usePermissions().can("staff.update")
   const [branchId, setBranchId] = useState("")
   const [duty, setDuty] = useState<StaffDuty | "all">("all")
   const [dialog, setDialog] = useState<DialogState>(null)
@@ -83,13 +85,15 @@ export function ShiftsPanel() {
             Lịch làm việc hằng tuần của từng nhân viên và việc họ phụ trách trong ca. Giờ theo múi giờ cửa hàng (UTC+7).
           </p>
         </div>
-        <Button
-          onClick={() => setDialog({ mode: "create" })}
-          disabled={!activeBranchId || people.length === 0}
-          className="gap-2 bg-[#16866f] text-white hover:bg-[#0f705d]"
-        >
-          <Plus size={17} /> Thêm ca
-        </Button>
+        {canEdit && (
+          <Button
+            onClick={() => setDialog({ mode: "create" })}
+            disabled={!activeBranchId || people.length === 0}
+            className="gap-2 bg-[#16866f] text-white hover:bg-[#0f705d]"
+          >
+            <Plus size={17} /> Thêm ca
+          </Button>
+        )}
       </header>
 
       <div className="mb-5 flex flex-wrap items-center gap-3">
@@ -168,26 +172,41 @@ export function ShiftsPanel() {
                     {weekdays.map((day) => (
                       <td key={day.value} className={`p-2 ${day.value === today ? "bg-[#f4fbf8]" : ""}`}>
                         <div className="grid gap-1">
-                          {(row.byDay.get(day.value) ?? []).map((shift) => (
+                          {(row.byDay.get(day.value) ?? []).map((shift) => {
+                            const label = (
+                              <>
+                                <span className="block font-medium">{formatRange(shift)}</span>
+                                <span className="block truncate">{shift.name ? `${shift.name} · ` : ""}{dutyLabel(shift.duty)}</span>
+                              </>
+                            )
+                            const chip = `rounded-md border px-2 py-1 text-left text-xs leading-tight ${dutyTone(shift.duty)}`
+                            // without staff.update the shift is shown, not editable
+                            return canEdit ? (
+                              <button
+                                key={shift.id}
+                                type="button"
+                                onClick={() => setDialog({ mode: "edit", shift })}
+                                aria-label={`Sửa ca ${row.staffName} ${day.long} ${formatRange(shift)} ${dutyLabel(shift.duty)}`}
+                                className={chip}
+                              >
+                                {label}
+                              </button>
+                            ) : (
+                              <div key={shift.id} className={chip}>
+                                {label}
+                              </div>
+                            )
+                          })}
+                          {canEdit && (
                             <button
-                              key={shift.id}
                               type="button"
-                              onClick={() => setDialog({ mode: "edit", shift })}
-                              aria-label={`Sửa ca ${row.staffName} ${day.long} ${formatRange(shift)} ${dutyLabel(shift.duty)}`}
-                              className={`rounded-md border px-2 py-1 text-left text-xs leading-tight ${dutyTone(shift.duty)}`}
+                              onClick={() => setDialog({ mode: "create", accountId: row.accountId, weekday: day.value })}
+                              aria-label={`Thêm ca cho ${row.staffName} ${day.long}`}
+                              className="flex h-6 items-center justify-center rounded-md text-slate-300 hover:bg-slate-100 hover:text-[#16866f] focus:text-[#16866f]"
                             >
-                              <span className="block font-medium">{formatRange(shift)}</span>
-                              <span className="block truncate">{shift.name ? `${shift.name} · ` : ""}{dutyLabel(shift.duty)}</span>
+                              <Plus size={14} />
                             </button>
-                          ))}
-                          <button
-                            type="button"
-                            onClick={() => setDialog({ mode: "create", accountId: row.accountId, weekday: day.value })}
-                            aria-label={`Thêm ca cho ${row.staffName} ${day.long}`}
-                            className="flex h-6 items-center justify-center rounded-md text-slate-300 hover:bg-slate-100 hover:text-[#16866f] focus:text-[#16866f]"
-                          >
-                            <Plus size={14} />
-                          </button>
+                          )}
                         </div>
                       </td>
                     ))}

@@ -30,7 +30,7 @@ export function DashboardHeader({
         <div className="flex flex-wrap items-center gap-2">
           <div className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200/90 bg-white/90 px-3 py-2 text-xs font-medium text-slate-600 shadow-2xs backdrop-blur-sm">
             <CalendarDays size={14} className="text-[#16866f]" />
-            <span>Hôm nay · 20/10/2026</span>
+            <span>Hôm nay · {new Date().toLocaleDateString("vi-VN")}</span>
           </div>
           <Button
             variant="outline"

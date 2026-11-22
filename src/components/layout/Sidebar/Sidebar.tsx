@@ -15,6 +15,7 @@ import {
 import { logout } from "@/api/auth"
 import { getOrdersSummary } from "@/api/sales/orders"
 import { useStoreAuth } from "@/store/zustand/useStoreAuth"
+import { usePermissions } from "@/lib/permissions"
 import { navigation } from "@/shared/navigation/navigation"
 import { getCurrentSubscription } from "@/api/platform/subscription"
 
@@ -31,9 +32,12 @@ function Navigation({
   collapsed?: boolean
   onNavigate: () => void
 }) {
+  // only what the signed-in member's role may open
+  const { can } = usePermissions()
+  const items = navigation.filter((item) => can(item.permission))
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {}
-    for (const item of navigation) {
+    for (const item of items) {
       if (item.children) {
         initial[item.to] = pathname.startsWith(item.to)
       }
@@ -42,7 +46,7 @@ function Navigation({
   })
 
   useEffect(() => {
-    const activeParent = navigation.find(
+    const activeParent = items.find(
       (item) => item.children && pathname.startsWith(item.to)
     )
     if (activeParent) {
@@ -50,9 +54,10 @@ function Navigation({
         prev[activeParent.to] ? prev : { ...prev, [activeParent.to]: true }
       )
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname])
 
-  const matchedNav = navigation.find(
+  const matchedNav = items.find(
     (item) => item.children && pathname.startsWith(item.to)
   )
   const defaultTab = matchedNav?.children?.[0]?.tab ?? "overview"
@@ -60,7 +65,7 @@ function Navigation({
 
   return (
     <nav className="space-y-1">
-      {navigation.map(({ label, icon: Icon, to, badge, children }) => {
+      {items.map(({ label, icon: Icon, to, badge, children }) => {
         const active = to === "/" ? pathname === "/" : pathname.startsWith(to)
         const isOpen = Boolean(openMenus[to])
         const effectiveBadge = to === "/orders" ? ordersBadge : badge
@@ -329,7 +334,8 @@ export function Sidebar({ collapsed = false }: { collapsed?: boolean }) {
   const subscription = useQuery({
     queryKey: ["current-subscription"],
     queryFn: getCurrentSubscription,
-    enabled: Boolean(tokens?.tenantId) && !isDemo
+    enabled: Boolean(tokens?.tenantId) && !isDemo,
+    retry: false
   })
 
   const ordersSummaryQuery = useQuery({
@@ -349,11 +355,14 @@ export function Sidebar({ collapsed = false }: { collapsed?: boolean }) {
   const tenantsList = tokens?.tenants ?? []
   const activeTenantName =
     tenantsList.find((t) => t.id === tokens?.tenantId)?.name ??
-    (isDemo ? "Mộc Store" : "Thời Trang Việt (VietFashion)")
-  const planName = subscription.data?.plan?.name ?? "Pro"
+    (isDemo ? "Mộc Store" : "Cửa hàng của bạn")
+  // the plan comes from the API; nothing is shown when it is not known (only the demo has a made-up plan)
+  const planName = isDemo ? "Pro" : (subscription.data?.plan?.name ?? null)
   const branchText = branchUsage
     ? `${branchUsage.used}/${branchUsage.limit} chi nhánh`
-    : "3/5 chi nhánh"
+    : isDemo
+      ? "3/5 chi nhánh"
+      : null
 
   const pendingOrdersCount = isDemo
     ? 3
@@ -435,12 +444,16 @@ export function Sidebar({ collapsed = false }: { collapsed?: boolean }) {
                 <span className="block truncate text-[11px] font-semibold text-[#163d36]">
                   {activeTenantName}
                 </span>
-                <span className="mt-0.5 flex items-center gap-1.5 text-[9px] text-[#75817e]">
-                  <b className="rounded bg-[#d9efe5] px-1.5 py-0.2 text-[8px] font-bold uppercase text-[#16866f]">
-                    Gói {planName}
-                  </b>
-                  <span>{branchText}</span>
-                </span>
+                {(planName || branchText) && (
+                  <span className="mt-0.5 flex items-center gap-1.5 text-[9px] text-[#75817e]">
+                    {planName && (
+                      <b className="rounded bg-[#d9efe5] px-1.5 py-0.2 text-[8px] font-bold uppercase text-[#16866f]">
+                        Gói {planName}
+                      </b>
+                    )}
+                    {branchText && <span>{branchText}</span>}
+                  </span>
+                )}
               </span>
               <ChevronDown
                 size={13}
