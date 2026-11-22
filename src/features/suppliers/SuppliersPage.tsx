@@ -14,6 +14,8 @@ import {
   X
 } from "lucide-react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { Skeleton } from "@/components/ui/skeleton"
+import { TableSkeleton } from "@/components/ui/table-skeleton"
 import { Button } from "@/components/ui/button"
 import { listActiveVariants, type CatalogVariant } from "@/api/catalog/variants"
 import { listWarehouses, type Warehouse } from "@/api/inventory/stock"
@@ -305,6 +307,11 @@ export function SuppliersPage() {
     }
   }
 
+  // a call still in flight has no value yet: placeholders, never a "0" or "Chưa có dữ liệu"
+  const suppliersLoading = !demo && (suppliers.isLoading || supplierDirectory.isLoading)
+  const purchasesLoading = !demo && (purchases.isLoading || purchaseDirectory.isLoading)
+  const summaryLoading = !demo && purchaseSummary.isLoading
+
   return (
     <main className="mx-auto max-w-[1480px] py-7">
       <DashboardHeader section="suppliers" />
@@ -339,6 +346,7 @@ export function SuppliersPage() {
 
       <div className="mb-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Card
+          loading={suppliersLoading}
           label="Nhà cung cấp"
           value={
             supplierDirectory.data?.pagination.totalRecords ??
@@ -346,6 +354,7 @@ export function SuppliersPage() {
           }
         />
         <Card
+          loading={summaryLoading}
           label="Đơn đang mở"
           value={
             summaryData?.openCount ??
@@ -354,14 +363,17 @@ export function SuppliersPage() {
           }
         />
         <Card
+          loading={summaryLoading}
           label="Chờ giao"
           value={summaryData?.awaitingDeliveryCount ?? 0}
         />
         <Card
+          loading={summaryLoading}
           label="Nhận một phần"
           value={summaryData?.partiallyReceivedCount ?? 0}
         />
         <Card
+          loading={summaryLoading}
           label="Giá trị phải trả"
           value={money(summaryData?.payableAmount ?? 0)}
         />
@@ -423,6 +435,7 @@ export function SuppliersPage() {
 
         {tab === "suppliers" ? (
           <SupplierRows
+            loading={suppliersLoading}
             rows={
               demo && search
                 ? supplierList.filter((s) =>
@@ -439,6 +452,7 @@ export function SuppliersPage() {
           />
         ) : (
           <PurchaseRows
+            loading={purchasesLoading}
             rows={pos}
             suppliers={supplierList}
             warehouses={warehouses.data ?? []}
@@ -501,12 +515,14 @@ export function SuppliersPage() {
 }
 
 function SupplierRows({
+  loading = false,
   rows,
   pending,
   detail,
   edit,
   act
 }: {
+  loading?: boolean
   rows: Supplier[]
   pending: boolean
   detail: (x: Supplier) => void
@@ -514,7 +530,7 @@ function SupplierRows({
   act: (k: string, x: Supplier) => void
 }) {
   return (
-    <Table empty={!rows.length}>
+    <Table empty={!rows.length} loading={loading}>
       <table className="w-full min-w-[1000px] text-left text-sm">
         <thead>
           <tr>
@@ -587,6 +603,7 @@ function SupplierRows({
 }
 
 function PurchaseRows({
+  loading = false,
   rows,
   suppliers,
   warehouses,
@@ -595,6 +612,7 @@ function PurchaseRows({
   onOpenReceive,
   act
 }: {
+  loading?: boolean
   rows: PurchaseOrder[]
   suppliers: Supplier[]
   warehouses: Warehouse[]
@@ -606,7 +624,7 @@ function PurchaseRows({
   const sn = new Map(suppliers.map((x) => [x.id, x.name]))
   const wn = new Map(warehouses.map((x) => [x.id, x.name]))
   return (
-    <Table empty={!rows.length}>
+    <Table empty={!rows.length} loading={loading}>
       <table className="w-full min-w-[1050px] text-left text-sm">
         <thead>
           <tr>
@@ -1272,11 +1290,25 @@ function Detail({
   )
 }
 
-function Card({ label, value }: { label: string; value: string | number }) {
+function Card({
+  label,
+  value,
+  loading = false
+}: {
+  label: string
+  value: string | number
+  loading?: boolean
+}) {
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_3px_15px_rgba(20,50,45,0.03)]">
       <p className="text-xs text-slate-500">{label}</p>
-      <p className="mt-1 text-2xl font-semibold text-[#163d36]">{value}</p>
+      {loading ? (
+        <div role="status" aria-label="Đang tải" className="mt-2">
+          <Skeleton className="h-7 w-20" />
+        </div>
+      ) : (
+        <p className="mt-1 text-2xl font-semibold text-[#163d36]">{value}</p>
+      )}
     </section>
   )
 }
@@ -1304,15 +1336,18 @@ function Tab({
 }
 function Table({
   empty,
+  loading = false,
   children
 }: {
   empty: boolean
+  loading?: boolean
   children: React.ReactNode
 }) {
+  if (loading && empty) return <TableSkeleton rows={4} cols={6} className="rounded-none border-0 shadow-none" />
   return (
     <div className="inventory-table overflow-x-auto">
       {children}
-      {empty && (
+      {empty && !loading && (
         <p className="p-10 text-center text-sm text-slate-500">
           Chưa có dữ liệu.
         </p>

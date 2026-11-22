@@ -440,6 +440,7 @@ export function ProductsPage({
           hint={`${stats.activeCount} sản phẩm đang mở bán`}
           icon={Package}
           tone="emerald"
+          loading={loading}
           onClick={() => handleChangeTab("catalog")}
         />
         <KpiStatCard
@@ -448,6 +449,7 @@ export function ProductsPage({
           hint="Sản phẩm đã liên kết SKU Lazada / Shopee"
           icon={Layers}
           tone="sky"
+          loading={loading}
           onClick={() => handleChangeTab("catalog")}
         />
         <KpiStatCard
@@ -464,6 +466,7 @@ export function ProductsPage({
           hint="Bán theo bộ giúp tăng giá trị giỏ hàng"
           icon={Boxes}
           tone="indigo"
+          loading={loading}
           onClick={() => handleChangeTab("combos")}
         />
       </section>
@@ -478,7 +481,7 @@ export function ProductsPage({
               value: "catalog",
               label: "Danh mục Sản phẩm",
               icon: Package,
-              badge: products.length
+              badge: loading ? undefined : products.length
             },
             {
               value: "price-lists",
@@ -489,7 +492,7 @@ export function ProductsPage({
               value: "combos",
               label: "Sản phẩm Combo (Bundle)",
               icon: Boxes,
-              badge: isDemo ? 2 : stats.comboCount
+              badge: isDemo ? 2 : loading ? undefined : stats.comboCount
             }
           ]}
         />

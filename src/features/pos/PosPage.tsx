@@ -21,6 +21,7 @@ import {
 } from "lucide-react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import { listActiveVariants } from "@/api/catalog/variants"
 import { listCustomers } from "@/api/customer/customers"
 import { listStock } from "@/api/inventory/stock"
@@ -360,6 +361,11 @@ export function PosPage() {
     variantsQuery.data
   ])
 
+  // the catalog and the stock are still on their way: a grid of placeholders, never "no product found" or "0/0 SKU"
+  const catalogLoading =
+    !isDemo &&
+    (variantsQuery.isLoading || allStockQuery.isLoading || stockQuery.isLoading)
+
   const visibleProducts = useMemo(
     () =>
       products.filter((product) =>
@@ -645,7 +651,9 @@ export function PosPage() {
           </button>
 
           <div className="rounded-xl border border-emerald-200/60 bg-[#e6f5ee] px-3.5 py-2 text-xs font-semibold text-[#147853] shadow-2xs">
-            {products.filter((p) => p.available > 0).length}/{products.length} SKU còn hàng
+            {catalogLoading
+              ? "Đang tải sản phẩm..."
+              : `${products.filter((p) => p.available > 0).length}/${products.length} SKU còn hàng`}
           </div>
 
           <div className="flex items-center gap-2 rounded-xl border border-slate-200/80 bg-white/95 px-3.5 py-2 text-xs shadow-2xs">
@@ -661,6 +669,7 @@ export function PosPage() {
                 onChange={(event) => setBranchId(event.target.value)}
                 className="bg-transparent font-semibold text-[#163d36] outline-none"
               >
+                {branchesQuery.isLoading && <option value="">Đang tải...</option>}
                 {(branchesQuery.data?.data ?? []).map((branch) => (
                   <option key={branch.id} value={branch.id}>
                     {branch.name}
@@ -769,7 +778,21 @@ export function PosPage() {
           </div>
 
           <div className="mt-5 grid gap-3.5 sm:grid-cols-2 xl:grid-cols-3">
-            {visibleProducts.map((product) => {
+            {catalogLoading &&
+              Array.from({ length: 6 }).map((_, index) => (
+                <div
+                  key={index}
+                  role="status"
+                  aria-label="Đang tải sản phẩm"
+                  className="rounded-xl border border-slate-100 bg-white p-3.5"
+                >
+                  <Skeleton className="h-28 w-full" />
+                  <Skeleton className="mt-3 h-4 w-3/4" />
+                  <Skeleton className="mt-2 h-3 w-1/2" />
+                  <Skeleton className="mt-3 h-5 w-20" />
+                </div>
+              ))}
+            {!catalogLoading && visibleProducts.map((product) => {
               const inCartQty =
                 cart.find((c) => c.sku === product.sku)?.quantity ?? 0
               return (
@@ -850,7 +873,7 @@ export function PosPage() {
             })}
           </div>
 
-          {visibleProducts.length === 0 && (
+          {!catalogLoading && visibleProducts.length === 0 && (
             <p className="p-10 text-center text-sm text-slate-500">
               Không tìm thấy sản phẩm phù hợp với từ khóa &ldquo;{query}&rdquo;.
             </p>

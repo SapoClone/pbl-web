@@ -2,6 +2,7 @@ import { type KeyboardEvent, type ReactNode, useState } from "react"
 import { Check, Copy } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Skeleton } from "./skeleton"
 
 export function CopyCodeBadge({
   code,
@@ -313,8 +314,11 @@ export function KpiStatCard({
   hint,
   icon: Icon,
   tone = "emerald",
-  onClick
+  onClick,
+  loading = false
 }: {
+  /** The value is still loading: a placeholder is shown instead of `value` and `hint` (never a misleading "0") */
+  loading?: boolean
   label: string
   value: ReactNode
   hint?: ReactNode
@@ -355,12 +359,21 @@ export function KpiStatCard({
           </span>
         ) : null}
       </div>
-      <div className="mt-3 text-2xl font-bold tabular-nums tracking-tight text-[#163d36] sm:text-3xl">
-        {value}
-      </div>
-      {hint ? (
-        <div className="mt-1.5 text-xs text-slate-500">{hint}</div>
-      ) : null}
+      {loading ? (
+        <div role="status" aria-label="Đang tải" className="mt-3.5 space-y-2.5">
+          <Skeleton className="h-7 w-32" />
+          {hint ? <Skeleton className="h-3 w-40" /> : null}
+        </div>
+      ) : (
+        <>
+          <div className="mt-3 text-2xl font-bold tabular-nums tracking-tight text-[#163d36] sm:text-3xl">
+            {value}
+          </div>
+          {hint ? (
+            <div className="mt-1.5 text-xs text-slate-500">{hint}</div>
+          ) : null}
+        </>
+      )}
     </Wrapper>
   )
 }

@@ -23,6 +23,11 @@ import { products as demoProducts } from "@/shared/dashboard/dashboard.mock"
 import { DashboardHeader } from "@/shared/dashboard/DashboardHeader"
 import { MetricCard } from "./MetricCard"
 import { OrderTable } from "@/features/orders/OrderTable"
+import {
+  ChartBarsSkeleton,
+  ListSkeleton,
+  Skeleton
+} from "@/components/ui/skeleton"
 
 const formatMoney = (value: number) => `${value.toLocaleString("vi-VN")} ₫`
 const toDateInput = (date: Date) => date.toISOString().slice(0, 10)
@@ -59,10 +64,10 @@ export function OverviewPage() {
 
   const demoRevenue = 24800000
   const demoOrders = 40
-  const revenue = isDemo ? demoRevenue : (salesQuery.data?.totals.revenue ?? 0)
+  const revenue = isDemo ? demoRevenue : salesQuery.data?.totals.revenue ?? 0
   const orderCount = isDemo
     ? demoOrders
-    : (salesQuery.data?.totals.orderCount ?? 0)
+    : salesQuery.data?.totals.orderCount ?? 0
   const averageOrder = orderCount ? Math.round(revenue / orderCount) : 0
 
   const lowStockItems = useMemo(() => {
@@ -75,7 +80,8 @@ export function OverviewPage() {
           name: p.name,
           available: p.stock,
           minQuantity: 10,
-          level: p.stock <= 0 ? ("out_of_stock" as const) : ("below_min" as const)
+          level:
+            p.stock <= 0 ? ("out_of_stock" as const) : ("below_min" as const)
         }))
     }
     const liveRows = stockLevelsQuery.data?.data ?? []
@@ -91,13 +97,17 @@ export function OverviewPage() {
         key: `${item.branchId}-${item.variantId}`,
         sku: item.sku ?? item.variantId.slice(0, 8),
         name:
-          item.name && item.variantLabel && !item.name.includes(item.variantLabel)
+          item.name &&
+          item.variantLabel &&
+          !item.name.includes(item.variantLabel)
             ? `${item.name} - ${item.variantLabel}`
-            : (item.name ?? item.sku ?? "Sản phẩm"),
+            : item.name ?? item.sku ?? "Sản phẩm",
         available: item.available,
         minQuantity: item.minQuantity ?? 10,
         level:
-          item.available <= 0 ? ("out_of_stock" as const) : ("below_min" as const)
+          item.available <= 0
+            ? ("out_of_stock" as const)
+            : ("below_min" as const)
       }))
   }, [isDemo, stockLevelsQuery.data?.data])
 
@@ -110,9 +120,15 @@ export function OverviewPage() {
 
   const needsActionOrders = isDemo
     ? 1
-    : (ordersSummaryQuery.data?.needsAction?.total ?? 0)
+    : ordersSummaryQuery.data?.needsAction?.total ?? 0
 
-  const chartRows = isDemo ? createDemoRows() : (salesQuery.data?.data ?? [])
+  // while a call is in flight there is no value yet: placeholders, never a "0" or an "all clear"
+  const salesLoading = !isDemo && salesQuery.isLoading
+  const stockLoading =
+    !isDemo && (stockSummaryQuery.isLoading || stockLevelsQuery.isLoading)
+  const ordersSummaryLoading = !isDemo && ordersSummaryQuery.isLoading
+
+  const chartRows = isDemo ? createDemoRows() : salesQuery.data?.data ?? []
   const maxRevenue = Math.max(...chartRows.map((row) => row.revenue), 1)
 
   return (
@@ -166,6 +182,7 @@ export function OverviewPage() {
             change={isDemo ? "Dữ liệu demo" : "Đồng bộ đa kênh"}
             detail=""
             icon={TrendingUp}
+            loading={salesLoading}
           />
           <MetricCard
             label="Đơn hàng trong kỳ"
@@ -178,6 +195,7 @@ export function OverviewPage() {
             detail=""
             icon={ShoppingCart}
             positive={needsActionOrders === 0}
+            loading={salesLoading || ordersSummaryLoading}
           />
           <MetricCard
             label="Giá trị đơn trung bình"
@@ -185,6 +203,7 @@ export function OverviewPage() {
             change="Doanh thu / đơn"
             detail=""
             icon={Package}
+            loading={salesLoading}
           />
           <MetricCard
             label="SKU chạm ngưỡng / hết tồn"
@@ -193,6 +212,7 @@ export function OverviewPage() {
             detail=""
             icon={AlertCircle}
             positive={!lowStockCount}
+            loading={stockLoading}
           />
         </div>
 
@@ -203,10 +223,14 @@ export function OverviewPage() {
                 <h2 className="text-sm font-semibold text-[#163d36]">
                   Biểu đồ doanh thu theo ngày
                 </h2>
-                <p className="mt-0.5 text-[11px] text-slate-400">
-                  7 ngày gần nhất · Tổng {formatMoney(revenue)} ({orderCount}{" "}
-                  đơn)
-                </p>
+                {salesLoading ? (
+                  <Skeleton className="mt-1.5 h-3 w-44" />
+                ) : (
+                  <p className="mt-0.5 text-[11px] text-slate-400">
+                    7 ngày gần nhất · Tổng {formatMoney(revenue)} ({orderCount}{" "}
+                    đơn)
+                  </p>
+                )}
               </div>
               <Link
                 to={"/reports" as never}
@@ -216,33 +240,37 @@ export function OverviewPage() {
               </Link>
             </div>
             <div className="mt-6 flex h-52 items-end gap-2.5 border-b border-slate-100 pb-1">
-              {chartRows.map((row) => {
-                const heightPct = Math.max(
-                  (row.revenue / maxRevenue) * 82,
-                  row.revenue ? 6 : 2
-                )
-                return (
-                  <div
-                    key={row.date}
-                    className="group flex h-full min-w-8 flex-1 flex-col items-center justify-end gap-1.5"
-                  >
-                    <span className="text-[10px] font-medium tabular-nums text-slate-500 transition group-hover:font-bold group-hover:text-[#16866f]">
-                      {row.revenue
-                        ? `${Math.round(row.revenue / 100000) / 10}tr`
-                        : "0"}
-                    </span>
+              {salesLoading && <ChartBarsSkeleton className="w-full" />}
+              {!salesLoading &&
+                chartRows.map((row) => {
+                  const heightPct = Math.max(
+                    (row.revenue / maxRevenue) * 82,
+                    row.revenue ? 6 : 2
+                  )
+                  return (
                     <div
-                      title={`${row.date}: ${formatMoney(row.revenue)} (${row.orderCount} đơn)`}
-                      className="w-full max-w-11 rounded-t-md bg-gradient-to-t from-[#16866f] to-[#73c8a9] transition-all duration-200 group-hover:from-[#0f705d] group-hover:to-[#16866f]"
-                      style={{ height: `${heightPct}%` }}
-                    />
-                    <span className="text-[10px] tabular-nums text-slate-400">
-                      {row.date.slice(5)}
-                    </span>
-                  </div>
-                )
-              })}
-              {!chartRows.length && (
+                      key={row.date}
+                      className="group flex h-full min-w-8 flex-1 flex-col items-center justify-end gap-1.5"
+                    >
+                      <span className="text-[10px] font-medium tabular-nums text-slate-500 transition group-hover:font-bold group-hover:text-[#16866f]">
+                        {row.revenue
+                          ? `${Math.round(row.revenue / 100000) / 10}tr`
+                          : "0"}
+                      </span>
+                      <div
+                        title={`${row.date}: ${formatMoney(row.revenue)} (${
+                          row.orderCount
+                        } đơn)`}
+                        className="w-full max-w-11 rounded-t-md bg-gradient-to-t from-[#16866f] to-[#73c8a9] transition-all duration-200 group-hover:from-[#0f705d] group-hover:to-[#16866f]"
+                        style={{ height: `${heightPct}%` }}
+                      />
+                      <span className="text-[10px] tabular-nums text-slate-400">
+                        {row.date.slice(5)}
+                      </span>
+                    </div>
+                  )
+                })}
+              {!salesLoading && !chartRows.length && (
                 <p className="mb-12 w-full text-center text-xs text-slate-400">
                   Chưa có dữ liệu doanh thu trong 7 ngày qua.
                 </p>
@@ -267,7 +295,10 @@ export function OverviewPage() {
               {needsActionOrders > 0 && (
                 <div className="mt-3.5 flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2 text-xs text-amber-800">
                   <span className="flex items-center gap-1.5">
-                    <AlertTriangle size={14} className="shrink-0 text-amber-600" />
+                    <AlertTriangle
+                      size={14}
+                      className="shrink-0 text-amber-600"
+                    />
                     <span>
                       <b>{needsActionOrders} đơn Lazada</b> chờ ánh xạ SKU/tồn
                     </span>
@@ -283,7 +314,9 @@ export function OverviewPage() {
               )}
 
               <div className="mt-4 space-y-2.5">
-                {lowStockItems.length > 0 ? (
+                {stockLoading ? (
+                  <ListSkeleton rows={3} />
+                ) : lowStockItems.length > 0 ? (
                   lowStockItems.map((product) => (
                     <div
                       key={product.key}
@@ -357,7 +390,9 @@ export function OverviewPage() {
                   ? "Dữ liệu minh họa"
                   : ordersQuery.isLoading
                     ? "Đang tải..."
-                    : `${ordersQuery.data?.pagination.totalRecords ?? 0} đơn trong hệ thống`}
+                    : `${
+                        ordersQuery.data?.pagination.totalRecords ?? 0
+                      } đơn trong hệ thống`}
               </p>
             </div>
             <Link

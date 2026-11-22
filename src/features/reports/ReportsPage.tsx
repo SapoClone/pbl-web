@@ -34,6 +34,8 @@ import {
   YAxis
 } from "recharts"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { CardSkeleton, TableSkeleton } from "@/components/ui/table-skeleton"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import {
   ChannelBadge,
@@ -338,6 +340,18 @@ export function ReportsPage({
     () => buildDemoRevenueTrend(appliedRange.from, appliedRange.to, branchId || undefined),
     [appliedRange.from, appliedRange.to, branchId]
   )
+
+  // each tab shows a skeleton until its own data is in (never a "0" or an empty message for a call still in flight)
+  const channelsLoading =
+    !isDemo && (channelQuery.isLoading || trendQuery.isLoading)
+  const productsLoading =
+    !isDemo &&
+    (productMode === "slow"
+      ? slowMovingQuery.isLoading
+      : productSalesQuery.isLoading)
+  const inventoryLoading =
+    !isDemo && (valuationQuery.isLoading || movementsQuery.isLoading)
+  const financeLoading = !isDemo && grossProfitQuery.isLoading
 
   const trendSeries = useMemo(() => {
     const raw = isDemo ? demoTrend : (trendQuery.data ?? [])
@@ -733,25 +747,25 @@ export function ReportsPage({
               value: "channels",
               label: "Bán hàng theo Kênh",
               icon: Share2,
-              badge: channelRows.length
+              badge: tab === "channels" && !channelsLoading ? channelRows.length : undefined
             },
             {
               value: "products",
               label: "Báo cáo theo Sản phẩm (SKU)",
               icon: Package,
-              badge: sortedProducts.length
+              badge: tab === "products" && !productsLoading ? sortedProducts.length : undefined
             },
             {
               value: "inventory",
               label: "Giá trị Tồn kho & Xuất nhập tồn",
               icon: Boxes,
-              badge: valuationData.warehouses.length
+              badge: tab === "inventory" && !inventoryLoading ? valuationData.warehouses.length : undefined
             },
             {
               value: "finance",
               label: "Tài chính & Lợi nhuận gộp",
               icon: Coins,
-              badge: `${financeData.grossMarginPct}%`
+              badge: tab === "finance" && !financeLoading ? `${financeData.grossMarginPct}%` : undefined
             }
           ]}
         />
@@ -760,7 +774,9 @@ export function ReportsPage({
       {/* ============================================================ */}
       {/* TAB 1: BÁO CÁO BÁN HÀNG THEO KÊNH                            */}
       {/* ============================================================ */}
-      {tab === "channels" ? (
+      {tab === "channels" && channelsLoading ? (
+        <ReportSkeleton />
+      ) : tab === "channels" ? (
         <div className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <KpiStatCard
@@ -984,7 +1000,9 @@ export function ReportsPage({
       {/* ============================================================ */}
       {/* TAB 2: BÁO CÁO THEO SẢN PHẨM (TOP SKU & SKU TỒN ĐỌNG)        */}
       {/* ============================================================ */}
-      {tab === "products" ? (
+      {tab === "products" && productsLoading ? (
+        <ReportSkeleton />
+      ) : tab === "products" ? (
         <div className="space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4">
             <div className="flex flex-wrap items-center gap-2">
@@ -1287,7 +1305,9 @@ export function ReportsPage({
       {/* ============================================================ */}
       {/* TAB 3: GIÁ TRỊ TỒN KHO (SNAPSHOT) & XUẤT NHẬP TỒN KỲ         */}
       {/* ============================================================ */}
-      {tab === "inventory" ? (
+      {tab === "inventory" && inventoryLoading ? (
+        <ReportSkeleton />
+      ) : tab === "inventory" ? (
         <div className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <KpiStatCard
@@ -1540,7 +1560,9 @@ export function ReportsPage({
       {/* ============================================================ */}
       {/* TAB 4: BÁO CÁO TÀI CHÍNH / LỢI NHUẬN GỘP (P&L)              */}
       {/* ============================================================ */}
-      {tab === "finance" ? (
+      {tab === "finance" && financeLoading ? (
+        <ReportSkeleton />
+      ) : tab === "finance" ? (
         <div className="space-y-6">
           {/* P&L Waterfall Strip */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -1726,5 +1748,24 @@ export function ReportsPage({
         </div>
       ) : null}
     </main>
+  )
+}
+
+/** A report tab while its data loads: the cards, two charts and a table, as placeholders */
+function ReportSkeleton() {
+  return (
+    <div className="space-y-6" role="status" aria-label="Đang tải báo cáo">
+      <CardSkeleton count={4} />
+      <div className="grid gap-4 lg:grid-cols-2">
+        {[0, 1].map((index) => (
+          <div key={index} className="rounded-xl border border-slate-200 bg-white p-5">
+            <Skeleton className="h-4 w-48" />
+            <Skeleton className="mt-2 h-3 w-64" />
+            <Skeleton className="mt-6 h-56 w-full" />
+          </div>
+        ))}
+      </div>
+      <TableSkeleton rows={5} cols={6} />
+    </div>
   )
 }

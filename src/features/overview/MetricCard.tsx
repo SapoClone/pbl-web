@@ -1,4 +1,5 @@
 import { ArrowDownRight, ArrowUpRight } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
 import type { Metric } from "@/shared/dashboard/dashboard.types"
 
 export function MetricCard({
@@ -7,7 +8,8 @@ export function MetricCard({
   change,
   detail = "so với tháng trước",
   icon: Icon,
-  positive = true
+  positive = true,
+  loading = false
 }: Metric) {
   return (
     <div className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 p-5 shadow-[0_4px_20px_-4px_rgba(20,50,45,0.04),0_12px_28px_-8px_rgba(20,50,45,0.05)] backdrop-blur-sm transition-all duration-300 hover:border-[#16866f]/30 hover:shadow-[0_8px_30px_-4px_rgba(20,50,45,0.08)]">
@@ -19,18 +21,33 @@ export function MetricCard({
           <Icon size={17} />
         </span>
       </div>
-      <p className="mt-3 text-2xl font-bold tabular-nums tracking-tight text-[#163d36] sm:text-3xl">
-        {value}
-      </p>
-      <p
-        className={`mt-2 flex items-center gap-1 text-xs font-semibold ${
-          positive ? "text-[#16866f]" : "text-[#c44a42]"
-        }`}
-      >
-        {positive ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
-        <span>{change}</span>
-        {detail ? <span className="font-normal text-slate-400">{detail}</span> : null}
-      </p>
+      {loading ? (
+        <div role="status" aria-label="Đang tải" className="mt-3.5 space-y-2.5">
+          <Skeleton className="h-7 w-32" />
+          <Skeleton className="h-3 w-24" />
+        </div>
+      ) : (
+        <>
+          <p className="mt-3 text-2xl font-bold tabular-nums tracking-tight text-[#163d36] sm:text-3xl">
+            {value}
+          </p>
+          <p
+            className={`mt-2 flex items-center gap-1 text-xs font-semibold ${
+              positive ? "text-[#16866f]" : "text-[#c44a42]"
+            }`}
+          >
+            {positive ? (
+              <ArrowUpRight size={14} />
+            ) : (
+              <ArrowDownRight size={14} />
+            )}
+            <span>{change}</span>
+            {detail ? (
+              <span className="font-normal text-slate-400">{detail}</span>
+            ) : null}
+          </p>
+        </>
+      )}
     </div>
   )
 }

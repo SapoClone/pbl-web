@@ -55,4 +55,6 @@ export type Metric = {
   detail?: string
   icon: LucideIcon
   positive?: boolean
+  /** The value is still loading: a placeholder is shown instead of `value` and `change` */
+  loading?: boolean
 }
