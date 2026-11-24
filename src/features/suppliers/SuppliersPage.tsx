@@ -708,7 +708,7 @@ function PurchaseRows({
   )
 }
 
-function SupplierForm({
+export function SupplierForm({
   initial,
   close,
   saved
@@ -717,7 +717,39 @@ function SupplierForm({
   close: () => void
   saved: () => Promise<void>
 }) {
-  const [v, setV] = useState({
+  // The list endpoint omits taxCode and note, so editing loads the full record.
+  const full = useQuery({
+    queryKey: ["supplier-detail", initial?.id],
+    queryFn: () => getSupplier(initial!.id),
+    enabled: Boolean(initial),
+    retry: false
+  })
+  if (initial && full.isLoading) {
+    return (
+      <Modal title="Cập nhật nhà cung cấp" close={close}>
+        <p className="text-sm text-slate-500">Đang tải nhà cung cấp...</p>
+      </Modal>
+    )
+  }
+  return (
+    <SupplierFormFields
+      initial={initial ? { ...initial, ...(full.data ?? {}) } : null}
+      close={close}
+      saved={saved}
+    />
+  )
+}
+
+function SupplierFormFields({
+  initial,
+  close,
+  saved
+}: {
+  initial: Supplier | null
+  close: () => void
+  saved: () => Promise<void>
+}) {
+  const initialValues = {
     code: initial?.code ?? "",
     name: initial?.name ?? "",
     phone: initial?.phone ?? "",
@@ -725,11 +757,23 @@ function SupplierForm({
     address: initial?.address ?? "",
     taxCode: initial?.taxCode ?? "",
     note: initial?.note ?? ""
-  })
+  }
+  const [v, setV] = useState(initialValues)
   const [error, setError] = useState("")
   const m = useMutation({
-    mutationFn: () =>
-      initial ? updateSupplier(initial.id, v) : createSupplier(v),
+    mutationFn: async () => {
+      if (!initial) return createSupplier(v)
+      // Send only what the user changed so untouched fields are never wiped.
+      const { code: _code, ...editable } = v
+      const changed = Object.fromEntries(
+        Object.entries(editable).filter(
+          ([k, value]) =>
+            value !== initialValues[k as keyof typeof initialValues]
+        )
+      )
+      if (Object.keys(changed).length === 0) return null
+      return updateSupplier(initial.id, changed)
+    },
     onSuccess: saved,
     onError: (e) => setError(apiError(e))
   })
