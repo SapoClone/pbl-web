@@ -764,12 +764,10 @@ function SupplierFormFields({
     mutationFn: async () => {
       if (!initial) return createSupplier(v)
       // Send only what the user changed so untouched fields are never wiped.
-      const { code: _code, ...editable } = v
       const changed = Object.fromEntries(
-        Object.entries(editable).filter(
-          ([k, value]) =>
-            value !== initialValues[k as keyof typeof initialValues]
-        )
+        (["name", "phone", "email", "address", "taxCode", "note"] as const)
+          .filter((k) => v[k] !== initialValues[k])
+          .map((k) => [k, v[k]])
       )
       if (Object.keys(changed).length === 0) return null
       return updateSupplier(initial.id, changed)
