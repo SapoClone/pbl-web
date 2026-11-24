@@ -1,4 +1,4 @@
-import type { Locator, Page } from "@playwright/test"
+import type { Page } from "@playwright/test"
 import { ensureStock, gw } from "../support/api"
 import { branches, catalog, customers, pos, promotions, vnd } from "../support/data"
 import { asOwner, expect, settled, test } from "../support/fixtures"
@@ -18,10 +18,11 @@ import { asOwner, expect, settled, test } from "../support/fixtures"
  * every run. F09.6 reloads the page before closing: without the reload the POS page keeps its stale local copy
  * of the shift and shows the opening float as the "expected cash" even after the sales.
  *
- * Two genuine app bugs are recorded as extra `test.fixme` entries: the POS total does not show a real coupon's
- * discount (only three hard-coded client presets are priced), and the count input's step="1000" refuses an exact
- * VND cash count such as 893.500. F09.6 uses a documented one-line DOM workaround for the latter so the real
- * close still happens with the exact amount; without it the browser blocks the submit before the app sees it.
+ * Both bugs of the earlier run are fixed and proven here: a real coupon is priced by the server through
+ * POST /sales/api/v1/coupons/evaluate (after a ~0.5 s debounce), so the discount line, "Khách phải trả" and the pay
+ * button show the 58.500 VND total BEFORE paying (F09.4 and its UI variant). All cash inputs now have step="1", so
+ * the exact VND amounts (58.500 tendered, 893.500 counted) are typed natively - no DOM workaround is left in this
+ * file, and the close-count flows are no longer `test.fixme`.
  *
  * Local constants (not in data.ts): the invalid coupon SAIMA of F09.4, the shift notes, and the quantities of
  * the second (coupon) sale. All other numbers come from data.ts.
@@ -67,17 +68,6 @@ const shiftDialog = (page: Page) => page.getByRole("dialog")
 /** "335.000 ₫" / "+1.234 ₫" -> 335000 / 1234 (money is printed with dots as thousand separators). */
 function parseVnd(text: string): number {
   return Number(text.replace(/[^\d-]/g, ""))
-}
-
-/**
- * App bug workaround: the shift's "Tiền mặt thực đếm cuối ca" input has step="1000", so the browser refuses to
- * submit an exact VND count like 893.500 (stepMismatch) even though that is what the app says is in the drawer.
- * Relaxing the step on this one DOM input lets a cashier count exact VND; the form, the API call and the stored
- * amount are all still the app's own. See the test.fixme at the end of this file.
- */
-async function fillExactCash(input: Locator, amount: number) {
-  await input.evaluate((el) => el.setAttribute("step", "1"))
-  await input.fill(String(amount))
 }
 
 /** The branch the store was created with: the POS page auto-selects it from GET /branches. */
@@ -135,7 +125,7 @@ async function closeLeftoverShift(page: Page) {
   const expected = parseVnd(
     await dialog.getByText("Tiền kỳ vọng trong két:").locator("..").innerText(),
   )
-  await fillExactCash(dialog.getByRole("spinbutton"), expected)
+  await dialog.getByRole("spinbutton").fill(String(expected))
   await dialog.getByRole("button", { name: "Xác nhận kết ca" }).click()
   await expect(dialog).toHaveCount(0)
   await expect(shiftButton(page)).toHaveText(/Chưa có ca/)
@@ -348,7 +338,6 @@ test("F09.4 An invalid coupon is refused; NOEL2026 takes 10% off a 65.000 VND ph
 
   await step(`The unknown code ${INVALID_COUPON} is refused by the server`, async () => {
     await page.getByPlaceholder("SALE10, VIP50K...").fill(INVALID_COUPON)
-    await page.getByRole("button", { name: "Đưa đủ", exact: true }).click()
     const [badResponse] = await Promise.all([
       page.waitForResponse(
         (r) =>
@@ -358,15 +347,29 @@ test("F09.4 An invalid coupon is refused; NOEL2026 takes 10% off a 65.000 VND ph
     ])
     expect(badResponse.status()).toBe(409)
     expect(((await badResponse.json()) as { errorCode: string }).errorCode).toBe("COUPON_INVALID")
-    await expect(page.getByText("Mã giảm giá không hợp lệ hoặc đã hết hiệu lực.")).toBeVisible()
+    // The debounced evaluation also puts this refusal under the coupon field, so the text can appear twice.
+    await expect(page.getByText("Mã giảm giá không hợp lệ hoặc đã hết hiệu lực.").first()).toBeVisible()
     await expect(page.getByText(/Hóa đơn bán lẻ K80/)).toHaveCount(0)
     await expect(page.getByRole("heading", { name: /Đơn #1 \(1 SP\)/ })).toBeVisible()
   })
 
   let orderId = ""
-  await step(`Replace it with ${promotions.coupon.code} and pay the discounted total`, async () => {
+  await step(`Replace it with ${promotions.coupon.code}: the total drops to ${vnd(couponSaleTotal)} before paying`, async () => {
     await page.getByPlaceholder("SALE10, VIP50K...").fill(promotions.coupon.code)
-    await expect(page.getByRole("button", { name: /^Thanh toán và tạo đơn/ })).toBeVisible()
+    const discountLine = page.getByPlaceholder("SALE10, VIP50K...").locator("..").getByText(/: giảm /)
+    await expect(discountLine).toBeVisible()
+    await expect(discountLine).toContainText(
+      `${promotions.program.name}: giảm ${vnd(couponSaleDiscount)} ₫`,
+    )
+    await expect(page.getByText("Khách phải trả").locator("..")).toContainText(vnd(couponSaleTotal))
+    await expect(page.getByRole("button", { name: `Thanh toán và tạo đơn (${vnd(couponSaleTotal)} ₫)` })).toBeVisible()
+  })
+
+  await step(`Hand over exactly ${vnd(couponSaleTotal)} cash and pay`, async () => {
+    // The tendered-cash field has step=1 now, so the exact VND amount is typed instead of using the "Đưa đủ" chip.
+    const cash = page.getByText("Tiền khách đưa:").locator("..").getByRole("spinbutton")
+    await cash.fill(String(couponSaleTotal))
+    await expect(page.getByText("Tiền thừa trả khách:").locator("..")).toContainText(vnd(0))
     const [response] = await Promise.all([
       page.waitForResponse(
         (r) =>
@@ -402,33 +405,60 @@ test("F09.4 An invalid coupon is refused; NOEL2026 takes 10% off a 65.000 VND ph
 })
 
 test("F09.4 (UI) Entering NOEL2026 should show the 10% discount before paying", async ({ page, step }) => {
-  test.fixme(
-    true,
-    "App bug: PosPage.tsx only prices the three hard-coded client presets (SALE10, VIP50K, OMNI20K) in its " +
-      "discountAmount memo; a real coupon such as NOEL2026 is only sent to the server. The order and the shift " +
-      "are priced correctly (58.500 VND, asserted in F09.4), but 'Khách phải trả', the pay button and the printed " +
-      "receipt keep showing 65.000 VND. Remove this line when the POS calls the coupon evaluation endpoint for " +
-      "the visible total.",
-  )
-
   await page.goto("/pos")
   await settled(page)
+  const couponField = page.getByPlaceholder("SALE10, VIP50K...")
+  const couponCell = couponField.locator("..")
+  const discountLine = couponCell.getByText(/: giảm /)
+  const total = page.getByText("Khách phải trả").locator("..")
 
-  await step("Put one phin in the cart and enter the real coupon", async () => {
+  await step("Put one phin in the cart under the open shift", async () => {
+    await expect(shiftButton(page)).toHaveText(`Ca: ${pos.registerCode} (Đang mở)`)
     await addProduct(page, couponSale.product.sku, couponSale.qty)
-    await page.getByPlaceholder("SALE10, VIP50K...").fill(promotions.coupon.code)
+    await expect(page.getByRole("heading", { name: /Đơn #1 \(1 SP\)/ })).toBeVisible()
+    await expect(page.getByText("Tạm tính (1 sản phẩm):").locator("..")).toContainText(vnd(couponSaleSubtotal))
+    await expect(total).toContainText(vnd(couponSaleSubtotal))
   })
 
-  await step("The visible total drops from 65.000 to 58.500 VND", async () => {
-    await expect(page.getByText("Khách phải trả").locator("..")).toContainText(vnd(couponSaleTotal))
-    await expect(page.getByRole("button", { name: `Thanh toán và tạo đơn (${vnd(couponSaleTotal)} ₫)` })).toBeVisible()
+  await step(`Type ${promotions.coupon.code}: after the debounce the server's discount line appears`, async () => {
+    await couponField.fill(promotions.coupon.code)
+    await expect(discountLine).toBeVisible()
+    await expect(discountLine).toContainText(
+      `${promotions.program.name}: giảm ${vnd(couponSaleDiscount)} ₫`,
+    )
+    await expect(page.getByText(`Chiết khấu / Mã giảm (${promotions.coupon.code}):`).locator("..")).toContainText(
+      `-${vnd(couponSaleDiscount)} ₫`,
+    )
   })
 
-  await step("The receipt prints the discounted total too", async () => {
-    await page.getByRole("button", { name: "Đưa đủ", exact: true }).click()
-    await page.getByRole("button", { name: /^Thanh toán và tạo đơn/ }).click()
-    const dialog = shiftDialog(page)
-    await expect(dialog.getByText("TỔNG THANH TOÁN:").locator("..")).toContainText(vnd(couponSaleTotal))
+  await step("The total and the pay button already show the discounted amount BEFORE paying", async () => {
+    await expect(total).toContainText(vnd(couponSaleTotal))
+    await expect(
+      page.getByRole("button", { name: `Thanh toán và tạo đơn (${vnd(couponSaleTotal)} ₫)` }),
+    ).toBeVisible()
+  })
+
+  await step(`Type the invalid ${INVALID_COUPON}: the refusal shows and there is no discount`, async () => {
+    await couponField.fill(INVALID_COUPON)
+    await expect(couponCell).toContainText("Mã giảm giá không hợp lệ hoặc đã hết hiệu lực.")
+    await expect(discountLine).toHaveCount(0)
+    await expect(total).toContainText(vnd(couponSaleSubtotal))
+    await expect(
+      page.getByRole("button", { name: `Thanh toán và tạo đơn (${vnd(couponSaleSubtotal)} ₫)` }),
+    ).toBeVisible()
+  })
+
+  await step("Clear the field: the full total is restored and nothing was sold", async () => {
+    await couponField.fill("")
+    await expect(couponCell).not.toContainText("Mã giảm giá không hợp lệ hoặc đã hết hiệu lực.")
+    await expect(discountLine).toHaveCount(0)
+    await expect(total).toContainText(vnd(couponSaleSubtotal))
+    await expect(
+      page.getByRole("button", { name: `Thanh toán và tạo đơn (${vnd(couponSaleSubtotal)} ₫)` }),
+    ).toBeVisible()
+    // No payment: the cart and the shift are exactly as they were, and no receipt was printed.
+    await expect(page.getByRole("heading", { name: /Đơn #1 \(1 SP\)/ })).toBeVisible()
+    await expect(page.getByText(/Hóa đơn bán lẻ K80/)).toHaveCount(0)
   })
 })
 
@@ -510,7 +540,7 @@ test("F09.6 Close the shift counting exactly 893.500 VND", async ({ page, step }
     const dialog = shiftDialog(page)
     const shownExpected = parseVnd(await dialog.getByText("Tiền kỳ vọng trong két:").locator("..").innerText())
     expect(shownExpected).toBe(expectedClosingCash)
-    await fillExactCash(dialog.getByRole("spinbutton"), expectedClosingCash)
+    await dialog.getByRole("spinbutton").fill(String(expectedClosingCash))
     await expect(dialog.getByText("Chênh lệch kiểm quỹ:").locator("..")).toContainText(vnd(0))
     await expect(dialog.getByRole("button", { name: "Xác nhận kết ca" })).toBeEnabled()
   })
@@ -538,43 +568,61 @@ test("F09.6 Close the shift counting exactly 893.500 VND", async ({ page, step }
 })
 
 test("F09.6 (UI) Counting an exact VND amount should be accepted by the form", async ({ page, step }) => {
-  test.fixme(
-    true,
-    "App bug: the close form's 'Tiền mặt thực đếm cuối ca' is <input type=number step=1000>. A shift whose " +
-      "expected cash ends in 500 (e.g. 558.500 after one 58.500 coupon sale) cannot be counted exactly: the " +
-      "browser reports stepMismatch and never submits, so 'Xác nhận kết ca' does nothing. Worked around in " +
-      "F09.6 by relaxing the step on that DOM input; remove this line when the field accepts whole VND.",
-  )
+  const branchId = await mainBranchId()
 
   await page.goto("/pos")
   await settled(page)
 
-  await step("Open a shift and make one coupon sale so the expected cash ends in 500", async () => {
+  await step("Start with no open shift, then open one with the usual float", async () => {
+    await closeLeftoverShift(page)
+    await expect(shiftButton(page)).toHaveText("Chưa có ca: mở ca để bán")
     await shiftButton(page).click()
     const modal = shiftDialog(page)
     await modal.getByLabel("Mã máy thu ngân (Register)").fill(pos.registerCode)
     await modal.getByLabel("Tiền mặt đầu ca (VND) *").fill(String(pos.openingCash))
     await modal.getByRole("button", { name: "Mở ca bán hàng" }).click()
     await expect(modal).toHaveCount(0)
+    await expect(shiftButton(page)).toHaveText(`Ca: ${pos.registerCode} (Đang mở)`)
+  })
+
+  await step("Make one coupon sale so the expected cash ends in 500", async () => {
     await addProduct(page, couponSale.product.sku, couponSale.qty)
     await page.getByPlaceholder("SALE10, VIP50K...").fill(promotions.coupon.code)
-    await page.getByRole("button", { name: "Đưa đủ", exact: true }).click()
+    const discountLine = page.getByPlaceholder("SALE10, VIP50K...").locator("..").getByText(/: giảm /)
+    await expect(discountLine).toContainText(
+      `${promotions.program.name}: giảm ${vnd(couponSaleDiscount)} ₫`,
+    )
+    // The tender field has step=1: hand over exactly 58.500 VND, not a rounded chip amount.
+    await page.getByText("Tiền khách đưa:").locator("..").getByRole("spinbutton").fill(String(couponSaleTotal))
     await page.getByRole("button", { name: /^Thanh toán và tạo đơn/ }).click()
     await expect(shiftDialog(page).getByRole("heading", { name: /Hóa đơn bán lẻ K80/ })).toBeVisible()
     await shiftDialog(page).getByRole("button", { name: "Đóng" }).click()
+  })
+
+  await step("Count the exact expected cash with the native step=1 input and close the shift", async () => {
     // F09.6 needs the reload to see the server's expected cash instead of the stale local shift
     await page.reload()
     await settled(page)
-  })
-
-  await step("Count the exact expected cash and close the shift", async () => {
     const expected = pos.openingCash + couponSaleTotal
     await shiftButton(page).click()
     const modal = shiftDialog(page)
     await expect(modal.getByText("Tiền kỳ vọng trong két:").locator("..")).toContainText(vnd(expected))
     await modal.getByRole("spinbutton").fill(String(expected))
+    await expect(modal.getByText("Chênh lệch kiểm quỹ:").locator("..")).toContainText(vnd(0))
     await modal.getByRole("button", { name: "Xác nhận kết ca" }).click()
     await expect(modal).toHaveCount(0)
     await expect(shiftButton(page)).toHaveText("Chưa có ca: mở ca để bán")
+  })
+
+  await step("Reload: the exact count was stored on the closed shift", async () => {
+    await page.reload()
+    await settled(page)
+    await expect(shiftButton(page)).toHaveText("Chưa có ca: mở ca để bán")
+    const list = await gw<{
+      data: { registerCode: string; status: string; actualCash: number | null }[]
+    }>(`/sales/api/v1/pos/shifts?branchId=${branchId}&limit=10`)
+    const closed = list.data.find((s) => s.registerCode === pos.registerCode && s.status === "CLOSED")
+    expect(closed, "the QUAY-01 shift is CLOSED").toBeTruthy()
+    expect(closed!.actualCash).toBe(pos.openingCash + couponSaleTotal)
   })
 })

@@ -311,16 +311,54 @@ test("F07.4 Add 100 loyalty points to Bích Ngọc and refuse overdrawing them",
 })
 
 test("F07.4b The customer list shows each customer's points", async ({ page, step }) => {
-  test.fixme(
-    true,
-    "App bug: GET /customers returns the balance as `loyaltyPoints` but CustomersPage.tsx reads `item.pointsBalance`, " +
-      "so the 'Điểm thưởng' column of the list always shows '0 điểm'. Remove this line when the list reads loyaltyPoints.",
-  )
-  await page.goto("/customers")
-  await waitForCustomers(page)
-  await step("Search Bích Ngọc: her row shows the points she has", async () => {
+  let expected = 0
+  let formatted = ""
+  type ApiRow = {
+    phone: string
+    loyaltyPoints?: number
+    pointsBalance?: number
+  }
+
+  await step("Read Bích Ngọc's balance where the API keeps it", async () => {
+    const list = await gw<{ data?: ApiRow[]; items?: ApiRow[] }>("/customer/api/v1/customers?page=1&limit=100")
+    const ngoc = (list.data ?? list.items ?? []).find((c) => c.phone === customers.ngoc.phone)
+    expect(ngoc, "Bích Ngọc exists (F07.2)").toBeTruthy()
+    expected = ngoc!.loyaltyPoints ?? ngoc!.pointsBalance ?? 0
+    expect(expected, "F07.4 added points to her").toBeGreaterThan(0)
+    formatted = expected.toLocaleString("vi-VN")
+  })
+
+  await step("The drawer's 'Điểm thưởng' figure is the same balance", async () => {
+    await page.goto("/customers")
+    await waitForCustomers(page)
     await searchBox(page).fill(customers.ngoc.phone)
-    await expect(rowByPhone(page, customers.ngoc.phone).getByRole("button", { name: /điểm$/ })).not.toContainText(/^0 điểm$/)
+    await openDrawer(page, customers.ngoc.phone)
+    // The points tab carries the balance as a badge; the metric strip prints it as "N điểm".
+    const tab = drawer(page).getByRole("tab", { name: /Điểm thưởng[\s.]*[\d.]+/ })
+    await expect(tab).toBeVisible()
+    expect(pointsFrom((await tab.textContent()) ?? "")).toBe(expected)
+    await expect(drawer(page).getByText("Điểm thưởng khả dụng").locator("..").getByText(`${formatted} điểm`)).toBeVisible()
+    // The next step reloads, which closes the drawer; its close button sits under the sticky header.
+  })
+
+  await step("Reload: her row's points button shows exactly that many points", async () => {
+    await page.reload()
+    await waitForCustomers(page)
+    await searchBox(page).fill(customers.ngoc.phone)
+    const row = rowByPhone(page, customers.ngoc.phone)
+    await expect(row.getByRole("button", { name: `${formatted} điểm`, exact: true })).toBeVisible()
+    await expect(row.getByRole("button", { name: "0 điểm", exact: true })).toHaveCount(0)
+  })
+
+  await step("The 'Tổng quỹ điểm khả dụng' KPI covers at least her balance", async () => {
+    const kpi = page.getByRole("button", { name: /Tổng quỹ điểm khả dụng/ })
+    await expect(kpi).toBeVisible()
+    await expect
+      .poll(async () => {
+        const match = ((await kpi.textContent()) ?? "").match(/([\d.]+)\s*điểm/)
+        return match ? pointsFrom(match[1]) : -1
+      })
+      .toBeGreaterThanOrEqual(expected)
   })
 })
 

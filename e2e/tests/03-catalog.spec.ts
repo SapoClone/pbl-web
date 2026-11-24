@@ -1,17 +1,20 @@
-import type { Page } from "@playwright/test"
+import type { Locator, Page } from "@playwright/test"
+import { gw } from "../support/api"
 import { catalog, vnd } from "../support/data"
 import { asOwner, expect, settled, test } from "../support/fixtures"
 
 /**
  * Flows F03.1 - F03.8 of flows/FLOWS.md: the catalogue of "Cửa hàng Cà Phê Hạt Mộc" - a category, a brand, the three
- * products with one variant each (SKU and price from support/data.ts) and the wholesale price list. Stock (04), POS (09),
- * Orders (10) and Reports (12) need these three products to exist and to be "Đang bán": this spec never deletes one of
- * them, only the throwaway product of F03.6. Combos are skipped - see F03.8.
+ * products with one variant each (SKU and price from support/data.ts), the wholesale price list and a real product
+ * Combo (F03.8). Stock (04), POS (09), Orders (10) and Reports (12) need these three products to exist and to be
+ * "Đang bán": this spec never deletes one of them, only the throwaway product of F03.6.
  *
  * Re-runnable on the same store (the store is shared with the other specs and with an earlier run of this file): the
- * category, the brand, the three products, their variants and the price list are created only when they are not there
- * yet, and every edit sets the same value again. Nothing is deleted except "Sản phẩm thử xóa".
+ * category, the brand, the three products, their variants, the price list and the Combo are created only when they are
+ * not there yet, and every edit sets the same value again. Nothing is deleted except "Sản phẩm thử xóa"; the page does
+ * not offer a Combo delete, so F03.8 never deletes its Combo either.
  */
+
 asOwner()
 test.describe.configure({ mode: "serial" })
 
@@ -32,6 +35,17 @@ const NO_MATCH_SEARCH = "Máy xay cà phê cầm tay"
 
 /** F03.7: the wholesale price of the Arabica bag (retail price is catalog.products.arabica.price = 135.000). */
 const WHOLESALE_PRICE = 120000
+
+/** F03.8: local to this spec; the components and their prices stay in data.ts. */
+const COMBO_NAME = "Combo Quà Cà Phê Hạt Mộc"
+const COMBO_PRICE = 190000
+const COMBO_COMPONENTS = [catalog.products.arabica, catalog.products.phin]
+const COMBO_SUM_RETAIL = COMBO_COMPONENTS.reduce((total, component) => total + component.price, 0)
+const COMBO_SAVINGS = COMBO_SUM_RETAIL - COMBO_PRICE
+const COMBO_SAVINGS_PCT = Math.round((COMBO_SAVINGS / COMBO_SUM_RETAIL) * 100)
+/** Verbatim template of the live calculator in ProductCombosPanel.tsx (the card uses a shorter one). */
+const BUILDER_SAVINGS = `Khách mua Combo tiết kiệm ngay ${vnd(COMBO_SAVINGS)} ₫ (-${COMBO_SAVINGS_PCT}%)`
+const CARD_SAVINGS = `Khách tiết kiệm ${vnd(COMBO_SAVINGS)} ₫ (-${COMBO_SAVINGS_PCT}%)`
 
 const products = [catalog.products.arabica, catalog.products.robusta, catalog.products.phin]
 
@@ -60,6 +74,35 @@ const priceListDetailLoaded = (page: Page) =>
       response.request().method() === "GET" &&
       /\/catalog\/api\/v1\/price-lists\/[^/]+$/.test(new URL(response.url()).pathname),
   )
+
+type ComboProductRow = { id: string; name: string; isCombo?: boolean }
+type ComboItemRow = { skuCode: string; quantity: number; lineTotal: number }
+
+/** The Combo cards are <article>s; filter by the visible name so a name never matches a sibling section. */
+const comboCard = (page: Page) =>
+  page.getByRole("article").filter({ has: page.getByRole("heading", { name: COMBO_NAME, level: 3 }) })
+
+/** Re-runnable detection: the catalog API already lists a combo product with this spec's name. */
+async function findComboByName(): Promise<ComboProductRow | undefined> {
+  const { items } = await gw<{ items: ComboProductRow[] }>("/catalog/api/v1/products?page=1&limit=100")
+  return items.find((item) => item.name === COMBO_NAME && item.isCombo)
+}
+
+/**
+ * The component list on the Combo card, asserted after saving and again after a reload. The card's price and saving
+ * are deliberately NOT asserted here: a UI bug makes them render 0 ₫ / -100% (see the F03.8 fixme test below), even
+ * though the backend stores 190.000. The expectation is kept in that fixme instead of being weakened here.
+ */
+async function expectComboCard(card: Locator) {
+  await expect(card).toBeVisible()
+  await expect(card).toContainText(COMBO_NAME)
+  await expect(card).toContainText("Gói Combo · 2 thành phần")
+  await expect(card.getByText("x1", { exact: true })).toHaveCount(2)
+  for (const component of COMBO_COMPONENTS) {
+    await expect(card).toContainText(component.name)
+    await expect(card).toContainText(component.sku)
+  }
+}
 
 /**
  * Creates one product through "Thêm mới", unless a previous run of this spec already created it.
@@ -486,25 +529,127 @@ test("F03.7 The wholesale price list stores a price per SKU for Arabica", async 
 })
 
 test("F03.8 Combo: build a combo from two variants of the catalogue", async ({ page, step }) => {
-  test.fixme(
-    true,
-    "Backend gap: the gateway has no route for GET/PUT /catalog/api/v1/products/{id}/combo-items (the request is " +
-      "closed with no HTTP response, see also the known gaps in flows/FLOWS.md), so the Combo builder cannot load or " +
-      "save its components and the combos tab stays out of scope for now.",
-  )
-  await step("Open the combos tab", async () => {
-    await page.goto("/products?tab=combos")
+  // Detected by name in GET /catalog/api/v1/products with isCombo=true; no duplicate is ever created.
+  const existing = await findComboByName()
+
+  await step("The 'Gói sản phẩm Combo' KPI card opens the combo section of the redesigned products page", async () => {
+    await page.goto("/products")
+    await settled(page)
+    await expect(page.getByRole("heading", { name: "Sản phẩm", level: 1 })).toBeVisible()
+    const kpi = page.getByRole("button", { name: /Gói sản phẩm Combo/ })
+    await expect(kpi).toBeVisible()
+    await kpi.click()
+    // The tab control is gone: the builder lives in the "Sản phẩm Combo" section further down the same page.
+    await expect(page.getByRole("heading", { name: "Sản phẩm Combo", level: 2 })).toBeVisible()
     await expect(page.getByRole("button", { name: "Tạo gói Combo mới" })).toBeVisible()
   })
-  await step("Create a combo of one Arabica bag and one phin at 180.000", async () => {
+
+  await step("The builder refuses a blank name and a Combo with no SKU components", async () => {
     await page.getByRole("button", { name: "Tạo gói Combo mới" }).click()
     const dialog = page.getByRole("dialog", { name: "Tạo sản phẩm Combo" })
-    await dialog.getByPlaceholder("VD: Combo Quà Tặng Xanh Eco").fill("Combo Cà phê & Phin")
-    await dialog.getByPlaceholder("Gõ tên sản phẩm hoặc mã SKU để thêm vào gói...").fill("CF-ARA-250")
-    await dialog.getByPlaceholder("Gõ tên sản phẩm hoặc mã SKU để thêm vào gói...").press("Enter")
-    await dialog.getByPlaceholder("Gõ tên sản phẩm hoặc mã SKU để thêm vào gói...").fill("PHIN-NHOM-02")
-    await dialog.getByPlaceholder("Gõ tên sản phẩm hoặc mã SKU để thêm vào gói...").press("Enter")
+    await expect(dialog).toBeVisible()
+    await expect(dialog.getByRole("heading", { name: "Tạo gói Sản phẩm Combo mới" })).toBeVisible()
+    // The input is `required`, so a truly empty submit is stopped by the browser; spaces reach the app's own check.
+    await dialog.getByLabel(/Tên gói Combo/).fill("   ")
     await dialog.getByRole("button", { name: "Tạo gói Combo" }).click()
-    await expect(page.getByRole("row").filter({ hasText: "Combo Cà phê & Phin" })).toBeVisible()
+    await expect(dialog.getByRole("alert")).toHaveText("Vui lòng nhập tên sản phẩm Combo.")
+
+    await dialog.getByLabel(/Tên gói Combo/).fill(COMBO_NAME)
+    await dialog.getByRole("button", { name: "Tạo gói Combo" }).click()
+    await expect(dialog.getByRole("alert")).toHaveText("Gói Combo cần ít nhất 1 biến thể SKU thành phần.")
+    await dialog.getByRole("button", { name: "Hủy bỏ" }).click()
+    await expect(dialog).toBeHidden()
+  })
+
+  await step(`Add Arabica x1 and Phin x1, set ${vnd(COMBO_PRICE)} ₫ and check the live saving calculation`, async () => {
+    await page.getByRole("button", { name: "Tạo gói Combo mới" }).click()
+    const dialog = page.getByRole("dialog", { name: "Tạo sản phẩm Combo" })
+    await expect(dialog).toBeVisible()
+    await dialog.getByLabel(/Tên gói Combo/).fill(COMBO_NAME)
+    const picker = dialog.getByPlaceholder("Gõ tên sản phẩm hoặc mã SKU để thêm vào gói...")
+    for (const component of COMBO_COMPONENTS) {
+      await picker.fill(component.sku)
+      // Components are picked by clicking the result chip, not by pressing Enter in the search box.
+      await dialog.getByRole("button", { name: new RegExp(component.sku) }).click()
+    }
+    await expect(dialog.getByText("2. Danh sách SKU con trong gói (2 mặt hàng)")).toBeVisible()
+    await dialog.getByRole("spinbutton").fill(String(COMBO_PRICE))
+    // 135.000 + 65.000 = 200.000, minus 190.000: 10.000 VND, 5% - exact template from the panel source.
+    await expect(dialog.getByText(BUILDER_SAVINGS, { exact: true })).toBeVisible()
+    await expect(dialog).toContainText(`Tổng giá bán lẻ các SKU con: ${vnd(COMBO_SUM_RETAIL)} ₫`)
+  })
+
+  await step("A fractional and a negative Combo price are refused: the builder does not save", async () => {
+    const dialog = page.getByRole("dialog", { name: "Tạo sản phẩm Combo" })
+    const price = dialog.getByRole("spinbutton")
+    for (const invalid of ["12.5", "-1000"]) {
+      await price.fill(invalid)
+      await dialog.getByRole("button", { name: "Tạo gói Combo" }).click()
+      await expect(dialog).toBeVisible()
+      // type=number min=0 step=1000 shows the browser's native refusal (the app's own message is behind it).
+      expect(await price.evaluate((el) => (el as HTMLInputElement).validity.valid), invalid).toBe(false)
+    }
+    await price.fill(String(COMBO_PRICE))
+  })
+
+  if (existing) {
+    await step("A previous run already created this Combo: leave it untouched instead of saving a duplicate", async () => {
+      const dialog = page.getByRole("dialog", { name: "Tạo sản phẩm Combo" })
+      await dialog.getByRole("button", { name: "Hủy bỏ" }).click()
+      await expect(dialog).toBeHidden()
+    })
+  } else {
+    await step("Save the Combo: it appears as a card with its two components", async () => {
+      const dialog = page.getByRole("dialog", { name: "Tạo sản phẩm Combo" })
+      await dialog.getByRole("button", { name: "Tạo gói Combo" }).click()
+      await expect(dialog).toBeHidden()
+      await expect(page.getByRole("status").filter({ hasText: `Đã tạo sản phẩm Combo "${COMBO_NAME}"` })).toBeVisible()
+      await expectComboCard(comboCard(page))
+    })
+  }
+
+  await step("After a reload the Combo is still listed with the same two SKUs", async () => {
+    await page.reload()
+    await settled(page)
+    await expectComboCard(comboCard(page))
+  })
+
+  await step("The backend reports exactly the two components with the right line totals", async () => {
+    const combo = await findComboByName()
+    expect(combo).toBeDefined()
+    expect(combo!.isCombo).toBe(true)
+    const items = await gw<ComboItemRow[]>(`/catalog/api/v1/products/${combo!.id}/combo-items`)
+    expect(items).toHaveLength(2)
+    const bySku = new Map(items.map((item) => [item.skuCode, item]))
+    for (const component of COMBO_COMPONENTS) {
+      expect(bySku.get(component.sku)).toMatchObject({ quantity: 1, lineTotal: component.price })
+    }
+  })
+})
+
+/**
+ * App bug in the fixed web, isolated from the passing creation flow above (same pattern as the F03.4 SKU fixme).
+ * fetchProductsBundle in ProductsPage.tsx maps real products with `price: "—"` and NO `retailPrice`, while
+ * ProductCombosPanel.tsx builds each card with `comboPrice: p.retailPrice ?? 0`. The saved card therefore reads
+ * "Giá Combo: 0 ₫" / "Khách tiết kiệm 200.000 ₫ (-100%)" even though the POST created the combo's default variant
+ * with basePrice 190000 (GET /products/{id}/variants) and the builder itself showed the right saving before saving.
+ */
+test("F03.8 The saved Combo price is shown on its card", async ({ page, step }) => {
+  test.fixme(
+    true,
+    "App bug: ProductsPage.fetchProductsBundle never sets product.retailPrice, " +
+      "but ProductCombosPanel reads `p.retailPrice ?? 0` for every Combo card, so a combo saved at 190.000 VND is " +
+      "listed as 'Giá Combo: 0 ₫' with 'Khách tiết kiệm 200.000 ₫ (-100%)'. The backend is correct: the combo's " +
+      "default variant has basePrice 190000 and GET /products/{id}/combo-items returns lineTotals 135000 and 65000. " +
+      "Fix the bundle mapping (or read the variant price) and remove this fixme.",
+  )
+  // The serial F03.8 test above leaves the combo in the shared store; only the display assertion is missing from it.
+  await page.goto("/products")
+  await settled(page)
+  await step("The combo card shows the price saved in the builder", async () => {
+    const card = comboCard(page)
+    await expect(card).toBeVisible()
+    await expect(card).toContainText(`Giá Combo: ${vnd(COMBO_PRICE)} ₫`)
+    await expect(card).toContainText(CARD_SAVINGS)
   })
 })

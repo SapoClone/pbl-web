@@ -45,12 +45,13 @@ Only `01-auth-and-onboarding` needs a fresh world (`npm test`, or `E2E_FRESH=1`)
 
 | Flow | Why |
 |---|---|
-| Forgot password | backend placeholder: `POST /auth/forgot-password` sends nothing and answers a plain string |
-| Combos | backend has no combo-items endpoints yet |
-| Edit a promotion / coupon, coupon simulator | `PATCH /promotions/{id}`, `PATCH /coupons/{id}`, `POST /coupons/evaluate` are not routed |
+| Search the product list by SKU | app regression of the redesigned products page: the list never loads SKUs (`sku: ""`), so the page's own filter cannot match a SKU; the backend's `q` search could be used |
+| The combo card shows the combo's price | app bug: the redesigned products page never sets `retailPrice`, so the card shows `Giá Combo: 0 ₫` and a -100% saving |
 | Connect a Lazada / Shopee shop | needs the real marketplace (OAuth, seller account) |
-| Product image upload | needs S3 |
-| Customer list "Điểm thưởng" column | app bug: the page reads `pointsBalance`, the API returns `loyaltyPoints` |
+| Product image upload | not tested: needs S3 |
+
+The password reset runs end to end: the test reads the reset email from the local ElasticMQ queue
+(`support/mail.ts`, `E2E_MAIL_QUEUE_URL` to override).
 
 ## Notes for whoever extends it
 

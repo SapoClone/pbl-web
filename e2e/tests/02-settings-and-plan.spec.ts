@@ -9,6 +9,9 @@ import { branches, freePlan, store } from "../support/data"
  * Needs: 01 (the store, the owner session and the one branch the store was created with).
  * Leaves: the store's phone/address are store.newPhone / store.newAddress, the only branch carries BRANCH_ADDRESS and
  * the store still has exactly one branch (F02.5 tries to add a second one and must be refused).
+ *
+ * The two UX findings of the earlier run are fixed: saving the store confirms it in the store card (F02.1) and a
+ * refused branch creation shows the backend's precise plan-limit message next to the form (F02.5).
  */
 
 asOwner()
@@ -47,8 +50,6 @@ test("F02.1 The owner edits the store's phone and address and both persist", asy
     await expect(storeSection(page).getByText("Mã cửa hàng không thể thay đổi.")).toBeVisible()
   })
 
-  // UX finding: a refused store save sets the same `error` state the branch section prints, and the store card prints
-  // nothing, so the message would appear under "Danh sách chi nhánh" instead of next to the form.
   await step("Enter the new phone and address and save", async () => {
     await storeSection(page).getByLabel("Số điện thoại").fill(store.newPhone)
     await storeSection(page).getByLabel("Địa chỉ").fill(store.newAddress)
@@ -57,6 +58,10 @@ test("F02.1 The owner edits the store's phone and address and both persist", asy
       storeSection(page).getByRole("button", { name: "Lưu thông tin" }).click(),
     ])
     expect(response.ok()).toBe(true)
+  })
+
+  await step("The store card confirms the save", async () => {
+    await expect(storeSection(page).getByRole("status").filter({ hasText: "Đã lưu thông tin cửa hàng" })).toBeVisible()
   })
 
   await step("Reload: the shop still has the new phone and address", async () => {
@@ -190,11 +195,11 @@ test("F02.5 The Free plan refuses a second branch", async ({ page, step }) => {
       page.waitForResponse((r) => r.url().endsWith("/branches") && r.request().method() === "POST"),
       dialog.getByRole("button", { name: "Tạo chi nhánh" }).click(),
     ])
-    // 409 quota.error.limit_reached: the backend says "Gói Free chỉ cho phép tối đa 1 chi nhánh…", but the page
-    // throws the server's text away and prints its generic creation error (UX finding, see the report)
+    // 409 quota.error.limit_reached: the backend's precise message is now shown in the dialog instead of a
+    // generic creation error.
     expect(response.status()).toBe(409)
     await expect(
-      dialog.getByText("Không thể tạo chi nhánh. Hãy kiểm tra mã chi nhánh và quyền tài khoản."),
+      dialog.getByText("Gói Free chỉ cho phép tối đa 1 chi nhánh. Hãy nâng cấp gói để thêm."),
     ).toBeVisible()
     await expect(dialog).toBeVisible()
   })

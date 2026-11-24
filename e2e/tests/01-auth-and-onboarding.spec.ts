@@ -1,20 +1,28 @@
 import { expect, test } from "../support/fixtures"
 import { people, store } from "../support/data"
+import { register } from "../support/api"
+import { latestPasswordResetLink, passwordResetLinks } from "../support/mail"
 import { ownerStorageState, readWorld, writeWorld } from "../support/world"
 
 /**
- * Flows F01.1 - F01.8 of flows/FLOWS.md. The store created here is the one every later spec works in, and the
- * signed-in session is saved for them in .auth/owner.json.
+ * Flows F01.1 - F01.9 of flows/FLOWS.md. The store created here is the one every later spec works in, and the
+ * signed-in session is saved for them in .auth/owner.json. Run with E2E_FRESH=1: the accounts (including the reset
+ * persona of F01.9) are unique per run id, so no earlier account or queued reset link is reused.
  */
 test.describe.configure({ mode: "serial" })
 
-/**
- * What the sign-in page shows when the server refuses. UX finding: for an unknown email the page shows the server's
- * raw English text ("Unauthorized"); only a 401 with no message gets the Vietnamese "Email hoặc mật khẩu không chính xác.".
- */
-const SIGN_IN_REFUSED = /Unauthorized|Wrong email or password|không chính xác/i
+/** The sign-in page shows this exact Vietnamese message both for an unknown email and for a wrong password. */
+const SIGN_IN_REFUSED = "Email hoặc mật khẩu không chính xác."
 
 const owner = () => ({ ...people.owner, email: people.owner.email() })
+
+/** A throwaway persona for F01.9: her password is reset, so the owner's password is never touched. */
+const resetPersona = () => ({
+  name: "Phạm Thu Hà",
+  email: `thu.ha.${readWorld().runId}@cuahang-demo.vn`,
+  oldPassword: "MatKhauCu2026!",
+  newPassword: "MatKhauMoi2026!",
+})
 
 test("F01.1 A visitor who is not signed in is sent to the sign-in page", async ({ page, step }) => {
   await step("Visitor opens the orders page without being signed in", async () => {
@@ -157,11 +165,7 @@ test("F01.7 Signing in with the right password opens the owner's shop", async ({
 })
 
 test("F01.8 Forgot password answers the same way for any email", async ({ page, step }) => {
-  test.fixme(
-    true,
-    "Backend gap: POST /auth/forgot-password is a placeholder (200 with the plain text 'forgot-password', no email is sent), " +
-      "so the page shows 'Không thể hoàn tất yêu cầu' instead of the neutral confirmation. Remove this line when the reset flow is built.",
-  )
+  const neutral = "Nếu email tồn tại, hướng dẫn đặt lại mật khẩu sẽ được gửi sớm."
   await page.goto("/login")
   await step("Open 'Quên mật khẩu?' from the sign-in page", async () => {
     await page.getByRole("link", { name: "Quên mật khẩu?" }).click()
@@ -170,8 +174,122 @@ test("F01.8 Forgot password answers the same way for any email", async ({ page, 
   await step("Ask for a link for an email that has no account", async () => {
     await page.getByLabel("Email").fill(people.stranger.email())
     await page.getByRole("button", { name: /^Gửi liên kết/ }).click()
+    await expect(page.getByRole("status").filter({ hasText: neutral })).toBeVisible()
+  })
+  await step("The very same answer for the owner's registered email", async () => {
+    await page.getByLabel("Email").fill(owner().email)
+    await page.getByRole("button", { name: /^Gửi liên kết/ }).click()
+    await expect(page.getByRole("status").filter({ hasText: neutral })).toBeVisible()
+    await expect(page).toHaveURL(/\/forgot-password$/)
+  })
+})
+
+test("F01.9 Reset the password through the emailed link", async ({ page, step }) => {
+  const persona = resetPersona()
+  const neutral = "Nếu email tồn tại, hướng dẫn đặt lại mật khẩu sẽ được gửi sớm."
+  let resetPath = ""
+
+  await step("Register Phạm Thu Hà, a dedicated account whose password may be changed", async () => {
+    await register(persona.email, persona.oldPassword, persona.name)
+  })
+
+  await step("Ask for a reset link for her email and read it from the local mail queue", async () => {
+    // A baseline is needed on a re-run: the queue keeps old messages and their tokens are single-use.
+    const alreadyQueued = await passwordResetLinks(persona.email)
+    await page.goto("/login")
+    await page.getByRole("link", { name: "Quên mật khẩu?" }).click()
+    await expect(page.getByRole("heading", { name: "Khôi phục mật khẩu" })).toBeVisible()
+    await page.getByLabel("Email").fill(persona.email)
+    await page.getByRole("button", { name: /^Gửi liên kết/ }).click()
+    await expect(page.getByRole("status").filter({ hasText: neutral })).toBeVisible()
+    const link = await latestPasswordResetLink(persona.email, alreadyQueued)
+    // The mail carries the web origin of the environment (WEB_APP_URL); open only its path and query on the configured baseURL.
+    const url = new URL(link)
+    expect(url.pathname).toBe("/reset-password")
+    resetPath = url.pathname + url.search
+  })
+
+  await step("Open the emailed link and choose a new password", async () => {
+    await page.goto(resetPath)
+    await expect(page.getByRole("heading", { name: "Đặt lại mật khẩu" })).toBeVisible()
+    await expect(page.getByLabel("Mật khẩu mới")).toBeVisible()
+    await expect(page.getByLabel("Nhập lại mật khẩu")).toBeVisible()
+  })
+
+  await step("A mismatch of the two passwords is refused", async () => {
+    await page.getByLabel("Mật khẩu mới").fill(persona.newPassword)
+    await page.getByLabel("Nhập lại mật khẩu").fill("MatKhauKhac2026!")
+    await page.getByRole("button", { name: /^Đặt lại mật khẩu/ }).click()
+    await expect(page.getByRole("status").filter({ hasText: "Mật khẩu xác nhận không khớp." })).toBeVisible()
+  })
+
+  await step("A password with a forbidden character is refused", async () => {
+    await page.getByLabel("Mật khẩu mới").fill("Mat khau é2026")
+    await page.getByLabel("Nhập lại mật khẩu").fill("Mat khau é2026")
+    await page.getByRole("button", { name: /^Đặt lại mật khẩu/ }).click()
     await expect(
-      page.getByRole("status").filter({ hasText: "Nếu email tồn tại, hướng dẫn đặt lại mật khẩu sẽ được gửi sớm." }),
+      page
+        .getByRole("status")
+        .filter({
+          hasText: "Mật khẩu phải có ít nhất 6 ký tự và chỉ được dùng chữ cái, số hoặc ! # $ % & * @ ^.",
+        }),
     ).toBeVisible()
+  })
+
+  await step("A valid new password is set and a link to sign in is offered", async () => {
+    await page.getByLabel("Mật khẩu mới").fill(persona.newPassword)
+    await page.getByLabel("Nhập lại mật khẩu").fill(persona.newPassword)
+    await page.getByRole("button", { name: /^Đặt lại mật khẩu/ }).click()
+    await expect(
+      page
+        .getByRole("status")
+        .filter({ hasText: "Mật khẩu đã được đặt lại. Bạn có thể đăng nhập bằng mật khẩu mới." }),
+    ).toBeVisible()
+    await expect(page.getByRole("link", { name: "Đăng nhập", exact: true })).toBeVisible()
+  })
+
+  await step("Sign in with the new password: the new account has no store yet", async () => {
+    await page.getByRole("link", { name: "Đăng nhập", exact: true }).click()
+    await expect(page.getByRole("heading", { name: "Chào mừng trở lại" })).toBeVisible()
+    await page.getByLabel("Email").fill(persona.email)
+    await page.getByLabel("Mật khẩu", { exact: true }).fill(persona.newPassword)
+    await page.getByRole("button", { name: /^Đăng nhập/ }).click()
+    await expect(page).toHaveURL(/\/onboarding-tenant$/)
+    await expect(page.getByRole("heading", { name: "Tạo cửa hàng của bạn" })).toBeVisible()
+  })
+
+  await step("The old password no longer works and gets the same sign-in error", async () => {
+    await page.getByRole("button", { name: "Đăng xuất" }).click()
+    await expect(page).toHaveURL(/\/login$/)
+    await page.getByLabel("Email").fill(persona.email)
+    await page.getByLabel("Mật khẩu", { exact: true }).fill(persona.oldPassword)
+    await page.getByRole("button", { name: /^Đăng nhập/ }).click()
+    await expect(page.getByRole("status").filter({ hasText: SIGN_IN_REFUSED })).toBeVisible()
+    await expect(page).toHaveURL(/\/login$/)
+  })
+
+  await step("The same reset link cannot be used twice", async () => {
+    await page.goto(resetPath)
+    await expect(page.getByRole("heading", { name: "Đặt lại mật khẩu" })).toBeVisible()
+    await page.getByLabel("Mật khẩu mới").fill(persona.newPassword)
+    await page.getByLabel("Nhập lại mật khẩu").fill(persona.newPassword)
+    await page.getByRole("button", { name: /^Đặt lại mật khẩu/ }).click()
+    await expect(
+      page
+        .getByRole("status")
+        .filter({
+          hasText: "Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn. Hãy yêu cầu liên kết mới.",
+        }),
+    ).toBeVisible()
+  })
+
+  await step("Opening /reset-password with no token explains what to do", async () => {
+    await page.goto("/reset-password")
+    await expect(
+      page.getByRole("status").filter({ hasText: "Liên kết đặt lại mật khẩu không hợp lệ." }),
+    ).toBeVisible()
+    const newLink = page.getByRole("link", { name: "Yêu cầu liên kết mới" })
+    await expect(newLink).toBeVisible()
+    await expect(newLink).toHaveAttribute("href", "/forgot-password")
   })
 })

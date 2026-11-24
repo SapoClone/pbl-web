@@ -1,22 +1,29 @@
+import fs from "node:fs"
 import type { Page } from "@playwright/test"
 import { ensureStock, gw } from "../support/api"
 import { branches, catalog, customers, pos, promotions, vnd } from "../support/data"
 import { asOwner, expect, test } from "../support/fixtures"
-import { readWorld } from "../support/world"
+import { ownerStorageState, readWorld } from "../support/world"
 
 /**
  * Flows F10.1 - F10.4 of flows/FLOWS.md: the multi-channel orders page (UI-INVENTORY section 8). Spec 09 has
  * already made POS sales in this shared store: a 335.000 VND sale of 2 Arabica + 1 Phin to Trần Thị Bích Ngọc and
  * a 58.500 VND coupon sale of 1 Phin. Every run of 09 adds two more, so order counts here are always ">= 1".
- * F10.3 returns one Phin (restock, cash refund) from a 335.000 order of Bích Ngọc; the +1 stock is a delta against
- * a reading taken with `gw()` just before the return, because other workers move the same shared stock concurrently.
+ * F10.3 returns one Phin (restock, cash refund) from a 335.000 order of Bích Ngọc; F10.3b returns one Arabica of
+ * such an order. They use different lines, so the two tests never compete for the same stock. Every +1 stock is a
+ * delta against a reading taken with `gw()` just before the return, because other workers move the shared stock
+ * concurrently.
  *
- * Re-runnable: orders are never deleted. Every run picks a 335.000 Bích Ngọc order whose Phin line is not returned
+ * A cash refund needs the refunding cashier's own OPEN shift at the branch: the backend now refuses one with 409
+ * SHIFT_REQUIRED *before* writing anything (no return row, no restock), and the return dialog shows that refusal
+ * instead of claiming success. F10.3 opens a shift on its own register via the API (setup, not the flow under test)
+ * and closes exactly that shift in a finally block. F10.3b first closes any OPEN shift of the owner left by another
+ * worker (setup) so the refusal can happen, then opens its own shift as a positive control and closes it in finally.
+ *
+ * Re-runnable: orders are never deleted. Every run picks a 335.000 Bích Ngọc order whose chosen line is not returned
  * yet (GET /sales/api/v1/orders/{id}/details exposes returnedQty), and if all of them have been returned it makes
- * one fresh 335.000 sale through the POS API only (the Orders page has no create screen). A cash refund needs the
- * caller's own OPEN shift at the branch (409 SHIFT_REQUIRED otherwise), so F10.3 opens one on its own register via
- * the API (setup, not the flow under test) and closes exactly that shift in a finally block. Nothing that belongs
- * to 09 or to another worker is edited or deleted.
+ * one fresh 335.000 sale through the POS API only (the Orders page has no create screen). Nothing that belongs to 09
+ * or to another worker is edited or deleted.
  *
  * Local constants (data.ts has no return reason, no "no match" query and no fallback register code): RETURN_REASON,
  * NO_MATCH_QUERY, RETURN_SHIFT_NOTE and fallbackRegisterCode(). All money/quantity numbers come from data.ts.
@@ -108,19 +115,31 @@ function phinAvailable(levels: StockLevels): number {
   return row!.available
 }
 
+function arabicaAvailable(levels: StockLevels): number {
+  const row = levels.data.find((s) => s.sku === catalog.products.arabica.sku)
+  expect(row, "the arabica has a stock row").toBeTruthy()
+  return row!.available
+}
+
+/** Number of return rows already stored for one order, used for the "nothing persisted" delta assertions. */
+async function returnsCount(orderId: string): Promise<number> {
+  return (await gw<ReturnSummary[]>(`/sales/api/v1/returns?orderId=${orderId}`)).length
+}
+
 /**
- * Find a sale of F09.3 whose Phin has not been returned yet, newest first. GET /orders/{id} deliberately hides
+ * Find a sale of F09.3 whose `sku` line has not been returned yet, newest first. GET /orders/{id} deliberately hides
  * returnedQty, so use /orders/{id}/details; a previous run of this spec (or another worker) may have returned it.
+ * F10.3 uses the default Phin line, F10.3b asks for the Arabica line so they never return the same line.
  */
-async function findReturnableOrder(): Promise<OrderApi | null> {
+async function findReturnableOrder(sku: string = catalog.products.phin.sku): Promise<OrderApi | null> {
   const list = await gw<{ data: OrderApi[] }>("/sales/api/v1/orders?page=1&limit=100")
   const candidates = list.data.filter(
     (o) => o.totalAmount === pos.total && o.customerName === customers.ngoc.name,
   )
   for (const candidate of candidates) {
     const detail = await gw<OrderDetailsApi>(`/sales/api/v1/orders/${candidate.id}/details`)
-    const phin = detail.items?.find((i) => i.sku === catalog.products.phin.sku)
-    if (phin && Number(phin.returnedQty ?? 0) < phin.quantity) return candidate
+    const line = detail.items?.find((i) => i.sku === sku)
+    if (line && Number(line.returnedQty ?? 0) < line.quantity) return candidate
   }
   return null
 }
@@ -186,17 +205,42 @@ async function openOwnShift(branchId: string): Promise<string> {
   return shift.id
 }
 
-/** Close only the shift this spec opened, counting exactly the cash the backend expects (zero variance). */
+/** Close a shift this spec opened or found open, counting exactly the cash the backend expects (zero variance). */
 async function closeOwnShift(branchId: string, shiftId: string) {
   const list = await gw<{ data: Array<{ id: string; expectedCash: number }> }>(
-    `/sales/api/v1/pos/shifts?branchId=${branchId}&limit=20`,
+    `/sales/api/v1/pos/shifts?branchId=${branchId}&limit=100`,
   )
   const shift = list.data.find((s) => s.id === shiftId)
-  expect(shift, "the shift opened for this return is listed").toBeTruthy()
+  expect(shift, "the shift to close is listed").toBeTruthy()
   await gw(`/sales/api/v1/pos/shifts/${shiftId}/close`, {
     method: "POST",
     body: { actualCash: shift!.expectedCash, note: "Đã hoàn tiền trả hàng, kết ca kiểm thử" },
   })
+}
+
+/** The owner's userId, read from the same session the browser fixture uses (the refund drawer is picked by staffId). */
+function ownerUserId(): string {
+  const state = JSON.parse(fs.readFileSync(ownerStorageState, "utf8")) as {
+    origins: { localStorage: { name: string; value: string }[] }[]
+  }
+  const raw = state.origins.flatMap((o) => o.localStorage).find((i) => i.name === "pbl-auth")?.value
+  if (!raw) throw new Error("No pbl-auth in the owner session")
+  return (JSON.parse(raw) as { userId: string }).userId
+}
+
+/**
+ * Setup for the refusal: only an OPEN shift of this very staffId can receive a cash refund. Close any left open at
+ * the branch by an earlier spec or another worker, each with its expected cash (zero variance); other cashiers'
+ * shifts are left alone. If a worker opens a new one concurrently the CASH POST will be accepted and the test will
+ * fail loudly, which is the correct outcome for an assertion about the server's refusal.
+ */
+async function closeOwnerOpenShifts(branchId: string): Promise<number> {
+  const list = await gw<{ data: Array<{ id: string; staffId: string; status: string }> }>(
+    `/sales/api/v1/pos/shifts?branchId=${branchId}&status=OPEN&limit=100`,
+  )
+  const mine = list.data.filter((s) => s.status === "OPEN" && s.staffId === ownerUserId())
+  for (const shift of mine) await closeOwnShift(branchId, shift.id)
+  return mine.length
 }
 
 /** Open the orders page and set the channel filter, proving the page has finished loading its data. */
@@ -294,7 +338,11 @@ test("F10.2 The detail dialog of the 335.000 VND order shows the customer, payme
   })
 
   await step("Close the dialog and reload: the order is still in the list", async () => {
-    await dialog(page).getByRole("button", { name: "Đóng", exact: true }).click()
+    // The list hydrates line items of other orders in the background, which re-renders the detail dialog and can
+    // detach the button mid-click; retry the click instead of weakening the "dialog is closed" assertion below.
+    await expect(async () => {
+      await dialog(page).getByRole("button", { name: "Đóng", exact: true }).click({ timeout: 3_000 })
+    }).toPass()
     await expect(dialog(page)).toHaveCount(0)
     await page.reload()
     await expect(page.getByRole("heading", { name: "Đơn hàng", level: 1 })).toBeVisible()
@@ -449,17 +497,160 @@ test("F10.3 Return one Phin with restock and a cash refund", async ({ page, step
   }
 })
 
-test("F10.3b A return the server refuses is reported as refused", async ({ step }) => {
-  test.fixme(
-    true,
-    "App + backend bug: OrderReturnModal wraps createOrderReturn in .catch(() => null) and always shows 'Đã tạo phiếu trả hàng', " +
-      "so a cash return refused with 409 SHIFT_REQUIRED (the cashier has no open shift) looks successful; the backend also " +
-      "keeps a COMPLETED return with restock but no refund request in that case. Remove this line when the modal shows the " +
-      "server's refusal and the backend makes the return and its refund one unit.",
+test("F10.3b A return the server refuses is reported as refused", async ({ page, step }) => {
+  const branchId = await mainBranchId()
+  const order = (await findReturnableOrder(catalog.products.arabica.sku)) ?? (await makeSaleViaPosApi())
+  const details = await gw<OrderDetailsApi>(`/sales/api/v1/orders/${order.id}/details`)
+  const arabicaItem = details.items.find((i) => i.sku === catalog.products.arabica.sku)
+  expect(arabicaItem, "the order has an Arabica line to return").toBeTruthy()
+  expect(Number(arabicaItem!.returnedQty ?? 0), "its Arabica has not been returned yet").toBeLessThan(
+    arabicaItem!.quantity,
   )
-  await step("A cash return with no open shift shows the refusal and creates no return", async () => {
-    // Needs a closed shift for the owner and a returnable order: see F10.3 for how both are arranged
+
+  const returnsBefore = await returnsCount(order.id)
+  let stockBefore = 0
+  let positiveShiftId: string | null = null
+
+  // Setup, not the flow under test: with no OPEN shift of ours the backend refuses a CASH refund.
+  await step("Make sure the owner has no open shift at the branch", async () => {
+    // A shift left open by another worker was closed as setup; other cashiers' shifts are untouched.
+    await closeOwnerOpenShifts(branchId)
+    await expect
+      .poll(async () => {
+        try {
+          await gw(`/sales/api/v1/pos/shifts/active?branchId=${branchId}`)
+          return false
+        } catch {
+          return true // 404 SHIFT_NOT_OPEN: the owner has no OPEN shift
+        }
+      })
+      .toBe(true)
   })
+
+  try {
+    await step("Open the detail of the 335.000 VND order of Bích Ngọc", async () => {
+      await openOrders(page)
+      await searchBox(page).fill(order.code)
+      await openDetail(page, order.code)
+    })
+
+    await step("Start a return from the detail dialog", async () => {
+      await dialog(page).getByRole("button", { name: /Đổi trả \/ Hoàn tiền/ }).click()
+      const modal = dialog(page)
+      await expect(modal.getByText(/Đổi trả hàng & Hoàn tiền \(Tại cửa hàng\)/)).toBeVisible()
+      await expect(modal.getByRole("heading", { name: new RegExp(`Đơn hàng ${order.code}`) })).toBeVisible()
+      await expect(modal).toContainText(catalog.products.arabica.sku)
+    })
+
+    await step("Return 1 Arabica with a cash refund, restock on and a reason", async () => {
+      const modal = dialog(page)
+      const qtyOf = (sku: string) =>
+        modal
+          .getByText(new RegExp(`SKU: ${sku}`))
+          .locator("xpath=../..")
+          .getByRole("spinbutton", { name: /SL trả/ })
+      await qtyOf(catalog.products.arabica.sku).fill("1")
+      await qtyOf(catalog.products.phin.sku).fill("0")
+      // the dialog prices the refund itself from the quantity and the unit price
+      await expect(modal.getByText("Tổng tiền hoàn trả cho khách:").locator("..")).toContainText(
+        vnd(catalog.products.arabica.price),
+      )
+      await modal.getByLabel("Phương thức hoàn tiền").selectOption({ label: "Tiền mặt tại quầy" })
+      await modal.getByLabel("Lý do trả hàng").fill(RETURN_REASON)
+      const restock = modal.getByRole("checkbox", { name: /Nhập lại hàng trả vào tồn kho khả dụng/ })
+      await expect(restock).toBeChecked()
+    })
+
+    await step("Read the Arabica stock through the API just before confirming", async () => {
+      stockBefore = arabicaAvailable(await readStock(branchId))
+      expect(stockBefore).toBeGreaterThan(0)
+    })
+
+    let refused: { status: number; body: { errorCode?: string; message?: string } }
+    await step("Confirm: the backend refuses the cash refund with 409 SHIFT_REQUIRED", async () => {
+      const [response] = await Promise.all([
+        page.waitForResponse(
+          (r) =>
+            r.request().method() === "POST" &&
+            /\/sales\/api\/v1\/orders\/[^/]+\/returns$/.test(new URL(r.url()).pathname),
+        ),
+        dialog(page).getByRole("button", { name: "Xác nhận Trả hàng & Hoàn tiền" }).click(),
+      ])
+      refused = { status: response.status(), body: await response.json() }
+      expect(refused.status, `the backend refused the return: ${JSON.stringify(refused.body)}`).toBe(409)
+      expect(refused.body.errorCode).toBe("SHIFT_REQUIRED")
+    })
+
+    await step("The dialog stays open and explains the refusal; no success banner and no 'Đã hoàn trả'", async () => {
+      const modal = dialog(page)
+      await expect(modal).toBeVisible()
+      await expect(
+        modal.getByText("Cần có ca thu ngân đang mở để hoàn tiền mặt. Hãy mở ca bán hàng trước."),
+      ).toBeVisible()
+      await expect(page.getByText(/Đã tạo phiếu trả hàng/)).toHaveCount(0)
+      await expect(cardOf(page, order.code)).not.toContainText("Đã hoàn trả")
+    })
+
+    await step("Nothing was persisted: no return row, no restock, the Arabica line is still unreturned", async () => {
+      expect(await returnsCount(order.id), "no return row was created").toBe(returnsBefore)
+      expect(arabicaAvailable(await readStock(branchId)), "no goods were restocked").toBe(stockBefore)
+      const after = await gw<OrderDetailsApi>(`/sales/api/v1/orders/${order.id}/details`)
+      expect(
+        Number(after.items.find((i) => i.id === arabicaItem!.id)?.returnedQty ?? 0),
+        "the Arabica line was not marked returned",
+      ).toBe(Number(arabicaItem!.returnedQty ?? 0))
+    })
+
+    // Positive control: the very same return now goes through once the cashier has an open drawer.
+    await step("Setup: open a shift through the API for the positive control", async () => {
+      positiveShiftId = await openOwnShift(branchId)
+    })
+
+    await step("Repeat the same return in the UI: it is now accepted", async () => {
+      const [response] = await Promise.all([
+        page.waitForResponse(
+          (r) =>
+            r.request().method() === "POST" &&
+            /\/sales\/api\/v1\/orders\/[^/]+\/returns$/.test(new URL(r.url()).pathname),
+        ),
+        dialog(page).getByRole("button", { name: "Xác nhận Trả hàng & Hoàn tiền" }).click(),
+      ])
+      const body = (await response.json()) as {
+        items: Array<{ orderItemId: string; quantity: number }>
+        refundAmount: number
+      }
+      expect(response.status(), `the backend accepted the return: ${JSON.stringify(body)}`).toBe(201)
+      expect(body.items).toEqual(
+        expect.arrayContaining([expect.objectContaining({ orderItemId: arabicaItem!.id, quantity: 1 })]),
+      )
+      expect(body.refundAmount).toBe(catalog.products.arabica.price)
+      await expect(dialog(page)).toHaveCount(0)
+      const banner = page.getByText(/Đã tạo phiếu trả hàng cho đơn/)
+      await expect(banner).toContainText(order.code)
+      await expect(banner).toContainText(vnd(catalog.products.arabica.price))
+      await expect(banner).toContainText("Đã nhập lại kho")
+      await expect(cardOf(page, order.code)).toContainText("Đã hoàn trả")
+    })
+
+    await step("One more return is stored and one Arabica is restocked", async () => {
+      await expect.poll(() => returnsCount(order.id), { timeout: 20_000 }).toBe(returnsBefore + 1)
+      await expect
+        .poll(async () => arabicaAvailable(await readStock(branchId)), { timeout: 20_000 })
+        .toBe(stockBefore + 1)
+    })
+
+    await step("Reload: the return and the new stock level are still there", async () => {
+      // NB: a PARTIAL return does not change the order's server-side status, so the local 'Đã hoàn trả' label
+      // of the card goes away on reload; persistence is proved by the return record and the stock delta above.
+      await page.reload()
+      await expect(page.getByRole("heading", { name: "Đơn hàng", level: 1 })).toBeVisible()
+      await searchBox(page).fill(order.code)
+      await expect(cardOf(page, order.code)).toBeVisible()
+      expect(arabicaAvailable(await readStock(branchId))).toBeGreaterThanOrEqual(stockBefore + 1)
+    })
+  } finally {
+    if (positiveShiftId) await closeOwnShift(branchId, positiveShiftId)
+  }
 })
 
 test("F10.4 Cancelled filter and an unmatched search show no orders", async ({ page, step }) => {

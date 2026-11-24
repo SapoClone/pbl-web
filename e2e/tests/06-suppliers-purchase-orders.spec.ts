@@ -12,7 +12,9 @@ import { asOwner, expect, settled, test } from "../support/fixtures"
  * warehouse. The flow text's absolute numbers (36, then 44) assume 24 before this spec; other specs and earlier runs
  * of this file change that baseline, so every stock assertion here is a DELTA against a reading taken just before the
  * receipt (through the inventory API). The PO list grows on every run: each run creates a brand-new PO and matches it
- * by the code returned from the POST response, never by row position. The supplier is created only when missing.
+ * by the code returned from the POST response, never by row position. The supplier is created only when missing;
+ * an earlier run may have left it without a tax code/note, in which case setup puts those two values back through
+ * the API before the edit flows prove the UI keeps them.
  *
  * Local constants (data.ts has no PO quantity/unit price, receipt splits, notes or edited phone): PO_QTY,
  * PO_UNIT_COST, PARTIAL_RECEIVE_QTY, FINAL_RECEIVE_QTY (all from the flow text) and the *_NOTE strings and
@@ -94,6 +96,37 @@ async function filterPo(page: Page, code: string) {
 async function supplierPhone(): Promise<string> {
   const all = await gw<Array<{ code: string; phone: string | null }>>("/inventory/api/v1/suppliers")
   return all.find((s) => s.code === suppliers.caudat.code)?.phone ?? ""
+}
+
+type SupplierDetail = {
+  id: string
+  code: string
+  phone: string | null
+  taxCode: string | null
+  note: string | null
+}
+
+/** The list omits taxCode/note; the detail endpoint is the form's source and our API oracle. */
+async function readSupplier(): Promise<SupplierDetail> {
+  const all = await gw<Array<{ id: string; code: string }>>("/inventory/api/v1/suppliers")
+  const id = all.find((s) => s.code === suppliers.caudat.code)?.id
+  expect(id, "the supplier NCC-CAUDAT exists (F06.1)").toBeTruthy()
+  return gw<SupplierDetail>(`/inventory/api/v1/suppliers/${id}`)
+}
+
+/** Setup only: a run from before the form carried taxCode/note may have left the supplier without them. */
+async function ensureSupplierTaxAndNote(): Promise<SupplierDetail> {
+  const before = await readSupplier()
+  const patch: { taxCode?: string; note?: string } = {}
+  if (before.taxCode !== suppliers.caudat.taxCode) patch.taxCode = suppliers.caudat.taxCode
+  if (before.note !== SUPPLIER_NOTE) patch.note = SUPPLIER_NOTE
+  if (Object.keys(patch).length > 0) {
+    await gw(`/inventory/api/v1/suppliers/${before.id}`, { method: "PATCH", body: patch })
+  }
+  const after = await readSupplier()
+  expect(after.taxCode).toBe(suppliers.caudat.taxCode)
+  expect(after.note).toBe(SUPPLIER_NOTE)
+  return after
 }
 
 /** Main warehouse id and Robusta variant id, for reading stock through the inventory API. */
@@ -203,8 +236,9 @@ test("F06.1 Create the supplier, refuse a duplicate code, edit the phone and tog
       await expect(form).toHaveCount(0)
     })
   } else {
-    await step("A previous run left the supplier: keep it instead of creating a duplicate", async () => {
+    await step("A previous run left the supplier: keep it and restore the tax code/note it may have lost", async () => {
       await expect(supplierRow(page)).toContainText(suppliers.caudat.name)
+      await ensureSupplierTaxAndNote()
     })
   }
 
@@ -235,20 +269,23 @@ test("F06.1 Create the supplier, refuse a duplicate code, edit the phone and tog
   const currentPhone = await supplierPhone()
   const editedPhone = currentPhone === EDITED_SUPPLIER_PHONE ? suppliers.caudat.phone : EDITED_SUPPLIER_PHONE
 
-  await step("Edit the phone through 'Sửa' and see the new value after a reload", async () => {
-    // App bug (reported separately, not part of this flow): SupplierForm's `initial` is the row from
-    // GET /suppliers, which does not return taxCode/note, so saving any edit writes both back as "".
-    // The phone itself does persist; the flow's own assertions stay exact.
+  await step("Edit the phone through 'Sửa': the form loads the full supplier and the new phone persists", async () => {
     await supplierRow(page).getByRole("button", { name: "Sửa" }).click()
     const form = modal(page, "Cập nhật nhà cung cấp")
     const code = form.getByRole("textbox", { name: "Mã NCC *" })
     await expect(code).toBeDisabled()
     await expect(code).toHaveValue(suppliers.caudat.code)
+    // The dialog first shows "Đang tải nhà cung cấp...", then the full record (the list omits these two fields).
+    await expect(form.getByRole("textbox", { name: "Mã số thuế" })).toHaveValue(suppliers.caudat.taxCode)
+    await expect(form.getByRole("textbox", { name: "Ghi chú" })).toHaveValue(SUPPLIER_NOTE)
     await form.getByRole("textbox", { name: "Điện thoại" }).fill(editedPhone)
     await form.getByRole("button", { name: "Lưu nhà cung cấp" }).click()
     await expect(form).toHaveCount(0)
     await reloadSuppliers(page, "suppliers")
     await expect(await filterSupplier(page)).toContainText(editedPhone)
+    const after = await readSupplier()
+    expect(after.taxCode).toBe(suppliers.caudat.taxCode)
+    expect(after.note).toBe(SUPPLIER_NOTE)
   })
 
   await step("'Ngừng' then 'Kích hoạt' moves the status label both ways, even after a reload", async () => {
@@ -265,16 +302,51 @@ test("F06.1 Create the supplier, refuse a duplicate code, edit the phone and tog
   })
 })
 
-test("F06.1b Editing a supplier keeps its tax code and note", async ({ step }) => {
-  test.fixme(
-    true,
-    "App bug (data loss): SupplierForm starts from GET /suppliers, whose rows omit taxCode and note, so it initialises both " +
-      "to '' and sends them back on any edit - changing only the phone wipes the tax code and the note. A direct PATCH " +
-      "to the API keeps them, so the fault is the form's payload. Remove this line when the edit form loads the full supplier.",
-  )
-  await step("After the phone was edited in F06.1 the supplier still has the tax code it was created with", async () => {
-    const all = await gw<{ data: { code: string; taxCode?: string }[] }>("/inventory/api/v1/suppliers?limit=100")
-    expect(all.data.find((x) => x.code === suppliers.caudat.code)?.taxCode).toBe(suppliers.caudat.taxCode)
+test("F06.1b Editing a supplier keeps its tax code and note", async ({ page, step }) => {
+  let supplier!: SupplierDetail
+  await step("Open the supplier list and make sure the tax code and note are there to lose", async () => {
+    await openSuppliers(page, "suppliers")
+    await expect(supplierRow(page)).toContainText(suppliers.caudat.name)
+    supplier = await ensureSupplierTaxAndNote()
+  })
+
+  // F06.1 toggled the phone once; toggle it back so "Sửa" always changes a value on a re-run as well.
+  const editedPhone = supplier.phone === EDITED_SUPPLIER_PHONE ? suppliers.caudat.phone : EDITED_SUPPLIER_PHONE
+
+  await step("Open 'Sửa' from the row: the form loads the tax code and note from the full record", async () => {
+    await filterSupplier(page)
+    await supplierRow(page).getByRole("button", { name: "Sửa" }).click()
+    const form = modal(page, "Cập nhật nhà cung cấp")
+    await expect(form.getByRole("textbox", { name: "Mã NCC *" })).toHaveValue(suppliers.caudat.code)
+    await expect(form.getByRole("textbox", { name: "Mã số thuế" })).toHaveValue(suppliers.caudat.taxCode)
+    await expect(form.getByRole("textbox", { name: "Ghi chú" })).toHaveValue(SUPPLIER_NOTE)
+    await expect(form.getByRole("textbox", { name: "Điện thoại" })).toHaveValue(supplier.phone ?? "")
+  })
+
+  await step("Change only the phone, save, reload: the list shows the new phone", async () => {
+    const form = modal(page, "Cập nhật nhà cung cấp")
+    await form.getByRole("textbox", { name: "Điện thoại" }).fill(editedPhone)
+    await form.getByRole("button", { name: "Lưu nhà cung cấp" }).click()
+    await expect(form).toHaveCount(0)
+    await reloadSuppliers(page, "suppliers")
+    await expect(await filterSupplier(page)).toContainText(editedPhone)
+  })
+
+  await step("Through the API the supplier still has its tax code and note, and the new phone", async () => {
+    const after = await readSupplier()
+    expect(after.id).toBe(supplier.id)
+    expect(after.phone).toBe(editedPhone)
+    expect(after.taxCode).toBe(suppliers.caudat.taxCode)
+    expect(after.note).toBe(SUPPLIER_NOTE)
+  })
+
+  await step("Open 'Sửa' again: both values are still visible in the form fields", async () => {
+    await supplierRow(page).getByRole("button", { name: "Sửa" }).click()
+    const form = modal(page, "Cập nhật nhà cung cấp")
+    await expect(form.getByRole("textbox", { name: "Mã số thuế" })).toHaveValue(suppliers.caudat.taxCode)
+    await expect(form.getByRole("textbox", { name: "Ghi chú" })).toHaveValue(SUPPLIER_NOTE)
+    await form.getByRole("button", { name: "Hủy" }).click()
+    await expect(form).toHaveCount(0)
   })
 })
 
