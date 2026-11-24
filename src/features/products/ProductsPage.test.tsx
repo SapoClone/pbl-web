@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import * as productsApi from "@/api/catalog/products"
@@ -126,7 +126,7 @@ describe("combo panel", () => {
     render(
       <QueryClientProvider client={qc}>
           <ProductCombosPanel
-            products={[{ id: "c1", name: "Combo quà", isCombo: true, category: "Khác", retailPrice, stock: 0, price: "—", state: "Đang bán" }]}
+            products={[{ id: "c1", name: "Combo quà", sku: "", isCombo: true, category: "Khác", retailPrice, stock: 0, price: "—", state: "Đang bán" }]}
             categories={[]}
             brands={[]}
             onReloadProducts={async () => {}}
@@ -145,5 +145,15 @@ describe("combo panel", () => {
     renderPanel(products[0].retailPrice)
     expect(await screen.findByText(/Giá Combo: 190\.000/)).toBeTruthy()
     expect(screen.queryByText(/-100%/)).toBeNull()
+  })
+
+  it("accepts whole-VND amounts in the combo price input", async () => {
+    renderPanel(190000)
+    fireEvent.click(await screen.findByRole("button", { name: /Tạo gói Combo mới/ }))
+    const input = (await screen.findByLabelText(/Giá bán trọn gói Combo/)) as HTMLInputElement
+    expect(input.step).toBe("1")
+    await waitFor(() => expect(input.checkValidity()).toBe(true))
+    fireEvent.change(input, { target: { value: "190500" } })
+    expect(input.checkValidity()).toBe(true)
   })
 })

@@ -867,7 +867,7 @@ function ComboBuilderModal({
                   required
                   type="number"
                   min={0}
-                  step={1000}
+                  step={1}
                   value={comboPrice}
                   onChange={(e) => setComboPrice(e.target.value)}
                   className="mt-1 h-10 w-full rounded-lg border border-[#16866f]/40 bg-white px-3 text-sm font-bold tabular-nums text-[#163d36] outline-none focus:border-[#16866f]"
