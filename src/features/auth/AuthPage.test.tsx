@@ -118,7 +118,7 @@ describe("password reset", () => {
     expect(authApi.resetPassword).not.toHaveBeenCalled()
 
     vi.mocked(authApi.resetPassword).mockRejectedValue(
-      httpError(400, { errorCode: "A010", message: "Liên kết không hợp lệ hoặc đã hết hạn." })
+      httpError(400, { errorCode: "E014", message: "Liên kết không hợp lệ hoặc đã hết hạn." })
     )
     fill("Nhập lại mật khẩu", "newpass1")
     fireEvent.click(screen.getByRole("button", { name: /Đặt lại mật khẩu/ }))
