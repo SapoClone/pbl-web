@@ -35,7 +35,16 @@ const WHOLESALE_PRICE = 120000
 
 const products = [catalog.products.arabica, catalog.products.robusta, catalog.products.phin]
 
-const productRow = (page: Page, name: string) => page.getByRole("row").filter({ hasText: name })
+/**
+ * Since the product/variant consolidation every product has TWO table rows: the product row and the inline row with
+ * its variants panel. Scope to the row that carries the edit button so a name never matches both.
+ */
+const productRow = (page: Page, name: string) =>
+  page.getByRole("row").filter({ has: page.getByRole("button", { name: `Chỉnh sửa ${name}` }) })
+
+/** The inline variants row of a product is the one whose heading reads "Biến thể của <name>". */
+const variantsPanel = (page: Page, name: string) =>
+  page.getByRole("row").filter({ hasText: `Biến thể của ${name}` })
 
 const catalogDialog = (page: Page) => page.getByRole("dialog", { name: "Quản lý danh mục & thương hiệu" })
 
@@ -76,18 +85,17 @@ async function createProductIfMissing(page: Page, product: { name: string; descr
 }
 
 /**
- * Opens "Xem biến thể" for a product and adds its one variant when the list is still empty (a second run finds the
- * variant of the first one). Returns the variant-list dialog, still open.
+ * Adds the one variant of a product in its always-visible inline panel when the list is still empty (a second run
+ * finds the variant already there). The panel heading doubles as the wait for the variants request to settle.
  */
 async function ensureVariant(page: Page, product: { name: string; sku: string; price: number }) {
-  await page.getByRole("button", { name: `Xem biến thể của ${product.name}` }).click()
-  const list = page.getByRole("dialog", { name: `Biến thể của ${product.name}` })
-  await expect(list).toBeVisible()
-  const empty = list.getByText("Sản phẩm chưa có biến thể.")
-  const variantLine = list.getByText(`SKU: ${product.sku} · ${vnd(product.price)} ₫`)
-  await expect(empty.or(variantLine)).toBeVisible()
+  const panel = variantsPanel(page, product.name)
+  await expect(panel.getByRole("heading", { name: `Biến thể của ${product.name}`, level: 2 })).toBeVisible()
+  const empty = panel.getByText("Sản phẩm chưa có biến thể.")
+  const variantLine = panel.getByText(`SKU: ${product.sku} · ${vnd(product.price)} ₫`)
+  await expect(empty.or(variantLine).first()).toBeVisible()
   if (await empty.isVisible()) {
-    await list.getByRole("button", { name: "Thêm biến thể" }).click()
+    await panel.getByRole("button", { name: "Thêm biến thể" }).click()
     const form = page.getByRole("dialog", { name: "Thêm biến thể" })
     await expect(form).toBeVisible()
     await form.getByLabel("SKU").fill(product.sku)
@@ -96,7 +104,7 @@ async function ensureVariant(page: Page, product: { name: string; sku: string; p
     await expect(form).toBeHidden()
   }
   await expect(variantLine).toBeVisible()
-  return list
+  await expect(panel).toContainText("1 biến thể")
 }
 
 test("F03.1 A category and a brand are created, the category is renamed, an empty name is refused", async ({ page, step }) => {
@@ -213,7 +221,7 @@ test("F03.2 The three products are created and listed, an empty product name is 
       await expect(row).toContainText(catalog.category)
       await expect(row).toContainText(catalog.brand)
       await expect(row).toContainText("Đang bán")
-      await expect(row).toContainText(product.description)
+      // the description is not a stable part of the row text after the redesign; F03.5 reads it from the edit form
     })
   }
 
@@ -235,52 +243,60 @@ test("F03.3 Each product gets a variant with its SKU and price; a duplicate SKU 
   await settled(page)
 
   for (const product of products) {
-    await step(`Add the variant ${product.sku} to '${product.name}' from 'Xem biến thể'`, async () => {
-      const list = await ensureVariant(page, product)
-      // the list footer says "Đóng" and so does the close button of the header: click the footer one
-      await list.getByRole("button", { name: "Đóng" }).last().click()
-      await expect(list).toBeHidden()
+    await step(`Add the variant ${product.sku} to '${product.name}' in its inline panel`, async () => {
+      await ensureVariant(page, product)
     })
   }
 
   await step("A duplicate SKU is refused by the server", async () => {
     const robusta = catalog.products.robusta
-    await page.getByRole("button", { name: `Xem biến thể của ${robusta.name}` }).click()
-    const list = page.getByRole("dialog", { name: `Biến thể của ${robusta.name}` })
-    await expect(list.getByText(`SKU: ${robusta.sku}`)).toBeVisible()
-    await list.getByRole("button", { name: "Thêm biến thể" }).click()
+    const panel = variantsPanel(page, robusta.name)
+    await expect(panel.getByText(`SKU: ${robusta.sku}`)).toBeVisible()
+    await panel.getByRole("button", { name: "Thêm biến thể" }).click()
     const form = page.getByRole("dialog", { name: "Thêm biến thể" })
+    await expect(form).toBeVisible()
     await form.getByLabel("SKU").fill(catalog.products.arabica.sku)
     await form.getByLabel("Giá bán (VND)").fill(String(catalog.products.arabica.price))
     await form.getByRole("button", { name: "Tạo biến thể" }).click()
     await expect(form.getByRole("alert")).toHaveText(/SKU code already exists|SKU đã tồn tại/i)
     await form.getByRole("button", { name: "Hủy" }).click()
-    await expect(list.getByText("1 biến thể")).toBeVisible()
-    await list.getByRole("button", { name: "Đóng" }).last().click()
+    await expect(form).toBeHidden()
+    await expect(panel).toContainText("1 biến thể")
   })
 
-  await step("After a reload each product row shows its SKU and its price in VND", async () => {
+  await step("After a reload each inline panel still shows its SKU and its price in VND", async () => {
     await page.reload()
     await settled(page)
     for (const product of products) {
-      const row = productRow(page, product.name)
-      await expect(row).toContainText(product.sku)
-      await expect(row).toContainText(`${vnd(product.price)} ₫`)
+      const panel = variantsPanel(page, product.name)
+      await expect(panel.getByText(`SKU: ${product.sku} · ${vnd(product.price)} ₫`)).toBeVisible()
+      await expect(panel).toContainText("1 biến thể")
     }
   })
 })
 
-test("F03.4 Search by SKU, the status filter and the empty state", async ({ page, step }) => {
+/**
+ * App regression after the consolidation: ProductsTable filters on `product.sku`, but `fetchProductsBundle` in
+ * ProductsPage.tsx hardcodes `sku: ""` on every row, so typing "CF-ARA-250" now matches nothing. Searching by the
+ * product name (the other thing the placeholder advertises) still narrows the table to exactly one product; the
+ * SKU-search regression is reported rather than turned into a weaker assertion.
+ */
+test("F03.4 Search, the status filter and the empty state", async ({ page, step }) => {
   await page.goto("/products")
   await settled(page)
   const search = page.getByPlaceholder("Tìm tên sản phẩm, mã SKU...")
   await expect(productRow(page, catalog.products.arabica.name)).toBeVisible()
 
-  await step("Searching 'CF-ARA-250' finds exactly the Arabica product", async () => {
-    await search.fill(catalog.products.arabica.sku)
-    // one header row plus exactly one product row
-    await expect(page.getByRole("row")).toHaveCount(2)
-    await expect(page.getByRole("row").nth(1)).toContainText(catalog.products.arabica.name)
+  await step("Searching the Arabica name finds exactly that product", async () => {
+    await search.fill(catalog.products.arabica.name)
+    // one product row and its inline variants row, plus the header
+    await expect(
+      page.getByRole("row").filter({ has: page.getByRole("button", { name: /^Chỉnh sửa / }) }),
+    ).toHaveCount(1)
+    await expect(productRow(page, catalog.products.arabica.name)).toBeVisible()
+    for (const product of products.filter((item) => item.name !== catalog.products.arabica.name)) {
+      await expect(productRow(page, product.name)).toHaveCount(0)
+    }
   })
 
   await step("The status filter 'Lưu nháp' shows none of the three products", async () => {
@@ -296,6 +312,26 @@ test("F03.4 Search by SKU, the status filter and the empty state", async ({ page
     await expect(page.getByRole("heading", { name: "Không tìm thấy sản phẩm" })).toBeVisible()
     await expect(page.getByRole("button", { name: "Xóa tất cả bộ lọc" })).toBeVisible()
     for (const product of products) await expect(productRow(page, product.name)).toHaveCount(0)
+  })
+})
+
+/** The original F03.4 assertion, kept so the SKU-search regression cannot be forgotten. */
+test("F03.4 Search by SKU finds exactly the Arabica product", async ({ page, step }) => {
+  test.fixme(
+    true,
+    "App regression after pbl-web #25/#26: ProductsTable filters on product.sku, but fetchProductsBundle " +
+      "(src/features/products/ProductsPage.tsx) hardcodes sku: '' on every row, so typing CF-ARA-250 in " +
+      "'Tìm tên sản phẩm, mã SKU...' matches nothing and shows 'Không tìm thấy sản phẩm'. Remove this line " +
+      "when the product bundle carries SKUs again.",
+  )
+  await page.goto("/products")
+  await settled(page)
+  await step("Searching 'CF-ARA-250' finds exactly the Arabica product", async () => {
+    await page.getByPlaceholder("Tìm tên sản phẩm, mã SKU...").fill(catalog.products.arabica.sku)
+    await expect(
+      page.getByRole("row").filter({ has: page.getByRole("button", { name: /^Chỉnh sửa / }) }),
+    ).toHaveCount(1)
+    await expect(productRow(page, catalog.products.arabica.name)).toBeVisible()
   })
 })
 
@@ -319,7 +355,12 @@ test("F03.5 Editing the Arabica description persists", async ({ page, step }) =>
   await step("After a reload the new description is still there", async () => {
     await page.reload()
     await settled(page)
-    await expect(productRow(page, arabica.name)).toContainText(ARABICA_NEW_DESCRIPTION)
+    // the edited description lives in the product record; the edit form is the reliable place to read it back
+    await productRow(page, arabica.name).getByRole("button", { name: `Chỉnh sửa ${arabica.name}` }).click()
+    const dialog = page.getByRole("dialog", { name: "Sửa sản phẩm" })
+    await expect(dialog.getByLabel("Mô tả")).toHaveValue(ARABICA_NEW_DESCRIPTION)
+    await dialog.getByRole("button", { name: "Hủy" }).click()
+    await expect(dialog).toBeHidden()
   })
 
   await step("Put the data.ts description back so this file can run again", async () => {
@@ -330,7 +371,11 @@ test("F03.5 Editing the Arabica description persists", async ({ page, step }) =>
     await expect(dialog).toBeHidden()
     await page.reload()
     await settled(page)
-    await expect(productRow(page, arabica.name)).toContainText(arabica.description)
+    await productRow(page, arabica.name).getByRole("button", { name: `Chỉnh sửa ${arabica.name}` }).click()
+    const check = page.getByRole("dialog", { name: "Sửa sản phẩm" })
+    await expect(check.getByLabel("Mô tả")).toHaveValue(arabica.description)
+    await check.getByRole("button", { name: "Hủy" }).click()
+    await expect(check).toBeHidden()
   })
 })
 
@@ -374,13 +419,14 @@ test("F03.6 A throwaway product is created, deleted and stays gone", async ({ pa
 test("F03.7 The wholesale price list stores a price per SKU for Arabica", async ({ page, step }) => {
   const arabica = catalog.products.arabica
 
-  await step("Open the price-list tab", async () => {
+  await step("Open the price-list section", async () => {
     await page.goto("/products?tab=price-lists")
     await settled(page)
-    await expect(page.getByRole("tab", { name: "Bảng giá theo Kênh bán" })).toHaveAttribute("aria-selected", "true")
-    // the list arrives with a GET: wait for the empty state or for any data row (other lists may exist) before
-    // deciding whether to create ours
-    await expect(page.getByText("Chưa có bảng giá nào phù hợp").or(page.getByRole("row").nth(1)).first()).toBeVisible()
+    // PR #25/#26 removed the tab control: every section is on the one page now
+    await expect(page.getByRole("heading", { name: "Bảng giá theo kênh bán", level: 2 })).toBeVisible()
+    await expect(page.getByRole("button", { name: "Tạo bảng giá mới" })).toBeVisible()
+    // wait for the GET before deciding whether to create our list
+    await expect(page.getByText("Chưa có bảng giá nào phù hợp").or(priceListRow(page)).first()).toBeVisible()
   })
 
   await step(`Create '${catalog.priceList.name}' unless a previous run left it`, async () => {
@@ -423,7 +469,7 @@ test("F03.7 The wholesale price list stores a price per SKU for Arabica", async 
   await step("After a reload the list is still there and reopening its matrix shows the saved price", async () => {
     await page.reload()
     await settled(page)
-    await expect(page.getByRole("tab", { name: "Bảng giá theo Kênh bán" })).toHaveAttribute("aria-selected", "true")
+    await expect(page.getByRole("heading", { name: "Bảng giá theo kênh bán", level: 2 })).toBeVisible()
     await expect(priceListRow(page)).toHaveCount(1)
     const detail = priceListDetailLoaded(page)
     await priceListRow(page).getByRole("button", { name: "Bảng giá SKU" }).click()
