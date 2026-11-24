@@ -38,9 +38,13 @@ export const store = {
 }
 
 export const branches = {
-  main: { name: "Cửa hàng chính" },
+  // The branch the backend creates together with the store
+  main: { name: "Chi nhánh chính", code: "CN01", newAddress: "168 Nguyễn Văn Cừ, Quận 1, TP. Hồ Chí Minh" },
   second: { name: "Chi nhánh Quận 3", code: "CN-Q3", address: "88 Võ Văn Tần, Quận 3", phone: "+84283930111" },
 }
+
+/** What the local stack's seed gives the Free plan (pbl-api default-plans.ts). Production's Free plan was changed by hand. */
+export const freePlan = { name: "Free", branches: 1, users: 3, products: 100, storageGb: 1 }
 
 export const catalog = {
   category: "Cà phê rang xay",
