@@ -12,7 +12,13 @@ const base = {
 } as ApiCustomer
 
 describe("mapApiCustomer points", () => {
-  it("reads the balance from loyaltyPoints, as the list endpoint returns it", () => {
+  it("reads the available balance nested in the full customer row, as the list rows carry it", () => {
+    expect(
+      mapApiCustomer({ ...base, loyalty: { availablePoints: 700 }, pointsBalance: null }).pointsBalance
+    ).toBe(700)
+  })
+
+  it("reads loyaltyPoints, as the summary rows carry it", () => {
     expect(mapApiCustomer({ ...base, loyaltyPoints: 120 }).pointsBalance).toBe(120)
   })
 

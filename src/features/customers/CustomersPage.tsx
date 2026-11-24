@@ -152,7 +152,9 @@ export const mapApiCustomer = (
     createdAt: item.createdAt,
     customerGroupId: item.customerGroupId ?? null,
     membershipTierId: item.membershipTierId ?? null,
-    pointsBalance: Number(item.loyaltyPoints ?? item.pointsBalance ?? 0),
+    pointsBalance: Number(
+      item.loyalty?.availablePoints ?? item.loyaltyPoints ?? item.pointsBalance ?? 0
+    ),
     currentDebt: Number(item.currentDebt ?? 0),
     debtLimit: Number(item.debtLimit ?? 5000000)
   }
