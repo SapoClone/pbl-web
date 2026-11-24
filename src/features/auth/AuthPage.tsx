@@ -18,12 +18,13 @@ import {
   isDemoCredentials,
   login,
   register,
-  requestPasswordReset
+  requestPasswordReset,
+  resetPassword
 } from "@/api/auth"
 import { Button } from "@/components/ui/button"
 import { useStoreAuth } from "@/store/zustand/useStoreAuth"
 
-export type AuthMode = "login" | "register" | "forgot"
+export type AuthMode = "login" | "register" | "forgot" | "reset"
 
 const copy: Record<
   AuthMode,
@@ -43,6 +44,11 @@ const copy: Record<
     title: "Khôi phục mật khẩu",
     description: "Nhập email để nhận hướng dẫn đặt lại mật khẩu.",
     submit: "Gửi liên kết"
+  },
+  reset: {
+    title: "Đặt lại mật khẩu",
+    description: "Nhập mật khẩu mới cho tài khoản của bạn.",
+    submit: "Đặt lại mật khẩu"
   }
 }
 
@@ -64,9 +70,17 @@ function getRequestErrorMessage(requestError: unknown) {
   const responseData = requestError.response?.data as
     | {
         message?: unknown
+        errorCode?: unknown
         details?: ValidationDetail[]
       }
     | undefined
+
+  if (
+    requestError.response?.status === 401 ||
+    responseData?.errorCode === "A001"
+  ) {
+    return "Email hoặc mật khẩu không chính xác."
+  }
 
   const details = Array.isArray(responseData?.details)
     ? responseData.details
@@ -87,10 +101,13 @@ function getRequestErrorMessage(requestError: unknown) {
       : responseData.message
   }
 
-  return requestError.response?.status === 401
-    ? "Email hoặc mật khẩu không chính xác."
-    : "Không thể hoàn tất yêu cầu. Vui lòng thử lại."
+  return "Không thể hoàn tất yêu cầu. Vui lòng thử lại."
 }
+
+const resetTokenFromLocation = () =>
+  typeof window === "undefined"
+    ? ""
+    : (new URLSearchParams(window.location.search).get("token") ?? "")
 
 function BrandIllustration() {
   return (
@@ -179,19 +196,22 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
   const [message, setMessage] = useState("")
   const [error, setError] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [resetDone, setResetDone] = useState(false)
+  const resetToken = mode === "reset" ? resetTokenFromLocation() : ""
   const content = copy[mode]
+  const isNewPasswordMode = mode === "register" || mode === "reset"
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError("")
     setMessage("")
 
-    if (mode === "register" && password !== confirmPassword) {
+    if (isNewPasswordMode && password !== confirmPassword) {
       setError("Mật khẩu xác nhận không khớp.")
       return
     }
     if (
-      mode === "register" &&
+      isNewPasswordMode &&
       (password.length < 6 || !backendPasswordPattern.test(password))
     ) {
       setError(
@@ -217,9 +237,18 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
         const tokens = await login({ email, password })
         setTokens(tokens)
         await navigate({ to: "/onboarding-tenant" })
+      } else if (mode === "reset") {
+        const result = await resetPassword(resetToken, password)
+        setMessage(
+          result?.message || "Mật khẩu đã được đặt lại. Bạn có thể đăng nhập bằng mật khẩu mới."
+        )
+        setResetDone(true)
       } else {
-        await requestPasswordReset(email)
-        setMessage("Nếu email tồn tại, hướng dẫn đặt lại mật khẩu sẽ được gửi sớm.")
+        const result = await requestPasswordReset(email)
+        setMessage(
+          result?.message ||
+            "Nếu email tồn tại, hướng dẫn đặt lại mật khẩu sẽ được gửi sớm."
+        )
       }
     } catch (requestError) {
       setError(getRequestErrorMessage(requestError))
@@ -268,28 +297,56 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
         <div className="mx-auto flex w-full max-w-[430px] flex-1 flex-col justify-center py-12">
           <div className="mb-7">
             <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-[#e3f5ef] text-[#07896f]">
-              {mode === "forgot" ? <KeyRound size={19} /> : <LockKeyhole size={19} />}
+              {mode === "forgot" || mode === "reset" ? <KeyRound size={19} /> : <LockKeyhole size={19} />}
             </div>
             <h1 className="text-[27px] font-semibold tracking-tight text-slate-800">{content.title}</h1>
             <p className="mt-2 text-sm text-slate-400">{content.description}</p>
           </div>
 
-          <form className="space-y-5" onSubmit={handleSubmit}>
-            <label className="block text-xs font-semibold text-slate-700">
-              Email
-              <span className="relative mt-2 block">
-                <input
-                  className={`${inputClassName} pl-10`}
-                  type="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="ban@cuahang.vn"
-                  required
-                  autoComplete="email"
-                />
-                <Mail className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-slate-400" size={16} />
-              </span>
-            </label>
+          {mode === "reset" && !resetToken && (
+            <div className="space-y-5">
+              <p className="rounded-lg bg-red-50 px-3 py-2.5 text-xs text-red-700" role="status">
+                Liên kết đặt lại mật khẩu không hợp lệ.
+              </p>
+              <Link className="text-xs font-semibold text-[#07896f] hover:underline" to="/forgot-password">
+                Yêu cầu liên kết mới
+              </Link>
+            </div>
+          )}
+
+          {mode === "reset" && resetToken && resetDone && (
+            <div className="space-y-5">
+              <p className="rounded-lg bg-emerald-50 px-3 py-2.5 text-xs text-emerald-700" role="status">
+                {message}
+              </p>
+              <Link className="text-xs font-semibold text-[#07896f] hover:underline" to="/login">
+                Đăng nhập
+              </Link>
+            </div>
+          )}
+
+          <form
+            className="space-y-5"
+            onSubmit={handleSubmit}
+            hidden={mode === "reset" && (!resetToken || resetDone)}
+          >
+            {mode !== "reset" && (
+              <label className="block text-xs font-semibold text-slate-700">
+                Email
+                <span className="relative mt-2 block">
+                  <input
+                    className={`${inputClassName} pl-10`}
+                    type="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    placeholder="ban@cuahang.vn"
+                    required
+                    autoComplete="email"
+                  />
+                  <Mail className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-slate-400" size={16} />
+                </span>
+              </label>
+            )}
 
             {mode === "register" && (
               <label className="block text-xs font-semibold text-slate-700">
@@ -308,14 +365,14 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
 
             {mode !== "forgot" && (
               <label className="block text-xs font-semibold text-slate-700">
-                Mật khẩu
+                {mode === "reset" ? "Mật khẩu mới" : "Mật khẩu"}
                 <span className="relative mt-2 block">
                   <input
                     className={`${inputClassName} pe-10 ps-10`}
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
-                    placeholder="Nhập mật khẩu"
+                    placeholder={mode === "reset" ? "Nhập mật khẩu mới" : "Nhập mật khẩu"}
                     required
                     minLength={6}
                     autoComplete={mode === "login" ? "current-password" : "new-password"}
@@ -333,7 +390,7 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
               </label>
             )}
 
-            {mode === "register" && (
+            {isNewPasswordMode && (
               <label className="block text-xs font-semibold text-slate-700">
                 Nhập lại mật khẩu
                 <input
@@ -361,7 +418,7 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
               </div>
             )}
 
-            {(error || message) && (
+            {(error || message) && !resetDone && (
               <p
                 className={`rounded-lg px-3 py-2.5 text-xs ${error ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}
                 role="status"

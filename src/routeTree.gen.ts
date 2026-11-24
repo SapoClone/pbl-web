@@ -2,6 +2,7 @@ import { Route as rootRoute } from './routes/__root'
 import { Route as SuppliersImport } from './routes/suppliers'
 import { Route as StaffImport } from './routes/staff'
 import { Route as SettingsImport } from './routes/settings'
+import { Route as ResetPasswordImport } from './routes/reset-password'
 import { Route as ReportsImport } from './routes/reports'
 import { Route as RegisterImport } from './routes/register'
 import { Route as PromotionsImport } from './routes/promotions'
@@ -28,6 +29,11 @@ const StaffRoute = StaffImport.update({
 
 const SettingsRoute = SettingsImport.update({
   path: '/settings',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const ResetPasswordRoute = ResetPasswordImport.update({
+  path: '/reset-password',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -149,6 +155,10 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReportsImport
       parentRoute: typeof rootRoute
     }
+    '/reset-password': {
+      preLoaderRoute: typeof ResetPasswordImport
+      parentRoute: typeof rootRoute
+    }
     '/settings': {
       preLoaderRoute: typeof SettingsImport
       parentRoute: typeof rootRoute
@@ -177,6 +187,7 @@ export const routeTree = rootRoute.addChildren([
   PromotionsRoute,
   RegisterRoute,
   ReportsRoute,
+  ResetPasswordRoute,
   SettingsRoute,
   StaffRoute,
   SuppliersRoute,
