@@ -387,7 +387,7 @@ export function SkuMappingsPanel({
                           <img
                             src={internalVariant.imageUrl}
                             alt={item.externalProductName ?? item.internalSkuCode}
-                            className="h-10 w-10 shrink-0 rounded-lg border border-slate-200 object-cover shadow-xs"
+                            className="shadow-xs h-10 w-10 shrink-0 rounded-lg border border-slate-200 object-cover"
                           />
                         ) : (
                           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#eef0ff] text-xs font-bold text-[#0f146d]">

@@ -294,7 +294,7 @@ export function PriceListsPanel() {
       {/* Callout banner */}
       <div className="flex flex-col gap-3 rounded-xl border border-[#cce8dc] bg-[#f2fbf6] p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
-          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-[#16866f] shadow-xs">
+          <span className="shadow-xs mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-[#16866f]">
             <Tag size={18} />
           </span>
           <div>
@@ -694,7 +694,7 @@ function PriceListFormModal({
     >
       <form
         onSubmit={(e) => void handleSubmit(e)}
-        className="w-full max-w-xl overflow-hidden rounded-2xl bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-150"
+        className="w-full max-w-xl overflow-hidden rounded-2xl bg-white shadow-2xl duration-150 animate-in fade-in zoom-in-95"
       >
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
           <div>
@@ -1052,7 +1052,7 @@ function PriceListMatrixDrawer({
     >
       <div className="space-y-4">
         {/* Bulk Formula Bar */}
-        <div className="rounded-xl border border-[#cce8dc] bg-white p-4 shadow-xs">
+        <div className="shadow-xs rounded-xl border border-[#cce8dc] bg-white p-4">
           <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#16866f]">
             <Sparkles size={14} />
             Công thức tính giá hàng loạt từ Giá gốc

@@ -140,7 +140,7 @@ function OrderMetric({
         <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
           {label}
         </p>
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#16866f]/20 bg-[#e6f5ee] text-[#16866f] shadow-2xs transition-transform duration-300 group-hover:scale-105">
+        <div className="shadow-2xs flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#16866f]/20 bg-[#e6f5ee] text-[#16866f] transition-transform duration-300 group-hover:scale-105">
           <Icon size={18} />
         </div>
       </div>

@@ -257,7 +257,7 @@ export function ProductCombosPanel({
       {/* Callout Header */}
       <div className="flex flex-col gap-3 rounded-xl border border-[#cce8dc] bg-[#f2fbf6] p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
-          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-[#16866f] shadow-xs">
+          <span className="shadow-xs mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-[#16866f]">
             <Boxes size={18} />
           </span>
           <div>
@@ -284,7 +284,7 @@ export function ProductCombosPanel({
 
       {/* Search Bar */}
       <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-[0_3px_15px_rgba(20,50,45,0.04)]">
-        <div className="relative flex-1 max-w-md">
+        <div className="relative max-w-md flex-1">
           <Search
             size={16}
             className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
@@ -310,7 +310,7 @@ export function ProductCombosPanel({
           {[1, 2].map((i) => (
             <div
               key={i}
-              className="h-52 animate-pulse rounded-xl bg-white p-6 shadow-xs"
+              className="shadow-xs h-52 animate-pulse rounded-xl bg-white p-6"
             />
           ))}
         </div>
@@ -685,7 +685,7 @@ function ComboBuilderModal({
     >
       <form
         onSubmit={(e) => void handleSubmit(e)}
-        className="my-6 w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-150"
+        className="my-6 w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl duration-150 animate-in fade-in zoom-in-95"
       >
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
           <div>
@@ -887,7 +887,7 @@ function ComboBuilderModal({
                           )
                         )
                       }
-                      className="rounded bg-white px-2 py-0.5 text-[11px] font-semibold text-[#147853] shadow-2xs hover:bg-[#e6f5ee]"
+                      className="shadow-2xs rounded bg-white px-2 py-0.5 text-[11px] font-semibold text-[#147853] hover:bg-[#e6f5ee]"
                     >
                       Giảm -{pct}%
                     </button>

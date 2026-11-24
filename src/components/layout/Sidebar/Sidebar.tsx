@@ -73,7 +73,7 @@ function Navigation({
 
         if (children) {
           return (
-            <div key={to} className="relative group">
+            <div key={to} className="group relative">
               <button
                 type="button"
                 onClick={() =>
@@ -103,7 +103,7 @@ function Navigation({
 
               {/* Floating Tooltip in Collapsed Mode */}
               {collapsed && (
-                <div className="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 hidden md:group-hover:flex items-center gap-2 rounded-xl border border-slate-200/90 bg-white/95 px-3 py-1.5 text-xs font-semibold text-[#163d36] shadow-xl whitespace-nowrap z-50 backdrop-blur-md">
+                <div className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 hidden -translate-y-1/2 items-center gap-2 whitespace-nowrap rounded-xl border border-slate-200/90 bg-white/95 px-3 py-1.5 text-xs font-semibold text-[#163d36] shadow-xl backdrop-blur-md md:group-hover:flex">
                   <span>{label}</span>
                   {children.length > 0 && (
                     <span className="text-[10px] text-slate-400">({children.length})</span>
@@ -142,7 +142,7 @@ function Navigation({
         }
 
         return (
-          <div key={to} className="relative group">
+          <div key={to} className="group relative">
             <Link
               to={to as never}
               onClick={onNavigate}
@@ -165,7 +165,7 @@ function Navigation({
                     collapsed ? "md:hidden" : ""
                   } ${
                     active
-                      ? "bg-white text-[#16866f] shadow-2xs"
+                      ? "shadow-2xs bg-white text-[#16866f]"
                       : "bg-[#fff0d6] text-[#c98222]"
                   }`}
                 >
@@ -177,10 +177,10 @@ function Navigation({
 
             {/* Floating Tooltip in Collapsed Mode */}
             {collapsed && (
-              <div className="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 hidden md:group-hover:flex items-center gap-2 rounded-xl border border-slate-200/90 bg-white/95 px-3 py-1.5 text-xs font-semibold text-[#163d36] shadow-xl whitespace-nowrap z-50 backdrop-blur-md">
+              <div className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 hidden -translate-y-1/2 items-center gap-2 whitespace-nowrap rounded-xl border border-slate-200/90 bg-white/95 px-3 py-1.5 text-xs font-semibold text-[#163d36] shadow-xl backdrop-blur-md md:group-hover:flex">
                 <span>{label}</span>
                 {effectiveBadge && (
-                  <span className="rounded-full bg-[#e6f5ee] px-1.5 py-0.2 text-[10px] font-bold text-[#147853]">
+                  <span className="py-0.2 rounded-full bg-[#e6f5ee] px-1.5 text-[10px] font-bold text-[#147853]">
                     {effectiveBadge}
                   </span>
                 )}
@@ -244,7 +244,7 @@ function SidebarBody({
       </div>
 
       <div className={`border-t border-[#edf0ef] py-3 ${collapsed ? "px-2 md:px-1.5" : "px-3"}`}>
-        <div className="relative group">
+        <div className="group relative">
           <Link
             to={"/settings" as never}
             onClick={onNavigate}
@@ -261,13 +261,13 @@ function SidebarBody({
             <span className={collapsed ? "md:hidden" : ""}>Cài đặt cửa hàng</span>
           </Link>
           {collapsed && (
-            <div className="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 hidden md:group-hover:flex rounded-xl border border-slate-200/90 bg-white/95 px-3 py-1.5 text-xs font-semibold text-[#163d36] shadow-xl whitespace-nowrap z-50 backdrop-blur-md">
+            <div className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 hidden -translate-y-1/2 whitespace-nowrap rounded-xl border border-slate-200/90 bg-white/95 px-3 py-1.5 text-xs font-semibold text-[#163d36] shadow-xl backdrop-blur-md md:group-hover:flex">
               Cài đặt cửa hàng
             </div>
           )}
         </div>
 
-        <div className="relative group mt-0.5">
+        <div className="group relative mt-0.5">
           <button
             type="button"
             disabled={isLoggingOut}
@@ -283,7 +283,7 @@ function SidebarBody({
             </span>
           </button>
           {collapsed && (
-            <div className="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 hidden md:group-hover:flex rounded-xl border border-slate-200/90 bg-white/95 px-3 py-1.5 text-xs font-semibold text-red-600 shadow-xl whitespace-nowrap z-50 backdrop-blur-md">
+            <div className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 hidden -translate-y-1/2 whitespace-nowrap rounded-xl border border-slate-200/90 bg-white/95 px-3 py-1.5 text-xs font-semibold text-red-600 shadow-xl backdrop-blur-md md:group-hover:flex">
               Đăng xuất
             </div>
           )}
@@ -295,7 +295,7 @@ function SidebarBody({
           </p>
         )}
 
-        <div className="relative group mt-0.5">
+        <div className="group relative mt-0.5">
           <Link
             to={"/channels" as never}
             search={{ tab: "overview" } as never}
@@ -309,7 +309,7 @@ function SidebarBody({
             <span className={collapsed ? "md:hidden" : ""}>Trạng thái kết nối kênh</span>
           </Link>
           {collapsed && (
-            <div className="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 hidden md:group-hover:flex rounded-xl border border-slate-200/90 bg-white/95 px-3 py-1.5 text-xs font-semibold text-[#163d36] shadow-xl whitespace-nowrap z-50 backdrop-blur-md">
+            <div className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 hidden -translate-y-1/2 whitespace-nowrap rounded-xl border border-slate-200/90 bg-white/95 px-3 py-1.5 text-xs font-semibold text-[#163d36] shadow-xl backdrop-blur-md md:group-hover:flex">
               Trạng thái kết nối kênh
             </div>
           )}
@@ -385,7 +385,7 @@ export function Sidebar({ collapsed = false }: { collapsed?: boolean }) {
         type="button"
         aria-label="Mở menu"
         onClick={() => setMobileOpen(true)}
-        className="fixed left-3 top-3 z-30 flex h-9 w-9 items-center justify-center rounded-xl bg-[#103c32] text-white shadow-md md:hidden active:scale-95 transition"
+        className="fixed left-3 top-3 z-30 flex h-9 w-9 items-center justify-center rounded-xl bg-[#103c32] text-white shadow-md transition active:scale-95 md:hidden"
       >
         <Menu size={18} />
       </button>
@@ -395,20 +395,20 @@ export function Sidebar({ collapsed = false }: { collapsed?: boolean }) {
           type="button"
           aria-label="Đóng menu"
           onClick={closeMobile}
-          className="fixed inset-0 z-40 bg-[#163d36]/25 backdrop-blur-xs md:hidden"
+          className="backdrop-blur-xs fixed inset-0 z-40 bg-[#163d36]/25 md:hidden"
         />
       )}
 
       <aside
         className={`fixed inset-y-0 left-0 z-50 flex flex-col border-r border-[#e7ecea] bg-white text-[#163d36] shadow-xl transition-all duration-300 ease-in-out md:static md:z-auto md:shadow-none ${
           mobileOpen
-            ? "translate-x-0 w-[240px]"
+            ? "w-[240px] translate-x-0"
             : "-translate-x-full md:translate-x-0"
         } ${collapsed ? "md:w-[72px]" : "md:w-[240px]"}`}
       >
         <div className={`relative border-b border-[#edf0ef] pt-4 ${collapsed ? "px-2 md:px-2" : "px-3"}`}>
           <div className="flex items-center gap-2 px-1">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#d9efe5] to-[#bce4d4] text-[#16866f] shadow-2xs">
+            <span className="shadow-2xs flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#d9efe5] to-[#bce4d4] text-[#16866f]">
               <Store size={18} strokeWidth={2.2} />
             </span>
             <span className={`text-base font-bold tracking-tight text-[#163d36] ${collapsed ? "md:hidden" : ""}`}>
@@ -425,7 +425,7 @@ export function Sidebar({ collapsed = false }: { collapsed?: boolean }) {
           </div>
 
           {/* Tenant Switcher button */}
-          <div className="relative group">
+          <div className="group relative">
             <button
               type="button"
               onClick={() => setTenantMenuOpen((prev) => !prev)}
@@ -435,7 +435,7 @@ export function Sidebar({ collapsed = false }: { collapsed?: boolean }) {
                 collapsed ? "px-0 md:justify-center" : "px-2.5"
               }`}
             >
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-[#16866f] shadow-2xs">
+              <span className="shadow-2xs flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-[#16866f]">
                 <Store size={13} />
               </span>
               <span className={`min-w-0 flex-1 ${collapsed ? "md:hidden" : ""}`}>
@@ -445,7 +445,7 @@ export function Sidebar({ collapsed = false }: { collapsed?: boolean }) {
                 {(planName || branchText) && (
                   <span className="mt-0.5 flex items-center gap-1.5 text-[9px] text-[#75817e]">
                     {planName && (
-                      <b className="rounded bg-[#d9efe5] px-1.5 py-0.2 text-[8px] font-bold uppercase text-[#16866f]">
+                      <b className="py-0.2 rounded bg-[#d9efe5] px-1.5 text-[8px] font-bold uppercase text-[#16866f]">
                         Gói {planName}
                       </b>
                     )}
@@ -462,7 +462,7 @@ export function Sidebar({ collapsed = false }: { collapsed?: boolean }) {
             </button>
 
             {collapsed && (
-              <div className="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 hidden md:group-hover:flex rounded-xl border border-slate-200/90 bg-white/95 px-3 py-1.5 text-xs font-semibold text-[#163d36] shadow-xl whitespace-nowrap z-50 backdrop-blur-md">
+              <div className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 hidden -translate-y-1/2 whitespace-nowrap rounded-xl border border-slate-200/90 bg-white/95 px-3 py-1.5 text-xs font-semibold text-[#163d36] shadow-xl backdrop-blur-md md:group-hover:flex">
                 {activeTenantName}
               </div>
             )}

@@ -28,13 +28,13 @@ export function DashboardHeader({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200/90 bg-white/90 px-3 py-2 text-xs font-medium text-slate-600 shadow-2xs backdrop-blur-sm">
+          <div className="shadow-2xs inline-flex items-center gap-1.5 rounded-xl border border-slate-200/90 bg-white/90 px-3 py-2 text-xs font-medium text-slate-600 backdrop-blur-sm">
             <CalendarDays size={14} className="text-[#16866f]" />
             <span>Hôm nay · {new Date().toLocaleDateString("vi-VN")}</span>
           </div>
           <Button
             variant="outline"
-            className="rounded-xl border-slate-200/90 bg-white/90 text-xs font-medium text-slate-700 shadow-2xs hover:bg-slate-50 active:scale-[0.98]"
+            className="shadow-2xs rounded-xl border-slate-200/90 bg-white/90 text-xs font-medium text-slate-700 hover:bg-slate-50 active:scale-[0.98]"
           >
             <Download size={14} />
             <span>Xuất báo cáo</span>
@@ -48,7 +48,7 @@ export function DashboardHeader({
     <header className="mb-7 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
       <div className="min-w-0 flex-1">
         <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-emerald-200/70 bg-emerald-50/80 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#147853]">
-          <span className="h-1.5 w-1.5 rounded-full bg-[#16866f] animate-pulse" />
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#16866f]" />
           <span>{meta.eyebrow}</span>
         </div>
         <h1 className="truncate text-2xl font-bold tracking-tight text-[#163d36] sm:text-3xl">
@@ -62,7 +62,7 @@ export function DashboardHeader({
       <div className="flex flex-wrap items-center gap-2.5 sm:shrink-0">
         <Button
           variant="outline"
-          className="rounded-xl border-slate-200/90 bg-white/90 text-xs font-medium text-slate-700 shadow-2xs hover:bg-slate-50 hover:text-slate-900 active:scale-[0.98] transition-all"
+          className="shadow-2xs rounded-xl border-slate-200/90 bg-white/90 text-xs font-medium text-slate-700 transition-all hover:bg-slate-50 hover:text-slate-900 active:scale-[0.98]"
         >
           <Download size={14} />
           <span>Xuất báo cáo</span>
@@ -71,7 +71,7 @@ export function DashboardHeader({
           <button
             type="button"
             onClick={onCreate}
-            className="group inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#16866f] to-[#126b58] px-4 py-2 text-xs font-semibold text-white shadow-[0_2px_12px_rgba(22,134,111,0.25)] hover:shadow-[0_4px_18px_rgba(22,134,111,0.35)] hover:-translate-y-0.5 active:scale-[0.98] transition-all"
+            className="group inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#16866f] to-[#126b58] px-4 py-2 text-xs font-semibold text-white shadow-[0_2px_12px_rgba(22,134,111,0.25)] transition-all hover:-translate-y-0.5 hover:shadow-[0_4px_18px_rgba(22,134,111,0.35)] active:scale-[0.98]"
           >
             <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white/20 transition-transform group-hover:rotate-90">
               <Plus size={12} strokeWidth={2.5} />

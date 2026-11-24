@@ -55,7 +55,7 @@ export function SlideOverDrawer({
 
   return (
     <div
-      className="fixed inset-0 z-[65] flex justify-end bg-[#163d36]/35 backdrop-blur-[2px] animate-in fade-in duration-150 motion-reduce:animate-none"
+      className="fixed inset-0 z-[65] flex justify-end bg-[#163d36]/35 backdrop-blur-[2px] duration-150 animate-in fade-in motion-reduce:animate-none"
       role="dialog"
       aria-modal="true"
       aria-label={title}

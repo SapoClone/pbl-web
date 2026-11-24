@@ -31,9 +31,9 @@ export function EmptyState({
         className
       )}
     >
-      <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl border border-[#16866f]/20 bg-gradient-to-br from-[#e6f5ee] to-[#d9efe5] text-[#16866f] shadow-xs">
+      <div className="shadow-xs relative flex h-14 w-14 items-center justify-center rounded-2xl border border-[#16866f]/20 bg-gradient-to-br from-[#e6f5ee] to-[#d9efe5] text-[#16866f]">
         <Icon size={26} strokeWidth={1.8} />
-        <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-emerald-400/40 blur-xs" />
+        <span className="blur-xs absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-emerald-400/40" />
       </div>
 
       <h3 className="mt-4 text-base font-semibold text-[#163d36] sm:text-lg">
@@ -52,7 +52,7 @@ export function EmptyState({
             <Button
               type="button"
               onClick={onAction}
-              className="rounded-xl bg-gradient-to-r from-[#16866f] to-[#126b58] px-4 py-2 text-xs font-semibold text-white shadow-[0_2px_10px_rgba(22,134,111,0.25)] hover:shadow-[0_4px_16px_rgba(22,134,111,0.35)] hover:-translate-y-0.5 active:scale-95 transition-all"
+              className="rounded-xl bg-gradient-to-r from-[#16866f] to-[#126b58] px-4 py-2 text-xs font-semibold text-white shadow-[0_2px_10px_rgba(22,134,111,0.25)] transition-all hover:-translate-y-0.5 hover:shadow-[0_4px_16px_rgba(22,134,111,0.35)] active:scale-95"
             >
               {actionLabel}
             </Button>
@@ -62,7 +62,7 @@ export function EmptyState({
               type="button"
               variant="outline"
               onClick={onSecondaryAction}
-              className="rounded-xl border-slate-200 bg-white text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition active:scale-95"
+              className="shadow-2xs rounded-xl border-slate-200 bg-white text-xs font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95"
             >
               {secondaryActionLabel}
             </Button>

@@ -1274,13 +1274,13 @@ export function ChannelsPage() {
       </section>
 
       {/* Navigation Tabs */}
-      <div className="mb-6 flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth rounded-2xl border border-slate-200/80 bg-white/90 p-1.5 shadow-[0_2px_12px_rgba(20,50,45,0.04)] backdrop-blur-md">
+      <div className="no-scrollbar mb-6 flex max-w-full items-center gap-1.5 overflow-x-auto scroll-smooth rounded-2xl border border-slate-200/80 bg-white/90 p-1.5 shadow-[0_2px_12px_rgba(20,50,45,0.04)] backdrop-blur-md">
         {CHANNEL_TABS.map((item) => (
           <button
             key={item.id}
             type="button"
             onClick={() => setTab(item.id)}
-            className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold whitespace-nowrap transition-all duration-200 active:scale-[0.98] ${
+            className={`inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2 text-xs font-semibold transition-all duration-200 active:scale-[0.98] ${
               tab === item.id
                 ? "bg-gradient-to-r from-[#16866f] to-[#126b58] text-white shadow-[0_2px_10px_rgba(22,134,111,0.25)]"
                 : "text-slate-600 hover:bg-slate-100/70 hover:text-slate-900"
@@ -1951,7 +1951,7 @@ function MetricCard({
           {label}
         </span>
         <span
-          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-2xs transition-transform duration-300 group-hover:scale-105 ${
+          className={`shadow-2xs flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-105 ${
             warning
               ? "border border-amber-200/60 bg-amber-50 text-amber-600"
               : "border border-[#16866f]/20 bg-[#e6f5ee] text-[#16866f]"
