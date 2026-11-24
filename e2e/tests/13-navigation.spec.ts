@@ -35,7 +35,6 @@ const navPages: NavPage[] = [
   { item: "Tổng quan", path: "/", breadcrumb: "Tổng quan điều hành", heading: "Tổng quan kinh doanh" },
   {
     item: "Sản phẩm",
-    firstChild: "Danh mục sản phẩm",
     path: "/products",
     breadcrumb: "Danh mục & Bảng giá",
     heading: "Sản phẩm",
