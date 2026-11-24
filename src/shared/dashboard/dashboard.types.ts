@@ -30,6 +30,8 @@ export type Product = {
   catalogStatus?: "DRAFT" | "ACTIVE" | "INACTIVE" | "ARCHIVED"
   unit?: string
   barcode?: string
+  skuCodes?: string[]
+  barcodes?: string[]
   costPrice?: number
   retailPrice?: number
   images?: Array<{ key: string; url: string; altText?: string | null; sortOrder: number }>

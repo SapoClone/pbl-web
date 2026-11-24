@@ -29,6 +29,8 @@ import {
   listCategories,
   listCatalogAttributes,
   listCatalogProducts,
+  listProductVariants,
+  type CatalogVariantRow,
   listCatalogProductAttributes,
   replaceCatalogProductAttributes,
   updateCatalogProduct,
@@ -69,6 +71,31 @@ const catalogErrorMessage = (error: unknown): string | null => {
   return Array.isArray(message) ? message.filter((item): item is string => typeof item === "string").join(" ") || null : null
 }
 
+const VARIANT_PAGE_SIZE = 100
+
+// The product list API carries no variant data, and its `q` only matches the product name. Variants are
+// fetched page by page (limit max 100) so SKU/barcode search and the price work on any catalog size.
+const fetchAllVariantRows = async (): Promise<CatalogVariantRow[]> => {
+  const params = { limit: VARIANT_PAGE_SIZE, sort: "createdAt", order: "ASC" } as const
+  const first = await listProductVariants({ ...params, page: 1 })
+  const totalPages = first.pagination?.totalPages ?? 1
+  const rest = await Promise.all(
+    Array.from({ length: Math.max(0, totalPages - 1) }, (_, index) => listProductVariants({ ...params, page: index + 2 }))
+  )
+  return [first, ...rest].flatMap((page) => page.data ?? [])
+}
+
+const fetchAllProducts = async () => {
+  const first = await listCatalogProducts({ limit: VARIANT_PAGE_SIZE, page: 1 })
+  const totalPages = Math.ceil((first.total ?? 0) / VARIANT_PAGE_SIZE)
+  const rest = await Promise.all(
+    Array.from({ length: Math.max(0, totalPages - 1) }, (_, index) =>
+      listCatalogProducts({ limit: VARIANT_PAGE_SIZE, page: index + 2 })
+    )
+  )
+  return [first, ...rest].flatMap((page) => page.items ?? [])
+}
+
 type ProductsBundle = {
   categories: CatalogCategory[]
   brands: CatalogBrand[]
@@ -76,12 +103,18 @@ type ProductsBundle = {
 }
 
 export const fetchProductsBundle = async (): Promise<ProductsBundle> => {
-  const [loadedCategories, loadedBrands, response, skuMappings] = await Promise.all([
+  const [loadedCategories, loadedBrands, response, skuMappings, variantRows] = await Promise.all([
     listCategories().catch(() => [] as CatalogCategory[]),
     listBrands().catch(() => [] as CatalogBrand[]),
-    listCatalogProducts({ limit: 100 }),
-    queryClient.fetchQuery({ queryKey: ["integration-sku-mappings", ""], queryFn: () => listSkuMappings() }).catch(() => [])
+    fetchAllProducts(),
+    queryClient.fetchQuery({ queryKey: ["integration-sku-mappings", ""], queryFn: () => listSkuMappings() }).catch(() => []),
+    fetchAllVariantRows().catch(() => [] as CatalogVariantRow[])
   ])
+
+  const variantsByProductId = new Map<string, CatalogVariantRow[]>()
+  for (const variant of variantRows) {
+    variantsByProductId.set(variant.productId, [...(variantsByProductId.get(variant.productId) ?? []), variant])
+  }
 
   const categoryNames = new Map(loadedCategories.map((item) => [item.id, item.name]))
   const brandNames = new Map(loadedBrands.map((item) => [item.id, item.name]))
@@ -97,11 +130,17 @@ export const fetchProductsBundle = async (): Promise<ProductsBundle> => {
     }
   }
 
-  const mappedProducts: Product[] = response.items.map((row) => {
+  const mappedProducts: Product[] = response.map((row) => {
+    const variants = variantsByProductId.get(row.id) ?? []
+    const defaultVariant = variants[0]
     return {
       id: row.id,
       name: row.name,
-      sku: "",
+      sku: defaultVariant?.skuCode ?? "",
+      skuCodes: variants.map((variant) => variant.skuCode),
+      barcodes: variants.flatMap((variant) => (variant.barcode ? [variant.barcode] : [])),
+      retailPrice: defaultVariant?.price,
+      costPrice: defaultVariant?.avgCostPrice ?? undefined,
       category: row.categoryId ? categoryNames.get(row.categoryId) ?? "Chưa phân loại" : "Chưa phân loại",
       categoryId: row.categoryId ?? undefined,
       brand: row.brandId ? brandNames.get(row.brandId) : undefined,
@@ -113,7 +152,7 @@ export const fetchProductsBundle = async (): Promise<ProductsBundle> => {
       unit: row.baseUnit,
       images: row.images,
       imageUrls: row.images.map((image) => image.url),
-      variantCount: 0,
+      variantCount: variants.length,
       lazadaSkuCount: lazadaByProduct.get(row.id) ?? 0,
       shopeeSkuCount: shopeeByProduct.get(row.id) ?? 0,
       stock: 0,

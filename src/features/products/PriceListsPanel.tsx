@@ -1181,7 +1181,7 @@ function PriceListMatrixDrawer({
                         <input
                           type="number"
                           min={0}
-                          step={1000}
+                          step={1}
                           value={raw}
                           onChange={(e) =>
                             setDraftPrices((prev) => ({
