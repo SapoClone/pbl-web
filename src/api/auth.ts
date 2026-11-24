@@ -51,9 +51,18 @@ export const register = async (credentials: Registration) => {
 }
 
 export const requestPasswordReset = async (email: string) => {
-  const { data } = await axiosClient.post<string>("/auth/forgot-password", {
-    email
-  })
+  const { data } = await axiosClient.post<{ message: string }>(
+    "/auth/forgot-password",
+    { email }
+  )
+  return data
+}
+
+export const resetPassword = async (token: string, password: string) => {
+  const { data } = await axiosClient.post<{ message: string }>(
+    "/auth/reset-password",
+    { token, password }
+  )
   return data
 }
 

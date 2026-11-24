@@ -37,6 +37,7 @@ import {
   type PosCheckoutInput,
   type PosShiftApi
 } from "@/api/sales/orders"
+import { evaluateCoupon } from "@/api/sales/promotions"
 import { products as demoCatalogProducts } from "@/shared/dashboard/dashboard.mock"
 import { useStoreAuth } from "@/store/zustand/useStoreAuth"
 
@@ -90,6 +91,22 @@ type CompletedReceipt = {
 }
 
 const DEMO_BRANCH_ID = "demo-branch"
+/** The server's reason when it refused the coupon; null when the call simply failed (404, network, 5xx) */
+const couponRefusalReason = (error: unknown): string | null => {
+  const response = (
+    error as {
+      response?: { status?: number; data?: { errorCode?: unknown } }
+    }
+  )?.response
+  if (!response) return null
+  const refused =
+    [400, 409, 422].includes(response.status ?? 0) ||
+    (response.status === 404 && typeof response.data?.errorCode === "string")
+  return refused
+    ? salesErrorMessage(error, "Mã giảm giá không hợp lệ hoặc đã hết hiệu lực.")
+    : null
+}
+
 const money = (value: number) => `${Math.round(value).toLocaleString("vi-VN")} ₫`
 
 const COUPON_PRESETS: Record<string, { label: string; percent?: number; amount?: number }> = {
@@ -382,6 +399,39 @@ export function PosPage() {
   )
   const totalQty = cart.reduce((sum, item) => sum + item.quantity, 0)
 
+  // a real coupon is priced by the server (preview only: checkout prices the order again);
+  // evaluated once the cashier stops typing, never on every key
+  const couponCode = currentTab.couponCode.trim().toUpperCase()
+  const [settledCoupon, setSettledCoupon] = useState("")
+  useEffect(() => {
+    const timer = setTimeout(() => setSettledCoupon(couponCode), 500)
+    return () => clearTimeout(timer)
+  }, [couponCode])
+  const couponEvaluation = useQuery({
+    queryKey: ["pos-coupon-evaluate", settledCoupon, subtotal, selectedBranchId],
+    queryFn: () =>
+      evaluateCoupon({
+        code: settledCoupon,
+        orderAmount: subtotal,
+        branchId: selectedBranchId
+      }),
+    enabled:
+      !isDemo &&
+      Boolean(settledCoupon) &&
+      settledCoupon === couponCode &&
+      subtotal > 0 &&
+      Boolean(selectedBranchId),
+    retry: false,
+    staleTime: 0
+  })
+  const couponRefusal = couponEvaluation.isError
+    ? couponRefusalReason(couponEvaluation.error)
+    : null
+  const serverCouponDiscount =
+    couponEvaluation.isSuccess && settledCoupon === couponCode
+      ? Math.min(subtotal, Math.max(0, couponEvaluation.data.discountAmountVnd))
+      : null
+
   const discountAmount = useMemo(() => {
     if (subtotal <= 0) return 0
     const rawVal = Number(currentTab.discountInput) || 0
@@ -390,19 +440,23 @@ export function PosPage() {
         ? Math.round((subtotal * Math.min(100, Math.max(0, rawVal))) / 100)
         : Math.max(0, rawVal)
 
-    const code = currentTab.couponCode.trim().toUpperCase()
-    const preset = COUPON_PRESETS[code]
-    const couponDiscount = preset
+    const preset = COUPON_PRESETS[couponCode]
+    const presetDiscount = preset
       ? preset.percent
         ? Math.round((subtotal * preset.percent) / 100)
         : (preset.amount ?? 0)
       : 0
+    // refused coupon: no discount; no answer (404, network): the client preset
+    const couponDiscount =
+      serverCouponDiscount ?? (couponRefusal ? 0 : presetDiscount)
 
     return Math.min(subtotal, manualDiscount + couponDiscount)
   }, [
-    currentTab.couponCode,
+    couponCode,
+    couponRefusal,
     currentTab.discountInput,
     currentTab.discountMode,
+    serverCouponDiscount,
     subtotal
   ])
 
@@ -590,7 +644,6 @@ export function PosPage() {
     }
     // the server prices the sale (discount, coupon) and takes the exact total: the page sends what the cashier chose
     const manualDiscount = Number(currentTab.discountInput) || 0
-    const couponCode = currentTab.couponCode.trim().toUpperCase()
     const method = {
       cash: "CASH",
       card: "CARD",
@@ -1079,6 +1132,17 @@ export function PosPage() {
                   placeholder="SALE10, VIP50K..."
                   className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2.5 font-mono text-xs uppercase outline-none focus:border-[#16866f]"
                 />
+                {couponRefusal && (
+                  <p className="mt-1 text-[11px] font-medium text-red-600">
+                    {couponRefusal}
+                  </p>
+                )}
+                {serverCouponDiscount !== null && couponEvaluation.data && (
+                  <p className="mt-1 text-[11px] font-medium text-[#147853]">
+                    {couponEvaluation.data.promotionName}: giảm{" "}
+                    {money(serverCouponDiscount)}
+                  </p>
+                )}
                 <datalist id="pos-coupon-presets">
                   {Object.entries(COUPON_PRESETS).map(([code, meta]) => (
                     <option key={code} value={code}>
@@ -1137,7 +1201,7 @@ export function PosPage() {
                   <input
                     type="number"
                     min="0"
-                    step="1000"
+                    step="1"
                     value={currentTab.cashTendered}
                     onChange={(e) =>
                       updateCurrentTab({ cashTendered: e.target.value })
@@ -1393,7 +1457,7 @@ function PosShiftModal({
                 <input
                   type="number"
                   min="0"
-                  step="1000"
+                  step="1"
                   required
                   value={openingCash}
                   onChange={(e) => setOpeningCash(e.target.value)}
@@ -1424,7 +1488,7 @@ function PosShiftModal({
                 <input
                   type="number"
                   min="0"
-                  step="1000"
+                  step="1"
                   required
                   value={actualCash}
                   onChange={(e) => setActualCash(e.target.value)}
