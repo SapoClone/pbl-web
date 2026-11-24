@@ -20,6 +20,7 @@ import {
 } from "lucide-react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { listActiveVariants } from "@/api/catalog/variants"
+import { apiErrorCode } from "@/api/error-code"
 import {
   cancelOrder,
   completeOrder,
@@ -1573,7 +1574,18 @@ function LazadaPackAndPrintModal({
   )
 }
 
-function OrderReturnModal({
+const returnErrorMessage = (error: unknown) => {
+  if (apiErrorCode(error) === "SHIFT_REQUIRED") {
+    return "Cần có ca thu ngân đang mở để hoàn tiền mặt. Hãy mở ca bán hàng trước."
+  }
+  const message = (error as { response?: { data?: { message?: unknown } } })
+    ?.response?.data?.message
+  return typeof message === "string" && message
+    ? message
+    : "Không thể tạo phiếu trả hàng. Vui lòng thử lại."
+}
+
+export function OrderReturnModal({
   order,
   isDemo,
   onClose,
@@ -1631,12 +1643,14 @@ function OrderReturnModal({
               refundTotal > 0
                 ? { method: refundMethod, amount: refundTotal }
                 : undefined
-          }).catch(() => null)
+          })
         }
       }
       await onSuccess(
         `Đã tạo phiếu trả hàng cho đơn ${order.externalOrderCode || order.id} (${selectedLines.length} SKU · Hoàn tiền ${refundTotal.toLocaleString("vi-VN")} ₫${restock ? " · Đã nhập lại kho" : ""}).`
       )
+    } catch (returnError) {
+      setError(returnErrorMessage(returnError))
     } finally {
       setPending(false)
     }
