@@ -70,13 +70,14 @@ function todayLabel() {
 
 type DailySales = { totals: { revenue: number; orderCount: number } }
 type ChannelReport = {
-  data: { channelType: string; netSalesRevenue: number }[]
+  data: { channelType: string; netSalesRevenue: number; returnsAmount?: number }[]
 }
 type ProductReport = {
   data: { skuCode: string; unitsSold: string | number }[]
 }
 type ValuationReport = {
-  warehouses: { branchId?: string | null; skuCount: number; totalValuation: number }[]
+  // Backend quirk: `branchId` holds the warehouse id here (equal to `warehouseId`), not the platform branch id
+  warehouses: { warehouseId: string; branchId?: string | null; skuCount: number; totalValuation: number }[]
 }
 type OrderList = {
   data: { code: string; customerName: string | null; totalAmount: number }[]
@@ -97,6 +98,17 @@ async function mainBranchId(): Promise<string> {
   const branch = list.data.find((b) => b.name === branches.main.name) ?? list.data[0]
   expect(branch, "the main branch exists (01)").toBeTruthy()
   return branch!.id
+}
+
+/** The default warehouse of the main branch: the id the valuation report uses for its row. */
+async function mainWarehouseId(branchId: string): Promise<string> {
+  const res = await gw<{ id: string; isDefault?: boolean }[] | { data: { id: string; isDefault?: boolean }[] }>(
+    `/inventory/api/v1/warehouses?branchId=${branchId}`,
+  )
+  const list = Array.isArray(res) ? res : res.data
+  const warehouse = list.find((w) => w.isDefault) ?? list[0]
+  expect(warehouse, "the main branch has a warehouse").toBeTruthy()
+  return warehouse!.id
 }
 
 /** The value paragraph of a MetricCard, reached through its label paragraph. */
@@ -208,9 +220,12 @@ test("F12.2 Reports by channel: the in-store channel, the range chip and the mai
           const shown = parseMoney(await row.getByRole("cell").nth(5).innerText())
           const api = await gw<ChannelReport>(`${channelPath}?from=${from}&to=${to}`)
           const posRow = api.data.find((r) => isPosChannel(r.channelType))
-          return Boolean(posRow) && shown >= minRevenue && shown === Number(posRow!.netSalesRevenue)
+          // The report is NET of returns (spec 10 returns a 65.000 VND phin before this spec runs on a fresh store), so the
+          // sales made by 09 are what net revenue plus the returned amount adds up to
+          const returned = Number(posRow?.returnsAmount ?? 0)
+          return Boolean(posRow) && shown + returned >= minRevenue && shown === Number(posRow!.netSalesRevenue)
         },
-        { timeout: 60_000, message: `The POS channel never showed >= ${vnd(minRevenue)} VND matching by-channel` },
+        { timeout: 60_000, message: `The POS channel never showed net revenue (+ returns) >= ${vnd(minRevenue)} VND matching by-channel` },
       )
       .toBe(true)
 
@@ -232,10 +247,12 @@ test("F12.2 Reports by channel: the in-store channel, the range chip and the mai
     const api = await gw<ChannelReport>(`${channelPath}?from=${thirtyFrom}&to=${to}`)
     const posRow = api.data.find((r) => isPosChannel(r.channelType))
     expect(posRow, "the POS channel is in the 30-day report").toBeTruthy()
-    expect(Number(posRow!.netSalesRevenue)).toBeGreaterThanOrEqual(minRevenue)
+    // net of returns: what 09 sold = net revenue + the amount spec 10 returned
+    const returned30 = Number(posRow!.returnsAmount ?? 0)
+    expect(Number(posRow!.netSalesRevenue) + returned30).toBeGreaterThanOrEqual(minRevenue)
     await expect
       .poll(async () => parseMoney(await inStoreRow(page).getByRole("cell").nth(5).innerText()))
-      .toBeGreaterThanOrEqual(minRevenue)
+      .toBeGreaterThanOrEqual(minRevenue - returned30)
   })
 
   await step("Choosing the main branch keeps the in-store figure", async () => {
@@ -251,12 +268,14 @@ test("F12.2 Reports by channel: the in-store channel, the range chip and the mai
       gw<ChannelReport>(`${channelPath}?from=${thirtyFrom}&to=${to}&branchId=${branchId}`),
     ])
     const netAll = Number(allBranches.data.find((r) => isPosChannel(r.channelType))?.netSalesRevenue ?? 0)
-    const netMain = Number(mainBranch.data.find((r) => isPosChannel(r.channelType))?.netSalesRevenue ?? 0)
+    const mainRow = mainBranch.data.find((r) => isPosChannel(r.channelType))
+    const netMain = Number(mainRow?.netSalesRevenue ?? 0)
+    const returnedMain = Number(mainRow?.returnsAmount ?? 0)
     expect(netMain).toBe(netAll)
-    expect(netMain).toBeGreaterThanOrEqual(minRevenue)
+    expect(netMain + returnedMain).toBeGreaterThanOrEqual(minRevenue)
     await expect
       .poll(async () => parseMoney(await inStoreRow(page).getByRole("cell").nth(5).innerText()))
-      .toBeGreaterThanOrEqual(minRevenue)
+      .toBeGreaterThanOrEqual(minRevenue - returnedMain)
   })
 })
 
@@ -303,7 +322,7 @@ test("F12.3 Products tab: Arabica is a top SKU with at least 2 units; the SKU fi
 
 test("F12.4 Inventory tab: the main warehouse shows 3 SKUs and its stock valuation", async ({ page, step }) => {
   const { to } = defaultRange()
-  const branchId = await mainBranchId()
+  const warehouseId = await mainWarehouseId(await mainBranchId())
   const valuationTable = page
     .locator("table")
     .filter({ has: page.getByRole("columnheader", { name: "Tổng giá trị vốn" }) })
@@ -321,7 +340,7 @@ test("F12.4 Inventory tab: the main warehouse shows 3 SKUs and its stock valuati
           await page.reload()
           await settled(page)
           const api = await gw<ValuationReport>(`${valuationPath}?date=${to}`)
-          const warehouse = api.warehouses.find((w) => w.branchId === branchId)
+          const warehouse = api.warehouses.find((w) => w.warehouseId === warehouseId)
           if (!warehouse) return false
           const row = valuationTable.getByRole("row").filter({ hasText: branches.main.name })
           if ((await row.count()) !== 1) return false
@@ -341,7 +360,7 @@ test("F12.4 Inventory tab: the main warehouse shows 3 SKUs and its stock valuati
 
   await step("The SKUs and the valuation are real stock data, not zeros", async () => {
     const api = await gw<ValuationReport>(`${valuationPath}?date=${to}`)
-    const warehouse = api.warehouses.find((w) => w.branchId === branchId)
+    const warehouse = api.warehouses.find((w) => w.warehouseId === warehouseId)
     expect(warehouse, "the main warehouse is in the valuation").toBeTruthy()
     expect(warehouse!.skuCount).toBe(Object.keys(catalog.products).length)
     expect(warehouse!.totalValuation).toBeGreaterThan(0)
