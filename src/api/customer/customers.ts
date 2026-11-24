@@ -48,6 +48,8 @@ export type Customer = {
   loyaltyEnabled?: boolean
   pointsBalance?: number | null
   loyaltyPoints?: number
+  /** The balance as the full customer rows (`items`) carry it */
+  loyalty?: { availablePoints?: number | null } | null
   debtLimit?: string | number | null
   currentDebt?: string | number | null
   address?: string | null

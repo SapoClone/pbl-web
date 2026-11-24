@@ -6,7 +6,7 @@ import { Layout } from "@/components/layout"
 import { ToastViewport } from "@/components/ui/toast"
 import { useStoreAuth } from "@/store/zustand/useStoreAuth"
 
-const publicPaths = ["/login", "/register", "/forgot-password"]
+const publicPaths = ["/login", "/register", "/forgot-password", "/reset-password"]
 const tenantOnboardingPath = "/onboarding-tenant"
 
 export const Route = rootRouteWithContext<{

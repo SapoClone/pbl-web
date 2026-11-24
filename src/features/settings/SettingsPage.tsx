@@ -66,6 +66,13 @@ const DEMO_BRANCHES: Branch[] = [
   }
 ]
 
+/** The server's message when the answer carries a text one, else `fallback` */
+const serverMessage = (error: unknown, fallback: string) => {
+  const message = (error as { response?: { data?: { message?: unknown } } })
+    ?.response?.data?.message
+  return typeof message === "string" && message ? message : fallback
+}
+
 export function SettingsPage() {
   const isDemo = Boolean(useStoreAuth((state) => state.tokens?.isDemo))
   const queryClient = useQueryClient()
@@ -76,6 +83,8 @@ export function SettingsPage() {
   const [demoBranches, setDemoBranches] = useState<Branch[]>(DEMO_BRANCHES)
   const [demoTenant, setDemoTenant] = useState(DEMO_TENANT)
   const [error, setError] = useState("")
+  const [tenantError, setTenantError] = useState("")
+  const [tenantSaved, setTenantSaved] = useState("")
 
   const tenantQuery = useQuery({
     queryKey: ["current-tenant"],
@@ -108,10 +117,19 @@ export function SettingsPage() {
         email: tenant.email,
         address: tenant.address
       })
-      setError("")
+      setTenantError("")
+      setTenantSaved("Đã lưu thông tin cửa hàng")
       if (!isDemo) await queryClient.invalidateQueries({ queryKey: ["current-tenant"] })
     },
-    onError: () => setError("Không thể cập nhật thông tin cửa hàng. Hãy kiểm tra dữ liệu và quyền tài khoản.")
+    onError: (e) => {
+      setTenantSaved("")
+      setTenantError(
+        serverMessage(
+          e,
+          "Không thể cập nhật thông tin cửa hàng. Hãy kiểm tra dữ liệu và quyền tài khoản."
+        )
+      )
+    }
   })
   const createMutation = useMutation({
     mutationFn: async (input: CreateBranchInput) => {
@@ -137,7 +155,13 @@ export function SettingsPage() {
       setError("")
       if (!isDemo) await queryClient.invalidateQueries({ queryKey: ["branches"] })
     },
-    onError: () => setError("Không thể tạo chi nhánh. Hãy kiểm tra mã chi nhánh và quyền tài khoản.")
+    onError: (e) =>
+      setError(
+        serverMessage(
+          e,
+          "Không thể tạo chi nhánh. Hãy kiểm tra mã chi nhánh và quyền tài khoản."
+        )
+      )
   })
   const editMutation = useMutation({
     mutationFn: async ({ id, input }: { id: string; input: CreateBranchInput }) => {
@@ -167,7 +191,13 @@ export function SettingsPage() {
       setError("")
       if (!isDemo) await queryClient.invalidateQueries({ queryKey: ["branches"] })
     },
-    onError: () => setError("Không thể cập nhật chi nhánh. Hãy kiểm tra dữ liệu và quyền tài khoản.")
+    onError: (e) =>
+      setError(
+        serverMessage(
+          e,
+          "Không thể cập nhật chi nhánh. Hãy kiểm tra dữ liệu và quyền tài khoản."
+        )
+      )
   })
   const updateMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: "active" | "inactive" }) => {
@@ -177,7 +207,9 @@ export function SettingsPage() {
       }
       return updateBranch(id, { status })
     },
-    onSuccess: () => !isDemo && queryClient.invalidateQueries({ queryKey: ["branches"] })
+    onSuccess: () => !isDemo && queryClient.invalidateQueries({ queryKey: ["branches"] }),
+    onError: (e) =>
+      setError(serverMessage(e, "Không thể cập nhật trạng thái chi nhánh."))
   })
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -188,7 +220,13 @@ export function SettingsPage() {
       return deleteBranch(id)
     },
     onSuccess: () => !isDemo && queryClient.invalidateQueries({ queryKey: ["branches"] }),
-    onError: () => setError("Không thể xóa chi nhánh cuối cùng hoặc chi nhánh đang được sử dụng.")
+    onError: (e) =>
+      setError(
+        serverMessage(
+          e,
+          "Không thể xóa chi nhánh cuối cùng hoặc chi nhánh đang được sử dụng."
+        )
+      )
   })
 
   const tenant = isDemo || tenantQuery.isError ? demoTenant : tenantQuery.data
@@ -202,7 +240,8 @@ export function SettingsPage() {
 
   const submitTenant = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    setError("")
+    setTenantError("")
+    setTenantSaved("")
     tenantMutation.mutate({
       name: tenantValues.name.trim(),
       phone: tenantValues.phone.trim() || null,
@@ -301,6 +340,8 @@ export function SettingsPage() {
               Địa chỉ
               <input className={`${tenantInputClassName} mt-2`} value={tenantValues.address} onChange={(event) => setTenantForm({ ...tenantForm, address: event.target.value })} maxLength={255} />
             </label>
+            {tenantError && <p className="text-sm text-red-600 md:col-span-2" role="alert">{tenantError}</p>}
+            {tenantSaved && <p className="text-sm text-emerald-700 md:col-span-2" role="status">{tenantSaved}</p>}
             <div className="flex items-center justify-between md:col-span-2">
               <span className="flex items-center gap-1.5 text-xs text-slate-500">
                 <span className={`h-2 w-2 rounded-full ${tenant.status === "active" ? "bg-emerald-500" : "bg-amber-500"}`} />

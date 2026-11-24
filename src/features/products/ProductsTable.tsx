@@ -73,7 +73,7 @@ export function ProductsTable({
     () =>
       rows.filter((product) => {
         const matchesQuery =
-          `${product.name} ${product.sku ?? ""} ${product.brand ?? ""} ${product.category}`
+          `${product.name} ${product.sku ?? ""} ${(product.skuCodes ?? []).join(" ")} ${(product.barcodes ?? []).join(" ")} ${product.brand ?? ""} ${product.category}`
             .toLowerCase()
             .includes(query.toLowerCase())
         const matchesStatus =

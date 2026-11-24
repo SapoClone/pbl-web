@@ -14,6 +14,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     "/login",
     "/register",
     "/forgot-password",
+    "/reset-password",
     "/onboarding-tenant"
   ].includes(pathname)
 
