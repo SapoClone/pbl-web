@@ -45,8 +45,6 @@ Only `01-auth-and-onboarding` needs a fresh world (`npm test`, or `E2E_FRESH=1`)
 
 | Flow | Why |
 |---|---|
-| Search the product list by SKU | app regression of the redesigned products page: the list never loads SKUs (`sku: ""`), so the page's own filter cannot match a SKU; the backend's `q` search could be used |
-| The combo card shows the combo's price | app bug: the redesigned products page never sets `retailPrice`, so the card shows `Giá Combo: 0 ₫` and a -100% saving |
 | Connect a Lazada / Shopee shop | needs the real marketplace (OAuth, seller account) |
 | Product image upload | not tested: needs S3 |
 

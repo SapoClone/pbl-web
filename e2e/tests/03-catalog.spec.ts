@@ -358,15 +358,8 @@ test("F03.4 Search, the status filter and the empty state", async ({ page, step 
   })
 })
 
-/** The original F03.4 assertion, kept so the SKU-search regression cannot be forgotten. */
+/** Search by a SKU: the list carries every variant's SKU (fixed in pbl-web #30; the redesign had hard-coded sku: "") */
 test("F03.4 Search by SKU finds exactly the Arabica product", async ({ page, step }) => {
-  test.fixme(
-    true,
-    "App regression after pbl-web #25/#26: ProductsTable filters on product.sku, but fetchProductsBundle " +
-      "(src/features/products/ProductsPage.tsx) hardcodes sku: '' on every row, so typing CF-ARA-250 in " +
-      "'Tìm tên sản phẩm, mã SKU...' matches nothing and shows 'Không tìm thấy sản phẩm'. Remove this line " +
-      "when the product bundle carries SKUs again.",
-  )
   await page.goto("/products")
   await settled(page)
   await step("Searching 'CF-ARA-250' finds exactly the Arabica product", async () => {
@@ -627,22 +620,8 @@ test("F03.8 Combo: build a combo from two variants of the catalogue", async ({ p
   })
 })
 
-/**
- * App bug in the fixed web, isolated from the passing creation flow above (same pattern as the F03.4 SKU fixme).
- * fetchProductsBundle in ProductsPage.tsx maps real products with `price: "—"` and NO `retailPrice`, while
- * ProductCombosPanel.tsx builds each card with `comboPrice: p.retailPrice ?? 0`. The saved card therefore reads
- * "Giá Combo: 0 ₫" / "Khách tiết kiệm 200.000 ₫ (-100%)" even though the POST created the combo's default variant
- * with basePrice 190000 (GET /products/{id}/variants) and the builder itself showed the right saving before saving.
- */
+/** The saved combo card shows the price of its own variant (fixed in pbl-web #30: the page never set retailPrice). */
 test("F03.8 The saved Combo price is shown on its card", async ({ page, step }) => {
-  test.fixme(
-    true,
-    "App bug: ProductsPage.fetchProductsBundle never sets product.retailPrice, " +
-      "but ProductCombosPanel reads `p.retailPrice ?? 0` for every Combo card, so a combo saved at 190.000 VND is " +
-      "listed as 'Giá Combo: 0 ₫' with 'Khách tiết kiệm 200.000 ₫ (-100%)'. The backend is correct: the combo's " +
-      "default variant has basePrice 190000 and GET /products/{id}/combo-items returns lineTotals 135000 and 65000. " +
-      "Fix the bundle mapping (or read the variant price) and remove this fixme.",
-  )
   // The serial F03.8 test above leaves the combo in the shared store; only the display assertion is missing from it.
   await page.goto("/products")
   await settled(page)
