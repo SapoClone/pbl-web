@@ -95,6 +95,10 @@ function getRequestErrorMessage(requestError: unknown) {
     : []
 
   if (details.length > 0) return details.join(" ")
+  // an invalid, expired or already used reset link (the server's text is English)
+  if ((responseData as { errorCode?: unknown } | undefined)?.errorCode === "E014") {
+    return "Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn. Hãy yêu cầu liên kết mới."
+  }
   if (typeof responseData?.message === "string") {
     return responseData.message === "Validation failed"
       ? "Thông tin đăng ký chưa đúng. Vui lòng kiểm tra email và mật khẩu."
@@ -238,17 +242,14 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
         setTokens(tokens)
         await navigate({ to: "/onboarding-tenant" })
       } else if (mode === "reset") {
-        const result = await resetPassword(resetToken, password)
-        setMessage(
-          result?.message || "Mật khẩu đã được đặt lại. Bạn có thể đăng nhập bằng mật khẩu mới."
-        )
+        await resetPassword(resetToken, password)
+        // fixed Vietnamese text: the server's reply is English
+        setMessage("Mật khẩu đã được đặt lại. Bạn có thể đăng nhập bằng mật khẩu mới.")
         setResetDone(true)
       } else {
-        const result = await requestPasswordReset(email)
-        setMessage(
-          result?.message ||
-            "Nếu email tồn tại, hướng dẫn đặt lại mật khẩu sẽ được gửi sớm."
-        )
+        await requestPasswordReset(email)
+        // the same sentence for any email (the server never says whether the account exists)
+        setMessage("Nếu email tồn tại, hướng dẫn đặt lại mật khẩu sẽ được gửi sớm.")
       }
     } catch (requestError) {
       setError(getRequestErrorMessage(requestError))

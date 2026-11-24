@@ -74,14 +74,16 @@ describe("sign-in errors", () => {
 })
 
 describe("password reset", () => {
-  it("shows the server message after a reset request", async () => {
+  it("shows the Vietnamese neutral sentence after a reset request, whatever the server's English text", async () => {
     vi.mocked(authApi.requestPasswordReset).mockResolvedValue({
-      message: "Đã gửi email."
+      message: "If an account exists for this email, a password reset link has been sent"
     })
     render(<AuthPage mode="forgot" />)
     fill("ban@cuahang.vn", "a@b.vn")
     fireEvent.click(screen.getByRole("button", { name: /Gửi liên kết/ }))
-    expect(await screen.findByText("Đã gửi email.")).toBeTruthy()
+    expect(
+      await screen.findByText("Nếu email tồn tại, hướng dẫn đặt lại mật khẩu sẽ được gửi sớm.")
+    ).toBeTruthy()
   })
 
   it("flags a missing token with a link to /forgot-password", () => {
@@ -94,7 +96,7 @@ describe("password reset", () => {
 
   it("resets the password with the token from the URL", async () => {
     setUrl("/reset-password?token=abc123")
-    vi.mocked(authApi.resetPassword).mockResolvedValue({ message: "Xong." })
+    vi.mocked(authApi.resetPassword).mockResolvedValue({ message: "Your password has been reset." })
     render(<AuthPage mode="reset" />)
     fill("Nhập mật khẩu mới", "newpass1")
     fill("Nhập lại mật khẩu", "newpass1")
@@ -102,7 +104,9 @@ describe("password reset", () => {
     await waitFor(() =>
       expect(authApi.resetPassword).toHaveBeenCalledWith("abc123", "newpass1")
     )
-    expect(await screen.findByText("Xong.")).toBeTruthy()
+    expect(
+      await screen.findByText("Mật khẩu đã được đặt lại. Bạn có thể đăng nhập bằng mật khẩu mới.")
+    ).toBeTruthy()
     expect(screen.getByRole("link", { name: "Đăng nhập" }).getAttribute("href")).toBe(
       "/login"
     )
@@ -118,12 +122,14 @@ describe("password reset", () => {
     expect(authApi.resetPassword).not.toHaveBeenCalled()
 
     vi.mocked(authApi.resetPassword).mockRejectedValue(
-      httpError(400, { errorCode: "E014", message: "Liên kết không hợp lệ hoặc đã hết hạn." })
+      httpError(400, { errorCode: "E014", message: "The reset link is invalid or has expired" })
     )
     fill("Nhập lại mật khẩu", "newpass1")
     fireEvent.click(screen.getByRole("button", { name: /Đặt lại mật khẩu/ }))
     expect(
-      await screen.findByText("Liên kết không hợp lệ hoặc đã hết hạn.")
+      await screen.findByText(
+        "Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn. Hãy yêu cầu liên kết mới."
+      )
     ).toBeTruthy()
   })
 })
